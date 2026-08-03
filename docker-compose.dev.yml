@@ -1,0 +1,37 @@
+# PostgreSQL de DÉVELOPPEMENT — conteneur dédié à SoftInventory.
+#
+#   docker compose -f docker-compose.dev.yml up -d      # démarrer
+#   docker compose -f docker-compose.dev.yml stop       # arrêter (données conservées)
+#   docker compose -f docker-compose.dev.yml down -v    # ⚠ supprime AUSSI les données
+#
+# Ne contient QUE la base : l'application tourne en local (`pnpm dev`), pas en
+# conteneur — c'est ce qui rend le rechargement à chaud utilisable.
+# La pile de production complète (app + db + cron) vit dans docker-compose.yml.
+name: softinventory-dev
+
+services:
+  db:
+    image: postgres:17-alpine
+    container_name: softinventory-db
+    restart: unless-stopped
+    # Port hôte 5433 : laisse le 5432 libre pour un autre PostgreSQL local
+    # (le projet frère culturesa-next l'occupe déjà sur ce poste).
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_USER: softinventory
+      POSTGRES_PASSWORD: dev
+      POSTGRES_DB: softinventory
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U softinventory -d softinventory"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pgdata:
+    # Nom FIGÉ (sans préfixe de projet) : les données survivent au renommage du
+    # dossier ou du projet compose.
+    name: softinventory-pgdata

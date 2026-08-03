@@ -1,0 +1,54 @@
+{
+  "name": "softinventory",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "prisma generate && next build",
+    "start": "next start",
+    "lint": "biome check .",
+    "format": "biome format --write .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:deploy": "prisma migrate deploy",
+    "db:studio": "prisma studio",
+    "db:init": "tsx prisma/seed-init.ts",
+    "db:backup": "tsx prisma/backup.ts",
+    "postinstall": "prisma generate"
+  },
+  "dependencies": {
+    "@prisma/adapter-pg": "^7.8.0",
+    "@prisma/client": "^7.8.0",
+    "better-auth": "^1.6.25",
+    "ldapts": "^8.0.10",
+    "lucide-react": "^0.545.0",
+    "next": "^16.2.12",
+    "nodemailer": "^9.0.1",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.5.1",
+    "@tailwindcss/postcss": "^4.3.1",
+    "@types/node": "^22.20.0",
+    "@types/nodemailer": "^8.0.1",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "cross-env": "^10.1.0",
+    "dotenv": "^17.4.2",
+    "prisma": "^7.8.0",
+    "tailwindcss": "^4.3.1",
+    "tsx": "^4.22.4",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.10"
+  },
+  "packageManager": "pnpm@11.5.0",
+  "engines": {
+    "node": ">=22"
+  }
+}

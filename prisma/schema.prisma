@@ -1,0 +1,758 @@
+// ════════════════════════════════════════════════════════════════════════════
+//  SoftInventory — schéma Prisma
+//
+//  Conventions (héritées de culturesa-next) :
+//  - Modèles PascalCase, tables @@map("snake_case") ; champs camelCase,
+//    colonnes @map("snake_case") quand le nom diffère.
+//  - Horodatages en @db.Timestamptz, dates métier en @db.Date.
+//  - onDelete explicite sur chaque relation ; @@index sur chaque clé étrangère.
+//  - Ids Int autoincrement pour les tables métier ; String cuid pour les tables
+//    Better Auth (leur forme fait contrat avec la bibliothèque).
+// ════════════════════════════════════════════════════════════════════════════
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  // L'URL vit dans prisma.config.ts (process.env.DATABASE_URL) : `prisma generate`
+  // ne doit jamais échouer faute de base joignable.
+}
+
+// ============================================================
+//  Enums
+// ============================================================
+
+/// Deux niveaux seulement : l'application est interne à la DSI.
+/// `lecteur` consulte tout ; `admin` gère tout (inventaire, référentiels, comptes).
+enum Role {
+  lecteur
+  admin
+}
+
+/// Mode d'hébergement d'un logiciel.
+enum Hebergement {
+  saas
+  on_premise
+  hybride
+}
+
+/// Position dans le cycle de vie.
+enum CycleDeVie {
+  evaluation
+  production
+  fin_de_vie
+  abandonne
+}
+
+/// Modèle de diffusion.
+enum TypeSource {
+  opensource
+  proprietaire
+  mixte
+}
+
+/// Comment les utilisateurs s'authentifient dans le logiciel.
+enum ModeAuthentification {
+  locale
+  sso
+  ldap
+  mixte
+  aucune
+}
+
+/// Où les données du logiciel sont hébergées (volet RGPD).
+enum LocalisationDonnees {
+  ue
+  hors_ue
+  mixte
+  inconnue
+}
+
+/// Habillage des statuts du cycle de vie : le LIBELLÉ et la COULEUR sont
+/// administrables, la clé ne l'est pas. Les quatre clés pilotent la logique
+/// (filtres, rappels, export) et restent portées par l'enum `CycleDeVie` :
+/// pouvoir en ajouter ou en supprimer laisserait des fiches orphelines.
+model StatutLogiciel {
+  id       Int        @id @default(autoincrement())
+  cle      CycleDeVie @unique
+  label    String
+  couleur  String     @default("#94a3b8")
+  position Int        @default(0)
+
+  @@map("statuts_logiciels")
+}
+
+/// Nature d'une ligne de contrat.
+enum TypeContrat {
+  perpetuelle
+  abonnement
+  libre
+  autre
+}
+
+/// Environnement d'une installation sur un serveur.
+enum Environnement {
+  production
+  test
+  recette
+  formation
+}
+
+// ============================================================
+//  Authentification (Better Auth) — formes contractuelles
+// ============================================================
+
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  emailVerified Boolean  @default(false)
+  name          String   @default("")
+  image         String?
+  createdAt     DateTime @default(now()) @db.Timestamptz
+  updatedAt     DateTime @updatedAt @db.Timestamptz
+
+  // Champs métier additionnels (déclarés aussi dans server/auth.ts + lib/auth-client.ts)
+  prenom           String    @default("")
+  nom              String    @default("")
+  tel              String    @default("")
+  role             Role      @default(lecteur)
+  twoFactorEnabled Boolean   @default(false) @map("two_factor_enabled")
+  lastLoginAt      DateTime? @map("last_login_at") @db.Timestamptz
+  // Compte provisionné depuis l'annuaire LDAP/AD : son rôle suit le mapping des
+  // groupes à chaque connexion, et il n'a pas de mot de passe local.
+  ldap             Boolean   @default(false)
+
+  sessions        Session[]
+  accounts        Account[]
+  twoFactors      TwoFactor[]
+  tachesAssignees TacheRecurrente[]
+
+  @@map("users")
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  expiresAt DateTime @db.Timestamptz
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now()) @db.Timestamptz
+  updatedAt DateTime @updatedAt @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id @default(cuid())
+  accountId             String
+  providerId            String
+  userId                String
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime? @db.Timestamptz
+  refreshTokenExpiresAt DateTime? @db.Timestamptz
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now()) @db.Timestamptz
+  updatedAt             DateTime  @updatedAt @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id @default(cuid())
+  identifier String
+  value      String
+  expiresAt  DateTime @db.Timestamptz
+  createdAt  DateTime @default(now()) @db.Timestamptz
+  updatedAt  DateTime @updatedAt @db.Timestamptz
+
+  @@index([identifier])
+  @@map("verification")
+}
+
+// Second facteur TOTP. Schéma imposé par le plugin twoFactor de Better Auth :
+// les NOMS DE CHAMPS Prisma font contrat avec lui, seuls les noms de colonnes
+// sont libres. `id` est indispensable : l'adaptateur en génère un pour tout
+// enregistrement créé (son absence casse l'écriture — leçon de culturesa-next).
+model TwoFactor {
+  id                      String    @id @default(cuid())
+  secret                  String
+  backupCodes             String    @map("backup_codes")
+  userId                  String    @map("user_id")
+  verified                Boolean   @default(true)
+  failedVerificationCount Int       @default(0) @map("failed_verification_count")
+  lockedUntil             DateTime? @map("locked_until") @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([secret])
+  @@index([userId])
+  @@map("two_factor")
+}
+
+// Quota par IP de Better Auth, persisté en base (un redémarrage ne remet pas les
+// compteurs à zéro). `id` INDISPENSABLE : l'adaptateur Prisma de Better Auth en
+// génère un pour tout enregistrement — sans lui, toute connexion échoue.
+model RateLimit {
+  id          String @id @default(cuid())
+  key         String @unique
+  count       Int    @default(0)
+  lastRequest BigInt @default(0) @map("last_request")
+
+  @@map("rate_limits")
+}
+
+// Freinage PAR COMPTE des échecs de connexion (complète le quota par IP :
+// l'un borne une machine qui martèle, l'autre le password spraying).
+model LoginAttempt {
+  emailHash     String    @id @map("email_hash")
+  failures      Int       @default(0) @db.SmallInt
+  lockedUntil   DateTime? @map("locked_until") @db.Timestamptz
+  lastFailureAt DateTime  @default(now()) @map("last_failure_at") @db.Timestamptz
+
+  // Purge des compteurs périmés (tâche de rétention).
+  @@index([lastFailureAt])
+  @@map("login_attempts")
+}
+
+/// Seaux de limitation de débit hors Better Auth. Fenêtre fixe : `count` remis
+/// à 1 quand `resetAt` est dépassé. La clé porte sa portée (`xxx:<ip>`).
+model ThrottleBucket {
+  key     String   @id
+  count   Int      @default(0)
+  resetAt DateTime @map("reset_at") @db.Timestamptz
+
+  @@index([resetAt])
+  @@map("throttle_buckets")
+}
+
+// ============================================================
+//  Référentiels éditables
+//
+//  Tables plutôt qu'enums : un admin non-développeur doit pouvoir ajouter une
+//  technologie, un niveau de criticité ou un type de tâche sans redéploiement.
+//  Les enums restent réservés aux ensembles fermés porteurs de logique.
+// ============================================================
+
+/// Éditeur/fournisseur d'un logiciel, avec ses canaux de support : le support
+/// (portail de tickets, mail, téléphone, horaires) vit AU NIVEAU ÉDITEUR — un
+/// même fournisseur assure le support de tous ses produits.
+model Editeur {
+  id               Int      @id @default(autoincrement())
+  nom              String   @unique
+  adresse          String   @default("")
+  codePostal       String   @default("") @map("code_postal")
+  ville            String   @default("")
+  telephone        String   @default("")
+  email            String   @default("")
+  siteWeb          String   @default("") @map("site_web")
+  supportUrl       String   @default("") @map("support_url")
+  supportEmail     String   @default("") @map("support_email")
+  supportTelephone String   @default("") @map("support_telephone")
+  supportHoraires  String   @default("") @map("support_horaires")
+  notes            String   @default("")
+  createdAt        DateTime @default(now()) @db.Timestamptz
+  updatedAt        DateTime @updatedAt @db.Timestamptz
+
+  logiciels Logiciel[]
+  documents Document[]
+  /// Contrats où cette société est le FOURNISSEUR — celle avec qui la
+  /// collectivité contractualise. C'est souvent l'éditeur du logiciel, mais un
+  /// revendeur (Metsys pour Semperis, Delta Industrie Service pour TX-Visio…)
+  /// a lui aussi sa fiche ici : la table est un annuaire de sociétés.
+  contratsFournis Contrat[] @relation("ContratFournisseur")
+  /// Devis remis par cette société lors des mises en concurrence.
+  devisRemis      Devis[]   @relation("DevisFournisseur")
+
+  @@map("editeurs")
+}
+
+/// Service utilisateur (direction/service de la collectivité qui utilise un
+/// logiciel) : état civil, urbanisme, finances, RH…
+model ServiceUtilisateur {
+  id               Int    @id @default(autoincrement())
+  nom              String @unique
+  contactNom       String @default("") @map("contact_nom")
+  contactEmail     String @default("") @map("contact_email")
+  contactTelephone String @default("") @map("contact_telephone")
+  position         Int    @default(0) @db.SmallInt
+
+  logiciels LogicielService[]
+
+  @@map("services_utilisateurs")
+}
+
+/// Serveur d'hébergement (interne ou hébergé) sur lequel des logiciels tournent.
+model Serveur {
+  id           Int    @id @default(autoincrement())
+  nom          String @unique
+  os           String @default("")
+  localisation String @default("") // salle serveur, datacenter, hébergeur…
+  notes        String @default("")
+
+  logiciels LogicielServeur[]
+
+  @@map("serveurs")
+}
+
+/// Type d'architecture applicative : web, client-serveur, mobile…
+model Technologie {
+  id       Int    @id @default(autoincrement())
+  label    String @unique
+  position Int    @default(0) @db.SmallInt
+
+  logiciels Logiciel[]
+
+  @@map("technologies")
+}
+
+/// Niveau de criticité. `rank` ordonne du moins grave au plus grave (tri +
+/// tableau de bord) ; `couleur` alimente les badges (hex).
+model Criticite {
+  id          Int    @id @default(autoincrement())
+  label       String @unique
+  rank        Int    @default(0) @db.SmallInt
+  couleur     String @default("")
+  description String @default("")
+
+  logiciels Logiciel[]
+
+  @@map("criticites")
+}
+
+/// Type de tâche récurrente : mise à jour, renouvellement de contrat, purge…
+model TypeTache {
+  id       Int    @id @default(autoincrement())
+  label    String @unique
+  position Int    @default(0) @db.SmallInt
+
+  taches TacheRecurrente[]
+
+  @@map("types_taches")
+}
+
+/// Catégorie de pièce jointe : contrat, guide, délibération, arrêté…
+model CategorieDocument {
+  id       Int    @id @default(autoincrement())
+  label    String @unique
+  position Int    @default(0) @db.SmallInt
+
+  documents Document[]
+
+  @@map("categories_documents")
+}
+
+// ============================================================
+//  Cœur métier : l'inventaire des logiciels
+// ============================================================
+
+/// Un logiciel du parc. Les FK de qualification (éditeur, technologie,
+/// criticité) sont en SetNull : supprimer une valeur de référentiel ne doit
+/// jamais détruire une fiche d'inventaire.
+model Logiciel {
+  id          Int    @id @default(autoincrement())
+  nom         String
+  description String @default("")
+
+  editeurId Int?     @map("editeur_id")
+  editeur   Editeur? @relation(fields: [editeurId], references: [id], onDelete: SetNull)
+  /// Application faite et maintenue par la DSI : il n'y a pas d'éditeur, donc
+  /// pas de fiche société, de support ni de contrat à lui rattacher. Portée par
+  /// le logiciel plutôt que par un éditeur sentinelle « Développement interne »,
+  /// qui polluait l'annuaire et les listes de fournisseurs.
+  developpementInterne Boolean @default(false) @map("developpement_interne")
+
+  hebergement   Hebergement  @default(on_premise)
+  technologieId Int?         @map("technologie_id")
+  technologie   Technologie? @relation(fields: [technologieId], references: [id], onDelete: SetNull)
+  criticiteId   Int?         @map("criticite_id")
+  criticite     Criticite?   @relation(fields: [criticiteId], references: [id], onDelete: SetNull)
+
+  typeSource TypeSource @default(proprietaire) @map("type_source")
+  statut     CycleDeVie @default(production)
+
+  versionInstallee  String               @default("") @map("version_installee")
+  /// Lien vers le produit quand il est accessible en mode web (cliquable
+  /// depuis la liste et la fiche).
+  url               String               @default("")
+  dateMiseEnService DateTime?            @map("date_mise_en_service") @db.Date
+  authentification  ModeAuthentification @default(locale)
+  /// Nombre d'utilisateurs réels ; null = NON COMPTÉ. La distinction compte :
+  /// un logiciel à zéro utilisateur est un candidat au retrait, un logiciel
+  /// non compté n'est qu'un trou dans l'inventaire.
+  nbUtilisateurs    Int?                 @map("nb_utilisateurs")
+  /// Plafond d'utilisateurs prévu au contrat ; null = illimité ou non
+  /// renseigné → jamais de dépassement. Porté par le logiciel et non par la
+  /// ligne de contrat : c'est la valeur que l'on compare à `nbUtilisateurs`.
+  nbMaxUtilisateurs Int?                 @map("nb_max_utilisateurs")
+  referentMetier    String               @default("") @map("referent_metier")
+  referentTechnique String               @default("") @map("referent_technique")
+  coutAnnuel        Decimal?             @map("cout_annuel") @db.Decimal(12, 2)
+  finContratLe      DateTime?            @map("fin_contrat_le") @db.Date
+  /// Date de fin de contrat pour laquelle le rappel a déjà été envoyé
+  /// (anti-doublon du cron ; remise à null quand la date change).
+  rappelEnvoyeLe    DateTime?            @map("rappel_envoye_le") @db.Date
+  notes             String               @default("")
+
+  // ── Volet RGPD (simple) ──
+  donneesPersonnelles Boolean             @default(false) @map("donnees_personnelles")
+  categoriesDonnees   String              @default("") @map("categories_donnees")
+  registreRef         String              @default("") @map("registre_ref")
+  localisationDonnees LocalisationDonnees @default(inconnue) @map("localisation_donnees")
+
+  createdAt DateTime @default(now()) @db.Timestamptz
+  updatedAt DateTime @updatedAt @db.Timestamptz
+
+  services              LogicielService[]
+  serveurs              LogicielServeur[]
+  contrats              Contrat[]
+  consultations         Consultation[]
+  documents             Document[]
+  taches                TacheRecurrente[]
+  interconnexionsSource Interconnexion[]  @relation("ixSource")
+  interconnexionsCible  Interconnexion[]  @relation("ixCible")
+
+  @@index([editeurId])
+  @@index([technologieId])
+  @@index([criticiteId])
+  @@index([statut])
+  @@index([nom])
+  @@map("logiciels")
+}
+
+/// N-N logiciel ↔ service utilisateur.
+model LogicielService {
+  logicielId Int @map("logiciel_id")
+  serviceId  Int @map("service_id")
+
+  logiciel Logiciel           @relation(fields: [logicielId], references: [id], onDelete: Cascade)
+  service  ServiceUtilisateur @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@id([logicielId, serviceId])
+  @@index([serviceId])
+  @@map("logiciels_services")
+}
+
+/// N-N logiciel ↔ serveur, qualifié par l'environnement : un même logiciel
+/// peut être installé sur le même serveur en prod ET en test.
+model LogicielServeur {
+  logicielId    Int           @map("logiciel_id")
+  serveurId     Int           @map("serveur_id")
+  environnement Environnement @default(production)
+
+  logiciel Logiciel @relation(fields: [logicielId], references: [id], onDelete: Cascade)
+  serveur  Serveur  @relation(fields: [serveurId], references: [id], onDelete: Cascade)
+
+  @@id([logicielId, serveurId, environnement])
+  @@index([serveurId])
+  @@map("logiciels_serveurs")
+}
+
+/// Flux orienté entre deux logiciels (ex. « export paie mensuel vers X »).
+/// La fiche d'un logiciel affiche les DEUX sens.
+model Interconnexion {
+  id          Int    @id @default(autoincrement())
+  sourceId    Int    @map("source_id")
+  cibleId     Int    @map("cible_id")
+  description String @default("")
+
+  source Logiciel @relation("ixSource", fields: [sourceId], references: [id], onDelete: Cascade)
+  cible  Logiciel @relation("ixCible", fields: [cibleId], references: [id], onDelete: Cascade)
+
+  @@unique([sourceId, cibleId])
+  @@index([cibleId])
+  @@map("interconnexions")
+}
+
+/// Ligne de contrat d'un logiciel. Un logiciel en accumule plusieurs au fil
+/// des marchés — d'où une table, pas des colonnes sur Logiciel.
+model Contrat {
+  id                 Int         @id @default(autoincrement())
+  logicielId         Int         @map("logiciel_id")
+  /// Société avec qui la collectivité contractualise. null = l'éditeur du
+  /// logiciel, cas le plus fréquent ; renseigné quand c'est un revendeur.
+  fournisseurId      Int?        @map("fournisseur_id")
+  type               TypeContrat @default(abonnement)
+  libelle            String      @default("") // ex. « marché 2024-12 », « pack 50 postes »
+  coutAnnuel         Decimal?    @map("cout_annuel") @db.Decimal(12, 2)
+  dateRenouvellement DateTime?   @map("date_renouvellement") @db.Date
+  /// Date de renouvellement pour laquelle le rappel a déjà été envoyé
+  /// (anti-doublon du cron ; remise à null quand la date change).
+  rappelEnvoyeLe     DateTime?   @map("rappel_envoye_le") @db.Date
+  referenceMarche    String      @default("") @map("reference_marche")
+  notes              String      @default("")
+  createdAt          DateTime    @default(now()) @db.Timestamptz
+
+  logiciel  Logiciel   @relation(fields: [logicielId], references: [id], onDelete: Cascade)
+  // Le fournisseur n'est pas propriétaire du contrat : supprimer sa fiche ne
+  // doit pas emporter le contrat, seulement le laisser sans fournisseur.
+  fournisseur Editeur? @relation("ContratFournisseur", fields: [fournisseurId], references: [id], onDelete: SetNull)
+  documents Document[]
+
+  @@index([logicielId])
+  @@index([fournisseurId])
+  @@index([dateRenouvellement])
+  @@map("contrats")
+}
+
+// ============================================================
+//  Mise en concurrence
+// ============================================================
+
+/// Une mise en concurrence sur un logiciel : l'objet consulté (renouvellement,
+/// migration, première acquisition…) et les devis reçus. Un logiciel en
+/// accumule plusieurs au fil des années — d'où ce niveau intermédiaire plutôt
+/// qu'une liste plate de devis, qui ne saurait pas dire QUEL devis a été retenu
+/// POUR QUELLE consultation.
+model Consultation {
+  id         Int       @id @default(autoincrement())
+  logicielId Int       @map("logiciel_id")
+  objet      String
+  /// Date de la consultation ; sert au tri (la plus récente en tête).
+  date       DateTime? @db.Date
+  createdAt  DateTime  @default(now()) @db.Timestamptz
+
+  logiciel Logiciel @relation(fields: [logicielId], references: [id], onDelete: Cascade)
+  devis    Devis[]
+
+  @@index([logicielId])
+  @@map("consultations")
+}
+
+/// Devis reçu dans le cadre d'une consultation. `retenu` marque celui qui a été
+/// choisi : AU PLUS UN par consultation, invariant tenu par le service
+/// (marquerDevisRetenu) et non par la base — PostgreSQL le dirait avec un index
+/// unique partiel, que Prisma ne sait pas déclarer et effacerait à la migration
+/// suivante.
+model Devis {
+  id             Int       @id @default(autoincrement())
+  consultationId Int       @map("consultation_id")
+  /// Société qui a remis le devis. null = non renseignée ; SetNull pour que la
+  /// suppression d'une fiche société n'emporte pas l'historique de la consultation.
+  fournisseurId  Int?      @map("fournisseur_id")
+  montant        Decimal?  @db.Decimal(12, 2)
+  date           DateTime? @db.Date
+  retenu         Boolean   @default(false)
+  createdAt      DateTime  @default(now()) @db.Timestamptz
+
+  consultation Consultation @relation(fields: [consultationId], references: [id], onDelete: Cascade)
+  fournisseur  Editeur?     @relation("DevisFournisseur", fields: [fournisseurId], references: [id], onDelete: SetNull)
+  documents    Document[]
+
+  @@index([consultationId])
+  @@index([fournisseurId])
+  @@map("devis")
+}
+
+// ============================================================
+//  Tâches récurrentes
+// ============================================================
+
+/// Rythme d'une tâche. `personnalisee` s'accompagne de `moisPersonnalises` ;
+/// `ponctuelle` = une seule occurrence (la complétion clôt la tâche).
+enum Periodicite {
+  mensuelle
+  trimestrielle
+  semestrielle
+  annuelle
+  personnalisee
+  ponctuelle
+}
+
+enum StatutTache {
+  active
+  en_pause
+  terminee
+}
+
+/// Tâche d'exploitation à refaire régulièrement sur un logiciel : mise à jour,
+/// renouvellement de contrat, purge, revue des comptes, certificat…
+model TacheRecurrente {
+  id          Int         @id @default(autoincrement())
+  logicielId  Int         @map("logiciel_id")
+  typeTacheId Int?        @map("type_tache_id")
+  titre       String
+  description String      @default("")
+  periodicite Periodicite @default(annuelle)
+  /// Intervalle en mois quand periodicite = personnalisee (1..120).
+  moisPersonnalises Int?  @map("mois_personnalises") @db.SmallInt
+
+  /// Prochaine date à laquelle la tâche doit être FAITE. Recalculée à chaque
+  /// complétion, ancrée sur l'échéance prévue (pas la date de complétion) —
+  /// une tâche faite en retard ne décale pas tout le calendrier.
+  prochaineEcheance DateTime    @map("prochaine_echeance") @db.Date
+  statut            StatutTache @default(active)
+
+  // Assignation : un compte de l'app OU un nom libre (personne hors app).
+  assigneUserId String? @map("assigne_user_id")
+  assigneLibre  String  @default("") @map("assigne_libre")
+
+  /// Délai de rappel spécifique (jours avant échéance) ; null = valeur globale
+  /// (app_config tache.rappelJoursAvant).
+  rappelJoursAvant Int? @map("rappel_jours_avant") @db.SmallInt
+  /// Échéance pour laquelle le rappel a déjà été envoyé (anti-doublon : un seul
+  /// mail par occurrence, remis à null au recalcul de l'échéance).
+  rappelEnvoyePour DateTime? @map("rappel_envoye_pour") @db.Date
+
+  createdAt DateTime @default(now()) @db.Timestamptz
+  updatedAt DateTime @updatedAt @db.Timestamptz
+
+  logiciel   Logiciel         @relation(fields: [logicielId], references: [id], onDelete: Cascade)
+  typeTache  TypeTache?       @relation(fields: [typeTacheId], references: [id], onDelete: SetNull)
+  assigne    User?            @relation(fields: [assigneUserId], references: [id], onDelete: SetNull)
+  executions TacheExecution[]
+
+  @@index([logicielId])
+  @@index([typeTacheId])
+  @@index([assigneUserId])
+  @@index([statut, prochaineEcheance])
+  @@map("taches_recurrentes")
+}
+
+/// Historique : une ligne par occurrence réalisée. L'acteur est DÉNORMALISÉ
+/// (pattern AuditLog) : l'historique survit à la suppression du compte.
+model TacheExecution {
+  id             Int      @id @default(autoincrement())
+  tacheId        Int      @map("tache_id")
+  echeancePrevue DateTime @map("echeance_prevue") @db.Date
+  faitLe         DateTime @default(now()) @map("fait_le") @db.Timestamptz
+  faitParId      String?  @map("fait_par_id")
+  faitParLabel   String   @default("") @map("fait_par_label")
+  commentaire    String   @default("")
+
+  tache TacheRecurrente @relation(fields: [tacheId], references: [id], onDelete: Cascade)
+
+  @@index([tacheId])
+  @@index([faitLe])
+  @@map("taches_executions")
+}
+
+// ============================================================
+//  Documents (pièces jointes)
+// ============================================================
+
+/// Pièce jointe d'un logiciel OU d'un éditeur (exactement un parent — contrainte
+/// CHECK `num_nonnulls(logiciel_id, editeur_id) = 1` ajoutée en SQL dans la
+/// migration, Prisma ne sachant pas l'exprimer).
+///
+/// Le fichier vit sur disque (ATTACHMENTS_DIR) sous `nomStockage` = <uuid>.<ext>
+/// — JAMAIS le nom fourni par le client : la traversée de chemin est impossible
+/// par construction, et la ligne en base est la seule porte d'accès (téléchargement
+/// par id).
+model Document {
+  id          Int  @id @default(autoincrement())
+  logicielId  Int? @map("logiciel_id")
+  editeurId   Int? @map("editeur_id")
+  /// Rattachement à une ligne de contrat : la décision municipale et le contrat
+  /// signé se lisent alors sous le contrat qu'ils autorisent, dans l'onglet
+  /// Contrats du logiciel.
+  contratId   Int? @map("contrat_id")
+  /// Rattachement à un devis : le PDF remis par le fournisseur se lit alors
+  /// sous son devis, dans l'onglet Devis du logiciel.
+  devisId     Int? @map("devis_id")
+  categorieId Int? @map("categorie_id")
+
+  nomOriginal String @map("nom_original")
+  nomStockage String @unique @map("nom_stockage")
+  mime        String
+  taille      Int
+
+  // Déposant DÉNORMALISÉ (comme AuditLog) : l'historique survit au compte.
+  deposeParId    String? @map("depose_par_id")
+  deposeParLabel String  @default("") @map("depose_par_label")
+
+  createdAt DateTime @default(now()) @db.Timestamptz
+
+  logiciel  Logiciel?          @relation(fields: [logicielId], references: [id], onDelete: Cascade)
+  editeur   Editeur?           @relation(fields: [editeurId], references: [id], onDelete: Cascade)
+  contrat   Contrat?           @relation(fields: [contratId], references: [id], onDelete: Cascade)
+  devis     Devis?             @relation(fields: [devisId], references: [id], onDelete: Cascade)
+  categorie CategorieDocument? @relation(fields: [categorieId], references: [id], onDelete: SetNull)
+
+  @@index([logicielId])
+  @@index([editeurId])
+  @@index([contratId])
+  @@index([devisId])
+  @@index([categorieId])
+  @@map("documents")
+}
+
+// ============================================================
+//  Infrastructure applicative
+// ============================================================
+
+/// Réglages éditables depuis l'administration (SMTP, LDAP, seuils de rappel,
+/// horaires cron…), avec repli sur les variables d'environnement dans le code.
+model AppConfig {
+  key   String  @id @map("cfg_key")
+  value String? @map("cfg_value")
+
+  @@map("app_config")
+}
+
+// Journal des actions PRIVILÉGIÉES (création de compte, changement de rôle,
+// modification SMTP/LDAP, suppressions, dépôts de documents…).
+// L'acteur est DÉNORMALISÉ (libellé + rôle au moment de l'acte) : le journal
+// doit rester lisible après suppression du compte — d'où l'absence de FK.
+model AuditLog {
+  id         Int      @id @default(autoincrement())
+  at         DateTime @default(now()) @db.Timestamptz
+  action     String
+  actorId    String?  @map("actor_id")
+  actorLabel String   @default("") @map("actor_label")
+  actorRole  String   @default("") @map("actor_role")
+  target     String?
+  details    Json?
+  ip         String?
+
+  @@index([at])
+  @@index([action])
+  @@index([actorId])
+  @@map("audit_log")
+}
+
+// File d'attente des e-mails en échec (envoi best-effort) : conservés pour
+// pouvoir les renvoyer depuis Administration › Messagerie. Pas de FK.
+model FailedMail {
+  id          Int      @id @default(autoincrement())
+  toAddr      String   @map("to_addr")
+  subject     String   @default("")
+  html        String   @default("")
+  text        String   @default("")
+  error       String   @default("")
+  attempts    Int      @default(1) @db.SmallInt
+  createdAt   DateTime @default(now()) @db.Timestamptz
+  lastTriedAt DateTime @default(now()) @map("last_tried_at") @db.Timestamptz
+
+  @@index([createdAt])
+  @@map("failed_mails")
+}
+
+// Gabarits d'e-mails éditables (interpolation {{var}}). La CLÉ fait contrat avec
+// le code (chaque gabarit correspond à un point d'envoi précis) ; le contenu est
+// éditable en Administration › Messagerie. Repli sur DEFAULT_TEMPLATES du code
+// quand subject/html sont vides. (Simplifié de culturesa : pas de portée service.)
+model MailTemplate {
+  key         String   @id
+  label       String   @default("")
+  description String   @default("")
+  subject     String   @default("")
+  html        String   @default("")
+  builtin     Boolean  @default(false)
+  position    Int      @default(0) @db.SmallInt
+  createdAt   DateTime @default(now()) @db.Timestamptz
+
+  @@map("mail_templates")
+}

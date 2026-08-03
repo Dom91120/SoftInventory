@@ -1,0 +1,6 @@
+# Crontab du conteneur cron (busybox crond) — VOLONTAIREMENT bête : chaque
+# route est appelée toutes les 5 minutes et décide elle-même si sa
+# planification (Administration › Tâches planifiées) est due. Changer un
+# horaire ne demande donc aucun redéploiement.
+*/5 * * * * curl -fsS -H "x-cron-secret: $CRON_SECRET" http://app:3000/api/cron/echeances >/dev/null 2>&1
+*/5 * * * * curl -fsS -H "x-cron-secret: $CRON_SECRET" http://app:3000/api/cron/retention >/dev/null 2>&1

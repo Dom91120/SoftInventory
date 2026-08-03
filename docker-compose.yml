@@ -1,0 +1,95 @@
+# SoftInventory — production : app Next.js + PostgreSQL + cron.
+# Copier .env.example en .env et renseigner les valeurs avant `docker compose up -d`.
+# Initialisation (une fois, après le premier démarrage) :
+#   docker compose run --rm init
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    # Exposée en local seulement : un reverse proxy (TLS) du réseau de la
+    # collectivité publie l'application. Ouvrir "3000:3000" si l'app est servie
+    # en direct sur le LAN (alors ALLOW_INSECURE_COOKIES=true, cf. .env.example).
+    ports:
+      - "127.0.0.1:3000:3000"
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}?schema=public
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
+      BETTER_AUTH_URL: ${BETTER_AUTH_URL:-${APP_URL}}
+      NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-${APP_URL}}
+      APP_URL: ${APP_URL}
+      APP_DOMAIN: ${APP_DOMAIN:-}
+      TRUSTED_ORIGINS: ${TRUSTED_ORIGINS:-}
+      ALLOW_INSECURE_COOKIES: ${ALLOW_INSECURE_COOKIES:-false}
+      CRON_SECRET: ${CRON_SECRET}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+      ATTACHMENTS_DIR: /attachments
+    volumes:
+      - ./attachments:/attachments
+    depends_on:
+      db:
+        condition: service_healthy
+    # Durcissement : aucun privilège superflu.
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 512
+    networks: [web]
+
+  db:
+    # Version PINNÉE : les sauts de version majeure de PostgreSQL se font
+    # volontairement (dump/restore), jamais par un `pull` involontaire.
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    security_opt:
+      - no-new-privileges:true
+    networks: [web]
+
+  cron:
+    build: ./cron
+    restart: unless-stopped
+    environment:
+      CRON_SECRET: ${CRON_SECRET}
+    depends_on: [app]
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 64
+    networks: [web]
+
+  # Initialisation (compte admin + référentiels) : `docker compose run --rm init`
+  init:
+    profiles: ["init"]
+    build:
+      context: .
+      target: builder
+    command: ["pnpm", "db:init"]
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}?schema=public
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
+      ADMIN_EMAIL: ${ADMIN_EMAIL}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+    depends_on:
+      db:
+        condition: service_healthy
+    networks: [web]
+
+volumes:
+  pgdata:
+
+networks:
+  web:

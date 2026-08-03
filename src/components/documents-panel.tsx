@@ -1,0 +1,355 @@
+"use client";
+
+import type { LucideIcon } from "lucide-react";
+import {
+  Check,
+  Download,
+  FileArchive,
+  // Aliasé : `File` masquerait le type DOM du même nom, utilisé par upload().
+  File as FileGenerique,
+  FileImage,
+  FileSpreadsheet,
+  FileText,
+  FileType,
+  Pencil,
+  Presentation,
+  Trash2,
+  Upload,
+  X,
+} from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useRef, useState, useTransition } from "react";
+import {
+  deleteDocumentAction,
+  renameDocumentAction,
+  updateDocumentCategorieAction,
+} from "@/app/(app)/documents/actions";
+import { Card, EmptyState } from "@/components/ui";
+import { extensionDe } from "@/lib/documents-regles";
+
+export type DocumentRow = {
+  id: number;
+  nomOriginal: string;
+  /** Identifiant de la catégorie ; null = « sans catégorie ». */
+  categorieId: number | null;
+  categorie: string | null;
+  taille: number;
+  deposeParLabel: string;
+  createdAt: string; // déjà formatée côté serveur
+};
+
+export type CategorieOption = { id: number; label: string };
+
+/**
+ * Icône par famille de fichier. Le type MIME n'est pas conservé en base : c'est
+ * l'extension du nom d'origine qui fait foi. Les clés couvrent exactement
+ * TYPES_ADMIS (documents-regles) — une extension ajoutée là-bas et pas ici
+ * retombe sur l'icône générique, sans casse.
+ */
+const ICONES: Record<string, LucideIcon> = {
+  pdf: FileText,
+  doc: FileType,
+  docx: FileType,
+  odt: FileType,
+  txt: FileType,
+  md: FileType,
+  xls: FileSpreadsheet,
+  xlsx: FileSpreadsheet,
+  ods: FileSpreadsheet,
+  csv: FileSpreadsheet,
+  ppt: Presentation,
+  pptx: Presentation,
+  odp: Presentation,
+  png: FileImage,
+  jpg: FileImage,
+  jpeg: FileImage,
+  zip: FileArchive,
+};
+
+export function iconeDe(nomOriginal: string): LucideIcon {
+  return ICONES[extensionDe(nomOriginal)] ?? FileGenerique;
+}
+
+export function tailleLisible(octets: number): string {
+  if (octets < 1024) return `${octets} o`;
+  if (octets < 1024 * 1024) return `${Math.round(octets / 1024)} Ko`;
+  return `${(octets / (1024 * 1024)).toFixed(1)} Mo`;
+}
+
+/**
+ * Pièces jointes d'un logiciel, d'un éditeur ou d'une ligne de contrat : dépôt
+ * (admin), liste, téléchargement (tous), suppression (admin). Le dépôt passe
+ * par la route /api/documents/upload (flux binaire), pas par une server action.
+ */
+export function DocumentsPanel({
+  parent,
+  documents,
+  categories,
+  readOnly,
+  titre = "Documents",
+}: {
+  parent:
+    | { logicielId: number }
+    | { editeurId: number }
+    | { contratId: number }
+    | { devisId: number };
+  documents: DocumentRow[];
+  categories: CategorieOption[];
+  readOnly: boolean;
+  /** Titre de la carte — précisé quand le panneau vise une ligne de contrat. */
+  titre?: string;
+}) {
+  const router = useRouter();
+  const [pending, startTransition] = useTransition();
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [categorieId, setCategorieId] = useState("");
+  // Document en cours de renommage : { id, valeur saisie }.
+  const [renommage, setRenommage] = useState<{ id: number; valeur: string } | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  async function upload(file: File) {
+    setError(null);
+    setUploading(true);
+    try {
+      const form = new FormData();
+      form.set("file", file);
+      if ("logicielId" in parent) form.set("logicielId", String(parent.logicielId));
+      else if ("editeurId" in parent) form.set("editeurId", String(parent.editeurId));
+      else if ("contratId" in parent) form.set("contratId", String(parent.contratId));
+      else form.set("devisId", String(parent.devisId));
+      if (categorieId) form.set("categorieId", categorieId);
+      const r = await fetch("/api/documents/upload", { method: "POST", body: form });
+      const j = (await r.json().catch(() => ({}))) as { error?: string };
+      if (!r.ok) {
+        setError(j.error ?? "Le dépôt a échoué. Réessayez.");
+        return;
+      }
+      if (fileRef.current) fileRef.current.value = "";
+      router.refresh();
+    } catch {
+      setError("Le dépôt a échoué (réseau). Réessayez.");
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  function supprimer(doc: DocumentRow) {
+    if (!window.confirm(`Supprimer « ${doc.nomOriginal} » ?`)) return;
+    setError(null);
+    startTransition(async () => {
+      const res = await deleteDocumentAction(doc.id);
+      if (!res.ok) setError(res.error);
+      else router.refresh();
+    });
+  }
+
+  function renommer() {
+    if (!renommage) return;
+    const { id, valeur } = renommage;
+    setError(null);
+    startTransition(async () => {
+      const res = await renameDocumentAction(id, valeur);
+      if (!res.ok) {
+        setError(res.error);
+        return; // le champ reste ouvert : la saisie n'est pas perdue
+      }
+      setRenommage(null);
+      router.refresh();
+    });
+  }
+
+  function changerCategorie(doc: DocumentRow, valeur: string) {
+    setError(null);
+    startTransition(async () => {
+      const res = await updateDocumentCategorieAction(
+        doc.id,
+        valeur === "" ? null : Number(valeur),
+      );
+      if (!res.ok) setError(res.error);
+      // `router.refresh()` dans tous les cas : en cas d'échec, il remet le
+      // select sur la valeur réellement enregistrée plutôt que de laisser
+      // l'écran afficher un changement qui n'a pas eu lieu.
+      router.refresh();
+    });
+  }
+
+  return (
+    <Card title={titre}>
+      {error ? <p className="alert-error mb-4">{error}</p> : null}
+
+      {readOnly ? null : (
+        <div className="mb-4 flex flex-wrap items-center gap-2">
+          <select
+            className="input !w-auto"
+            value={categorieId}
+            onChange={(e) => setCategorieId(e.target.value)}
+            disabled={uploading}
+            aria-label="Catégorie du document"
+          >
+            <option value="">Catégorie…</option>
+            {categories.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.label}
+              </option>
+            ))}
+          </select>
+          <input
+            ref={fileRef}
+            type="file"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) void upload(f);
+            }}
+          />
+          <button
+            type="button"
+            className="btn-secondary"
+            disabled={uploading}
+            onClick={() => fileRef.current?.click()}
+          >
+            <Upload className="h-4 w-4" />
+            {uploading ? "Dépôt en cours…" : "Déposer un fichier"}
+          </button>
+          <span className="text-xs text-faint">
+            PDF, Office, OpenDocument, images, txt/csv/zip — 25 Mo max.
+          </span>
+        </div>
+      )}
+
+      {documents.length === 0 ? (
+        <EmptyState>Aucun document (guides, contrats, délibérations, arrêtés…).</EmptyState>
+      ) : (
+        <ul className="divide-y divide-line text-sm">
+          {documents.map((d) => {
+            const Icone = iconeDe(d.nomOriginal);
+            return (
+              <li key={d.id} className="flex items-center justify-between gap-3 py-2.5">
+                <span className="flex min-w-0 items-center gap-3">
+                  <Icone className="h-4 w-4 shrink-0 text-faint" />
+                  <span className="min-w-0">
+                    {renommage?.id === d.id ? (
+                      <span className="flex items-center gap-1">
+                        <input
+                          // biome-ignore lint/a11y/noAutofocus: le champ vient d'être ouvert par un clic délibéré sur « Renommer ».
+                          autoFocus
+                          className="input !py-1 !text-sm"
+                          aria-label={`Nouveau nom de ${d.nomOriginal}`}
+                          value={renommage.valeur}
+                          disabled={pending}
+                          onChange={(e) => setRenommage({ id: d.id, valeur: e.target.value })}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") renommer();
+                            if (e.key === "Escape") setRenommage(null);
+                          }}
+                        />
+                        <button
+                          type="button"
+                          className="btn-ghost !p-2"
+                          title="Enregistrer le nom"
+                          disabled={pending}
+                          onClick={renommer}
+                          style={{ color: "var(--color-ok)" }}
+                        >
+                          <Check className="h-4 w-4" />
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-ghost !p-2"
+                          title="Annuler"
+                          disabled={pending}
+                          onClick={() => setRenommage(null)}
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </span>
+                    ) : (
+                      <a
+                        // Le NOM ouvre le document (nouvel onglet) ; le bouton à
+                        // droite reste là pour l'enregistrer. Les formats que le
+                        // navigateur ne sait pas afficher retombent d'eux-mêmes
+                        // sur le téléchargement, côté serveur.
+                        href={`/api/documents/download?id=${d.id}&inline=1`}
+                        target="_blank"
+                        rel="noreferrer noopener"
+                        title={`Ouvrir ${d.nomOriginal}`}
+                        className="block truncate font-medium text-strong hover:text-accent"
+                      >
+                        {d.nomOriginal}
+                      </a>
+                    )}
+                    <span className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-faint">
+                      {readOnly ? (
+                        d.categorie ? (
+                          <span>{d.categorie}</span>
+                        ) : null
+                      ) : (
+                        // Catégorie modifiable en place : les imports en masse la
+                        // déduisent du nom du fichier et se trompent parfois.
+                        <select
+                          className="select-inline"
+                          aria-label={`Catégorie de ${d.nomOriginal}`}
+                          value={d.categorieId === null ? "" : String(d.categorieId)}
+                          disabled={pending}
+                          onChange={(e) => changerCategorie(d, e.target.value)}
+                        >
+                          <option value="">— sans catégorie —</option>
+                          {categories.map((c) => (
+                            <option key={c.id} value={c.id}>
+                              {c.label}
+                            </option>
+                          ))}
+                        </select>
+                      )}
+                      <span>
+                        {[
+                          tailleLisible(d.taille),
+                          d.deposeParLabel && `déposé par ${d.deposeParLabel}`,
+                          d.createdAt,
+                        ]
+                          .filter(Boolean)
+                          .join(" · ")}
+                      </span>
+                    </span>
+                  </span>
+                </span>
+                <span className="flex shrink-0 items-center gap-1">
+                  <a
+                    href={`/api/documents/download?id=${d.id}`}
+                    className="btn-ghost !p-2"
+                    title="Télécharger"
+                  >
+                    <Download className="h-4 w-4" />
+                  </a>
+                  {readOnly ? null : (
+                    <>
+                      <button
+                        type="button"
+                        className="btn-ghost !p-2"
+                        title="Renommer"
+                        disabled={pending}
+                        onClick={() => setRenommage({ id: d.id, valeur: d.nomOriginal })}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        className="btn-ghost !p-2 hover:!text-danger"
+                        title="Supprimer"
+                        disabled={pending}
+                        onClick={() => supprimer(d)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </>
+                  )}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </Card>
+  );
+}

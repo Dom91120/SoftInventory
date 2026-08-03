@@ -1,0 +1,297 @@
+@import "tailwindcss";
+
+/* Détection des sources EXPLICITE : l'auto-détection de Tailwind 4 manque les
+   classes utilisées uniquement dans les pages des groupes de routes
+   parenthésés — (app), (admin) — vérifié : px-3.5/bg-inset absents du CSS
+   généré tant qu'ils n'apparaissent que là. */
+@source "../../src";
+
+/* ════════════════════════════════════════════════════════════════════════════
+   Design system SoftInventory — « style cparfait » (cf. dépôts simcity et bolt).
+
+   Principes :
+   - neutres = gamme slate de Tailwind, exposée en RÔLES (page, surface, line…)
+     pour que le mode sombre soit une simple redéfinition de variables ;
+   - un seul accent (indigo #4f46e5), décliné en gamme brand 50–950 ;
+   - sémantique figée : emerald = ok, amber = échéance proche, red = retard/
+     danger, blue = info — en version pastel (fond -dim + texte -text) pour les
+     badges, jamais en aplat saturé ;
+   - rayons : contrôles rounded-lg (8px), conteneurs rounded-2xl (16px),
+     pilules rounded-full ; ombres faibles (shadow-sm), élévation au survol.
+
+   Mode sombre : attribut data-theme="dark" sur <html> (posé avant le premier
+   paint par components/boot-script.tsx). Palette sombre de simcity : le primaire
+   S'ÉCLAIRCIT (#4f46e5 → #818cf8) et les textes de badge se ré-éclaircissent.
+   ════════════════════════════════════════════════════════════════════════════ */
+
+@theme {
+  --font-sans: var(--font-plex-sans), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: var(--font-plex-mono), ui-monospace, "SFMono-Regular", Consolas, monospace;
+
+  /* Rôles neutres (clair) */
+  --color-page: #f8fafc;
+  --color-surface: #ffffff;
+  --color-inset: #f1f5f9;
+  --color-line: #e2e8f0;
+  --color-sub: #cbd5e1;
+  --color-strong: #0f172a;
+  --color-body: #334155;
+  --color-muted: #64748b;
+  --color-faint: #94a3b8;
+
+  /* Accent */
+  --color-accent: #4f46e5;
+  --color-accent-strong: #4338ca;
+  --color-accent-dim: rgba(79, 70, 229, 0.08);
+  --color-accent-ring: rgba(79, 70, 229, 0.35);
+
+  /* Gamme brand (référence 600 = accent clair) */
+  --color-brand-50: #eef2ff;
+  --color-brand-100: #e0e7ff;
+  --color-brand-200: #c7d2fe;
+  --color-brand-300: #a5b4fc;
+  --color-brand-400: #818cf8;
+  --color-brand-500: #6366f1;
+  --color-brand-600: #4f46e5;
+  --color-brand-700: #4338ca;
+  --color-brand-800: #3730a3;
+  --color-brand-900: #312e81;
+  --color-brand-950: #1e1b4b;
+
+  /* Sémantique (icônes/texte plein) + pastels de badge (fond -dim, texte -text) */
+  --color-ok: #059669;
+  --color-ok-dim: #d1fae5;
+  --color-ok-text: #065f46;
+  --color-warn: #d97706;
+  --color-warn-dim: #fef3c7;
+  --color-warn-text: #92400e;
+  --color-danger: #dc2626;
+  --color-danger-dim: #fee2e2;
+  --color-danger-text: #991b1b;
+  --color-info: #2563eb;
+  --color-info-dim: #dbeafe;
+  --color-info-text: #1e40af;
+}
+
+/* Palette sombre (référence simcity). html[data-theme…] : même emplacement que
+   :root mais spécificité supérieure — l'ordre dans le fichier ne suffirait pas. */
+html[data-theme="dark"] {
+  --color-page: #0b1120;
+  --color-surface: #1e293b;
+  --color-inset: #233247;
+  --color-line: #2b3a4f;
+  --color-sub: #3a4a61;
+  --color-strong: #f8fafc;
+  --color-body: #e2e8f0;
+  --color-muted: #94a3b8;
+  --color-faint: #64748b;
+
+  --color-accent: #818cf8;
+  --color-accent-strong: #6366f1;
+  --color-accent-dim: rgba(129, 140, 248, 0.14);
+  --color-accent-ring: rgba(129, 140, 248, 0.4);
+
+  --color-ok: #34d399;
+  --color-ok-dim: #064e3b;
+  --color-ok-text: #6ee7b7;
+  --color-warn: #fbbf24;
+  --color-warn-dim: #78350f;
+  --color-warn-text: #fcd34d;
+  --color-danger: #f87171;
+  --color-danger-dim: #7f1d1d;
+  --color-danger-text: #fca5a5;
+  --color-info: #60a5fa;
+  --color-info-dim: #1e3a5f;
+  --color-info-text: #93c5fd;
+}
+
+body {
+  background: var(--color-page);
+  color: var(--color-body);
+  font-size: 0.9rem;
+  line-height: 1.5;
+  letter-spacing: -0.005em;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Composants récurrents (classes globales, à la manière de simcity) ─────── */
+@layer components {
+  /* Boutons. Tailwind 4 interdit d'@apply une classe composant maison : la base
+     .btn est donc répétée dans chaque variante (pas de composition). */
+  .btn,
+  .btn-primary,
+  .btn-secondary,
+  .btn-danger,
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition disabled:opacity-50 disabled:pointer-events-none;
+  }
+  .btn-primary {
+    @apply bg-accent font-semibold text-white shadow-sm hover:bg-accent-strong active:translate-y-px;
+  }
+  .btn-secondary {
+    @apply border border-sub bg-surface text-body shadow-sm hover:border-accent hover:text-strong;
+  }
+  .btn-danger {
+    @apply border border-danger/30 bg-surface text-danger shadow-sm hover:bg-danger-dim;
+  }
+  .btn-ghost {
+    @apply text-muted hover:bg-inset hover:text-strong;
+  }
+
+  /* Champs de formulaire */
+  .label {
+    @apply mb-1 block text-[0.78rem] font-semibold uppercase tracking-wide text-muted;
+  }
+  .input {
+    @apply w-full rounded-lg border border-sub bg-surface px-3 py-2 text-sm text-strong placeholder:text-faint outline-none transition focus:border-accent disabled:bg-inset disabled:text-muted;
+  }
+  .input:focus {
+    box-shadow: 0 0 0 3px var(--color-accent-ring);
+  }
+
+  /* Liste déroulante DISCRÈTE, posée au fil du texte (méta d'une ligne de
+     liste) : ni cadre ni fond, et `field-sizing: content` pour qu'elle occupe
+     la largeur de l'option choisie plutôt que celle de la plus longue. Les
+     navigateurs qui ignorent cette propriété retombent sur le comportement
+     natif — un peu plus large, jamais cassé. */
+  .select-inline {
+    @apply cursor-pointer border-0 bg-transparent p-0 pr-1 text-xs text-faint outline-none transition;
+    field-sizing: content;
+  }
+  .select-inline:hover,
+  .select-inline:focus {
+    @apply text-strong;
+  }
+  /* Les options, elles, sont rendues par le système : elles ont besoin des
+     couleurs du thème pour rester lisibles en mode sombre. */
+  .select-inline option {
+    background: var(--color-surface);
+    color: var(--color-body);
+  }
+
+  /* Cartes : conteneur rounded-2xl + en-tête avec barre d'accent 4 px (simcity) */
+  .card {
+    @apply rounded-2xl border border-line bg-surface shadow-sm;
+  }
+  .card-header {
+    @apply relative flex items-center justify-between gap-3 border-b border-line px-5 py-3.5;
+  }
+  .card-header::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 4px;
+    height: 1.1em;
+    border-radius: 999px;
+    background: var(--color-accent);
+  }
+  .card-title {
+    @apply text-xs font-bold uppercase tracking-wider text-muted;
+  }
+  .card-body {
+    @apply p-5;
+  }
+
+  /* Badges pilule pastel (même contrainte : base répétée, pas de composition) */
+  .badge,
+  .badge-ok,
+  .badge-warn,
+  .badge-danger,
+  .badge-info,
+  .badge-muted,
+  .badge-accent {
+    @apply inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-semibold;
+  }
+  .badge-ok {
+    @apply bg-ok-dim text-ok-text;
+  }
+  .badge-warn {
+    @apply bg-warn-dim text-warn-text;
+  }
+  .badge-danger {
+    @apply bg-danger-dim text-danger-text;
+  }
+  .badge-info {
+    @apply bg-info-dim text-info-text;
+  }
+  .badge-muted {
+    @apply bg-inset text-muted;
+  }
+  .badge-accent {
+    @apply bg-brand-50 text-brand-700;
+  }
+  html[data-theme="dark"] .badge-accent {
+    background: var(--color-accent-dim);
+    color: var(--color-brand-300);
+  }
+
+  /* Tableaux : pas de zébrures, en-têtes micro-caps, lignes divisées */
+  .table-wrap {
+    @apply overflow-x-auto;
+  }
+  .data-table {
+    @apply w-full text-sm;
+  }
+  .data-table thead th {
+    @apply pb-2 pr-3 text-left text-xs font-semibold uppercase tracking-wide text-faint;
+  }
+  .data-table tbody tr {
+    @apply border-t border-line transition;
+  }
+  .data-table tbody tr:hover {
+    background: var(--color-inset);
+  }
+  .data-table tbody td {
+    @apply py-2.5 pr-3 align-middle;
+  }
+  /* Chaque cellule pousse 12 px à sa droite, y compris la dernière : sans
+     contrepartie à gauche, la ligne est collée au bord gauche et décollée du
+     bord droit. On rétablit la symétrie sur la première colonne. */
+  .data-table thead th:first-child,
+  .data-table tbody td:first-child {
+    @apply pl-3;
+  }
+
+  /* Bandeau d'alerte actionnable */
+  .alert-warn {
+    @apply rounded-2xl border border-warn/30 p-4 text-sm;
+    background: color-mix(in srgb, var(--color-warn) 8%, transparent);
+  }
+  .alert-danger {
+    @apply rounded-2xl border border-danger/30 p-4 text-sm;
+    background: color-mix(in srgb, var(--color-danger) 7%, transparent);
+  }
+  .alert-error {
+    @apply rounded-lg border border-danger/30 px-4 py-3 text-sm;
+    background: color-mix(in srgb, var(--color-danger) 7%, transparent);
+    color: var(--color-danger-text);
+  }
+  .alert-success {
+    @apply rounded-lg border border-ok/30 px-4 py-3 text-sm;
+    background: color-mix(in srgb, var(--color-ok) 8%, transparent);
+    color: var(--color-ok-text);
+  }
+}
+
+/* Barres de défilement discrètes (simcity) */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-sub);
+  border-radius: 999px;
+  border: 2px solid var(--color-page);
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Impression */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+}
