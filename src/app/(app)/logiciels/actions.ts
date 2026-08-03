@@ -8,6 +8,7 @@ import {
   ENVIRONNEMENTS,
   logicielRgpdSchema,
   logicielSchema,
+  pieceContratSchema,
 } from "@/schemas/logiciel";
 import { AUDIT, recordAudit } from "@/server/audit";
 import { requireRole } from "@/server/guards";
@@ -241,18 +242,24 @@ export async function removeInterconnexionAction(id: number, logicielId: number)
   }
 }
 
-// ── Contrats ──
+// ── Contrats et marchés ──
 
 function parseContrat(formData: FormData) {
   const get = (k: string) => String(formData.get(k) ?? "");
   return contratSchema.safeParse({
-    type: get("type"),
     libelle: get("libelle"),
     fournisseurId: get("fournisseurId"),
-    coutAnnuel: get("coutAnnuel"),
-    dateRenouvellement: get("dateRenouvellement"),
     referenceMarche: get("referenceMarche"),
     notes: get("notes"),
+  });
+}
+
+function parsePiece(formData: FormData) {
+  const get = (k: string) => String(formData.get(k) ?? "");
+  return pieceContratSchema.safeParse({
+    type: get("type"),
+    coutAnnuel: get("coutAnnuel"),
+    dateRenouvellement: get("dateRenouvellement"),
   });
 }
 
@@ -264,9 +271,9 @@ export async function createContratAction(logicielId: number, formData: FormData
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Données invalides." };
   }
   try {
-    await svc.createContrat(logicielId, parsed.data);
+    const created = await svc.createContrat(logicielId, parsed.data);
     revalidatePath(`/logiciels/${logicielId}`);
-    return { ok: true };
+    return { ok: true, id: created.id };
   } catch (e) {
     return inattendu(e);
   }
@@ -295,11 +302,66 @@ export async function deleteContratAction(id: number): Promise<Result> {
   if (!idValide(id)) return { ok: false, error: "Identifiant invalide." };
   const contrat = await svc.getContrat(id);
   if (!contrat) return { ok: false, error: "Contrat introuvable." };
-  const pieces = await svc.compterPiecesContrat(id);
-  if (pieces > 0) return refusPieces(pieces, "de ce contrat");
   try {
+    // Non bloquée par ses pièces : elle emporte lignes et fichiers compris.
     await svc.deleteContrat(id);
     revalidatePath(`/logiciels/${contrat.logicielId}`);
+    return { ok: true };
+  } catch (e) {
+    return inattendu(e);
+  }
+}
+
+export async function createPieceContratAction(
+  contratId: number,
+  formData: FormData,
+): Promise<Result> {
+  await requireRole("admin");
+  if (!idValide(contratId)) return { ok: false, error: "Identifiant invalide." };
+  const contrat = await svc.getContrat(contratId);
+  if (!contrat) return { ok: false, error: "Contrat introuvable." };
+  const parsed = parsePiece(formData);
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "Données invalides." };
+  }
+  try {
+    // L'id est RENVOYÉ : l'écran enchaîne aussitôt le dépôt de la pièce, qui a
+    // besoin d'une pièce existante à laquelle se rattacher.
+    const created = await svc.createPieceContrat(contratId, parsed.data);
+    revalidatePath(`/logiciels/${contrat.logicielId}`);
+    return { ok: true, id: created.id };
+  } catch (e) {
+    return inattendu(e);
+  }
+}
+
+export async function updatePieceContratAction(id: number, formData: FormData): Promise<Result> {
+  await requireRole("admin");
+  if (!idValide(id)) return { ok: false, error: "Identifiant invalide." };
+  const piece = await svc.getPieceContrat(id);
+  if (!piece) return { ok: false, error: "Pièce introuvable." };
+  const parsed = parsePiece(formData);
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "Données invalides." };
+  }
+  try {
+    await svc.updatePieceContrat(id, parsed.data);
+    revalidatePath(`/logiciels/${piece.contrat.logicielId}`);
+    return { ok: true };
+  } catch (e) {
+    return inattendu(e);
+  }
+}
+
+/** Non bloquée par ses pièces : elle les emporte, fichiers compris. */
+export async function deletePieceContratAction(id: number): Promise<Result> {
+  await requireRole("admin");
+  if (!idValide(id)) return { ok: false, error: "Identifiant invalide." };
+  const piece = await svc.getPieceContrat(id);
+  if (!piece) return { ok: false, error: "Pièce introuvable." };
+  try {
+    await svc.deletePieceContrat(id);
+    revalidatePath(`/logiciels/${piece.contrat.logicielId}`);
     return { ok: true };
   } catch (e) {
     return inattendu(e);

@@ -26,7 +26,7 @@ export function documentPath(doc: Pick<Document, "nomStockage">): string {
 export type ParentDocument =
   | { logicielId: number }
   | { editeurId: number }
-  | { contratId: number }
+  | { pieceContratId: number }
   | { devisId: number };
 
 /**
@@ -58,12 +58,12 @@ export async function saveDocument(opts: {
       select: { id: true },
     });
     if (!e) return { ok: false, error: "Éditeur introuvable." };
-  } else if ("contratId" in opts.parent) {
-    const c = await prisma.contrat.findUnique({
-      where: { id: opts.parent.contratId },
+  } else if ("pieceContratId" in opts.parent) {
+    const c = await prisma.pieceContrat.findUnique({
+      where: { id: opts.parent.pieceContratId },
       select: { id: true },
     });
-    if (!c) return { ok: false, error: "Contrat introuvable." };
+    if (!c) return { ok: false, error: "Pièce de contrat introuvable." };
   } else {
     const d = await prisma.devis.findUnique({
       where: { id: opts.parent.devisId },

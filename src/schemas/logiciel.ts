@@ -139,21 +139,29 @@ export const logicielRgpdSchema = z.object({
 });
 export type LogicielRgpdInput = z.infer<typeof logicielRgpdSchema>;
 
-/** Ligne de contrat (onglet Contrats). */
+/**
+ * Contrat ou marché (onglet Contrats) : ce qui l'IDENTIFIE. Ni montant ni
+ * échéance — ceux-ci appartiennent à ses lignes.
+ */
 export const contratSchema = z.object({
-  type: z.enum(TYPES_CONTRAT),
   libelle: z.string().trim().max(150, "Libellé trop long (150 caractères max)."),
   // Vide = l'éditeur du logiciel ; renseigné quand on contractualise avec un revendeur.
   fournisseurId: idOptionnel,
-  coutAnnuel: montantOptionnel,
-  dateRenouvellement: dateOptionnelle,
   referenceMarche: z
     .string()
     .trim()
-    .max(120, "Référence de marché trop longue (120 caractères max)."),
+    .max(120, "Référence marché/contrat trop longue (120 caractères max)."),
   notes: z.string().trim().max(2000, "Notes trop longues (2000 caractères max)."),
 });
 export type ContratInput = z.infer<typeof contratSchema>;
+
+/** Pièce d'un contrat : son type, son coût, son échéance. */
+export const pieceContratSchema = z.object({
+  type: z.enum(TYPES_CONTRAT),
+  coutAnnuel: montantOptionnel,
+  dateRenouvellement: dateOptionnelle,
+});
+export type PieceContratInput = z.infer<typeof pieceContratSchema>;
 
 /** Mise en concurrence (onglet Devis) : l'objet consulté et sa date. */
 export const consultationSchema = z.object({

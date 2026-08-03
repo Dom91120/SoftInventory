@@ -77,9 +77,108 @@ export function tailleLisible(octets: number): string {
 }
 
 /**
- * Pièces jointes d'un logiciel, d'un éditeur ou d'une ligne de contrat : dépôt
- * (admin), liste, téléchargement (tous), suppression (admin). Le dépôt passe
- * par la route /api/documents/upload (flux binaire), pas par une server action.
+ * Une pièce jointe affichée DANS une ligne de tableau : nom cliquable et
+ * téléchargement, puis type modifiable, taille, déposant et date en dessous.
+ *
+ * Partagée par les onglets Contrats et Devis, où les pièces se lisent dans la
+ * ligne de leur contrat ou de leur devis plutôt que dans un panneau séparé. Le
+ * dépôt et le retrait n'y figurent pas : ils passent par le formulaire de la
+ * ligne et par sa corbeille, qui emporte tout.
+ */
+export function LigneDocument({
+  document,
+  categories,
+  readOnly,
+  onErreur,
+}: {
+  document: DocumentRow;
+  categories: CategorieOption[];
+  readOnly: boolean;
+  onErreur: (message: string | null) => void;
+}) {
+  const router = useRouter();
+  const [pending, startTransition] = useTransition();
+  const Icone = iconeDe(document.nomOriginal);
+
+  function changerCategorie(valeur: string) {
+    onErreur(null);
+    startTransition(async () => {
+      const res = await updateDocumentCategorieAction(
+        document.id,
+        valeur === "" ? null : Number(valeur),
+      );
+      if (!res.ok) onErreur(res.error);
+      // Rafraîchi dans tous les cas : en cas d'échec, la liste revient sur la
+      // valeur réellement enregistrée plutôt que d'afficher un changement qui
+      // n'a pas eu lieu.
+      router.refresh();
+    });
+  }
+
+  // Icône centrée sur le bloc de deux lignes (items-center), gap-3 pour la
+  // décoller du texte, mt-0.5 entre le nom et la ligne d'informations.
+  return (
+    <span className="flex min-w-0 items-center gap-3">
+      <Icone className="h-4 w-4 shrink-0 text-faint" />
+      <span className="min-w-0">
+        <span className="flex items-center gap-1">
+          <a
+            href={`/api/documents/download?id=${document.id}&inline=1`}
+            target="_blank"
+            rel="noreferrer noopener"
+            title={`Ouvrir ${document.nomOriginal}`}
+            className="min-w-0 truncate font-medium text-strong hover:text-accent"
+          >
+            {document.nomOriginal}
+          </a>
+          <a
+            href={`/api/documents/download?id=${document.id}`}
+            className="btn-ghost !p-1.5 shrink-0"
+            title="Télécharger"
+          >
+            <Download className="h-4 w-4" />
+          </a>
+        </span>
+        <span className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-faint">
+          {readOnly ? (
+            document.categorie ? (
+              <span>{document.categorie}</span>
+            ) : null
+          ) : (
+            <select
+              className="select-inline"
+              aria-label={`Type de ${document.nomOriginal}`}
+              value={document.categorieId === null ? "" : String(document.categorieId)}
+              disabled={pending}
+              onChange={(e) => changerCategorie(e.target.value)}
+            >
+              <option value="">— sans type —</option>
+              {categories.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.label}
+                </option>
+              ))}
+            </select>
+          )}
+          <span>
+            {[
+              tailleLisible(document.taille),
+              document.deposeParLabel && `déposé par ${document.deposeParLabel}`,
+              document.createdAt,
+            ]
+              .filter(Boolean)
+              .join(" · ")}
+          </span>
+        </span>
+      </span>
+    </span>
+  );
+}
+
+/**
+ * Pièces jointes d'un logiciel ou d'un éditeur : dépôt (admin), liste,
+ * téléchargement (tous), suppression (admin). Le dépôt passe par la route
+ * /api/documents/upload (flux binaire), pas par une server action.
  */
 export function DocumentsPanel({
   parent,

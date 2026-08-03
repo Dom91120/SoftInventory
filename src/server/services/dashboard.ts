@@ -59,7 +59,8 @@ export async function chargerDashboard(): Promise<DonneesDashboard> {
           nbUtilisateurs: true,
           nbMaxUtilisateurs: true,
           finContratLe: true,
-          contrats: { select: { coutAnnuel: true } },
+          // Le coût vit sur les LIGNES des contrats, pas sur les contrats.
+          contrats: { select: { pieces: { select: { coutAnnuel: true } } } },
         },
       }),
       prisma.editeur.count(),
@@ -74,22 +75,30 @@ export async function chargerDashboard(): Promise<DonneesDashboard> {
           logiciel: { select: { id: true, nom: true } },
         },
       }),
-      prisma.contrat.findMany({
+      prisma.pieceContrat.findMany({
         where: { dateRenouvellement: { not: null, lte: fenetre60j } },
         select: {
-          libelle: true,
-          referenceMarche: true,
           dateRenouvellement: true,
-          logiciel: { select: { id: true, nom: true } },
+          contrat: {
+            select: {
+              libelle: true,
+              referenceMarche: true,
+              logiciel: { select: { id: true, nom: true } },
+            },
+          },
         },
       }),
     ]);
 
-  // Coût annuel total : coût de la fiche + coûts des lignes de contrat.
+  // Coût annuel total : coût de la fiche + coûts des lignes de ses contrats.
   let coutAnnuelTotal = 0;
   for (const l of logiciels) {
     if (l.coutAnnuel) coutAnnuelTotal += Number(l.coutAnnuel);
-    for (const lic of l.contrats) if (lic.coutAnnuel) coutAnnuelTotal += Number(lic.coutAnnuel);
+    for (const c of l.contrats) {
+      for (const piece of c.pieces) {
+        if (piece.coutAnnuel) coutAnnuelTotal += Number(piece.coutAnnuel);
+      }
+    }
   }
 
   // Contrats dépassés (même règle que la liste/l'export).
@@ -122,11 +131,14 @@ export async function chargerDashboard(): Promise<DonneesDashboard> {
   // Renouvellements ≤ 60 j : lignes de contrat + fins de contrat des fiches.
   const renouvellements = [
     ...contratsARenouveler.map((l) => ({
-      logicielId: l.logiciel.id,
-      logiciel: l.logiciel.nom,
+      logicielId: l.contrat.logiciel.id,
+      logiciel: l.contrat.logiciel.nom,
       // Le libellé suffit quand il est là ; le préfixer donnerait « Contrat
       // Contrat VIP Adobe » pour les libellés qui disent déjà « contrat ».
-      objet: l.libelle || (l.referenceMarche ? `Contrat ${l.referenceMarche}` : "Contrat"),
+      // Seul le marché nomme l'engagement : une pièce n'a pas de libellé propre.
+      objet:
+        l.contrat.libelle ||
+        (l.contrat.referenceMarche ? `Contrat ${l.contrat.referenceMarche}` : "Contrat"),
       echeance: l.dateRenouvellement as Date,
     })),
     ...logiciels

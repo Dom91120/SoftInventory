@@ -119,14 +119,30 @@ export async function envoyerRappelsEcheances(): Promise<{
     // L'anti-doublon (rappelEnvoyeLe === dateRenouvellement) se tranche en
     // mémoire : la comparaison colonne-à-colonne en SQL n'apporterait rien sur
     // ces volumes.
-    const contrats = await prisma.contrat.findMany({
+    // L'échéance vit sur la LIGNE de contrat, pas sur le marché : un même
+    // marché peut couvrir plusieurs postes aux termes distincts, et chacun
+    // mérite son rappel.
+    const lignes = await prisma.pieceContrat.findMany({
       where: { dateRenouvellement: { not: null, lte: fenetreContrat } },
-      include: { logiciel: { select: { id: true, nom: true } } },
+      include: {
+        contrat: {
+          select: {
+            libelle: true,
+            referenceMarche: true,
+            logiciel: { select: { id: true, nom: true } },
+          },
+        },
+      },
     });
-    for (const l of contrats) {
+    for (const l of lignes) {
       if (!l.dateRenouvellement) continue;
       if (l.rappelEnvoyeLe?.getTime() === l.dateRenouvellement.getTime()) continue;
-      const url = appUrl ? `${appUrl}/logiciels/${l.logiciel.id}?onglet=contrats` : "";
+      const marche = l.contrat;
+      const url = appUrl ? `${appUrl}/logiciels/${marche.logiciel.id}?onglet=contrats` : "";
+      // C'est une PIÈCE qui arrive à échéance, mais seul le marché la nomme :
+      // une pièce ne porte plus de libellé propre.
+      const nomMarche = marche.libelle || marche.referenceMarche || "sans libellé";
+      const objet = `Une pièce du contrat « ${nomMarche} »`;
       let auMoinsUnEnvoi = false;
       for (const to of fallback) {
         const res = await sendTemplatedMail({
@@ -134,10 +150,12 @@ export async function envoyerRappelsEcheances(): Promise<{
           kind: "contrat_rappel",
           vars: {
             salutation: greeting(""),
-            objet: `Le contrat « ${l.libelle || l.referenceMarche || "sans libellé"} »`,
-            logiciel: l.logiciel.nom,
+            objet,
+            logiciel: marche.logiciel.nom,
             echeance: fmtDate.format(l.dateRenouvellement),
-            details: l.referenceMarche ? `Référence de marché : ${l.referenceMarche}.` : "",
+            details: marche.referenceMarche
+              ? `Référence marché/contrat : ${marche.referenceMarche}.`
+              : "",
             url,
           },
           rawVars: url ? { bouton: emailButton(url, "Ouvrir les contrats") } : {},
@@ -146,7 +164,7 @@ export async function envoyerRappelsEcheances(): Promise<{
         if (res.ok || res.queued) auMoinsUnEnvoi = true;
       }
       if (auMoinsUnEnvoi) {
-        await prisma.contrat.update({
+        await prisma.pieceContrat.update({
           where: { id: l.id },
           data: { rappelEnvoyeLe: l.dateRenouvellement },
         });

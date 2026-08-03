@@ -6,6 +6,7 @@ import type {
   DevisInput,
   LogicielInput,
   LogicielRgpdInput,
+  PieceContratInput,
 } from "@/schemas/logiciel";
 import { prisma } from "@/server/db";
 import { deleteDocument } from "@/server/services/documents";
@@ -62,10 +63,15 @@ export function getLogiciel(id: number) {
       services: { include: { service: true } },
       serveurs: { include: { serveur: true } },
       contrats: {
-        orderBy: [{ dateRenouvellement: "asc" }, { id: "asc" }],
+        orderBy: [{ id: "asc" }],
         include: {
           fournisseur: { select: { id: true, nom: true } },
-          documents: { include: { categorie: true }, orderBy: { createdAt: "desc" } },
+          pieces: {
+            orderBy: [{ dateRenouvellement: "asc" }, { id: "asc" }],
+            include: {
+              documents: { include: { categorie: true }, orderBy: { createdAt: "desc" } },
+            },
+          },
         },
       },
       // Consultations les plus récentes en tête ; à l'intérieur, le devis
@@ -203,39 +209,73 @@ export async function listAutresLogiciels(saufId: number) {
   return autres.sort((a, b) => compareAlpha(a.nom, b.nom));
 }
 
-// ── Contrats ──
+// ── Contrats et marchés ──
 
 export function createContrat(logicielId: number, data: ContratInput) {
   return prisma.contrat.create({ data: { logicielId, ...data } });
 }
 
 export function updateContrat(id: number, data: ContratInput) {
+  return prisma.contrat.update({ where: { id }, data });
+}
+
+/**
+ * Supprime le contrat, ses lignes ET leurs pièces, d'un seul geste — même
+ * traitement que deleteDevisAvecPieces, et pour la même raison : chaque pièce
+ * passe par deleteDocument, qui retire aussi le fichier du disque. La cascade
+ * PostgreSQL effacerait les lignes en laissant les fichiers orphelins.
+ *
+ * Les pièces d'abord : si la suppression échouait ensuite, mieux vaut un
+ * contrat sans pièce que des fichiers orphelins dans attachments/.
+ */
+export async function deleteContrat(id: number) {
+  const pieces = await prisma.document.findMany({
+    where: { pieceContrat: { contratId: id } },
+    select: { id: true },
+  });
+  for (const p of pieces) await deleteDocument(p.id);
+  return prisma.contrat.delete({ where: { id } });
+}
+
+export function createPieceContrat(contratId: number, data: PieceContratInput) {
+  return prisma.pieceContrat.create({ data: { contratId, ...data } });
+}
+
+export function updatePieceContrat(id: number, data: PieceContratInput) {
   // Même règle que finContratLe : nouvelle date de renouvellement ⇒ nouveau rappel.
   return prisma.$transaction(async (tx) => {
-    const avant = await tx.contrat.findUnique({
+    const avant = await tx.pieceContrat.findUnique({
       where: { id },
       select: { dateRenouvellement: true },
     });
     const dateChangee = avant?.dateRenouvellement?.getTime() !== data.dateRenouvellement?.getTime();
-    return tx.contrat.update({
+    return tx.pieceContrat.update({
       where: { id },
       data: { ...data, ...(dateChangee ? { rappelEnvoyeLe: null } : {}) },
     });
   });
 }
 
-export function deleteContrat(id: number) {
-  return prisma.contrat.delete({ where: { id } });
+/** Supprime la pièce ET ses fichiers — voir deleteContrat pour le pourquoi. */
+export async function deletePieceContrat(id: number) {
+  const pieces = await prisma.document.findMany({
+    where: { pieceContratId: id },
+    select: { id: true },
+  });
+  for (const p of pieces) await deleteDocument(p.id);
+  return prisma.pieceContrat.delete({ where: { id } });
 }
 
-/** Pièces jointes d'une ligne de contrat (garde-fou anti-orphelins). */
-export function compterPiecesContrat(id: number) {
-  return prisma.document.count({ where: { contratId: id } });
+export function getPieceContrat(id: number) {
+  return prisma.pieceContrat.findUnique({
+    where: { id },
+    include: { contrat: { select: { id: true, logicielId: true } } },
+  });
 }
 
 /**
  * Pièces qu'emporterait la suppression d'un logiciel. TROIS chemins de cascade
- * mènent à `documents` : la fiche elle-même, ses lignes de contrat, et les
+ * mènent à `documents` : la fiche elle-même, les lignes de ses contrats, et les
  * devis de ses consultations. Les oublier laisserait le garde-fou passoire.
  */
 export function compterPiecesLogiciel(id: number) {
@@ -243,7 +283,7 @@ export function compterPiecesLogiciel(id: number) {
     where: {
       OR: [
         { logicielId: id },
-        { contrat: { logicielId: id } },
+        { pieceContrat: { contrat: { logicielId: id } } },
         { devis: { consultation: { logicielId: id } } },
       ],
     },

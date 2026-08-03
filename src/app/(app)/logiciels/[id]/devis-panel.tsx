@@ -1,15 +1,14 @@
 "use client";
 
-import { Download, Pencil, Plus, Star, Trash2, Upload, X } from "lucide-react";
+import { Pencil, Plus, Star, Trash2, Upload, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useRef, useState, useTransition } from "react";
-import { deleteDocumentAction, updateDocumentCategorieAction } from "@/app/(app)/documents/actions";
+import { deleteDocumentAction } from "@/app/(app)/documents/actions";
 import { createEditeurAction } from "@/app/(app)/editeurs/actions";
 import {
   type CategorieOption,
   type DocumentRow,
-  iconeDe,
-  tailleLisible,
+  LigneDocument,
 } from "@/components/documents-panel";
 import { Card, EmptyState, Field } from "@/components/ui";
 import { formatEuros } from "@/lib/format";
@@ -286,7 +285,10 @@ export function DevisPanel({
         ) : (
           <div className="space-y-5">
             {consultations.map((c) => (
-              <section key={c.id} className="rounded-xl border border-line">
+              // `bg-page` : même traitement que les marchés de l'onglet
+              // Contrats — le fond des pages, plus sourd que la carte qui les
+              // contient, détache chaque consultation comme un bloc.
+              <section key={c.id} className="rounded-xl border border-line bg-page">
                 <header className="flex flex-wrap items-center justify-between gap-2 border-b border-line px-4 py-3">
                   <span className="min-w-0">
                     <span className="block truncate font-semibold text-strong">{c.objet}</span>
@@ -536,89 +538,16 @@ function PieceDevis({
   readOnly: boolean;
   onErreur: (message: string | null) => void;
 }) {
-  const router = useRouter();
-  const [pending, startTransition] = useTransition();
-
-  function changerCategorie(doc: DocumentRow, valeur: string) {
-    onErreur(null);
-    startTransition(async () => {
-      const res = await updateDocumentCategorieAction(
-        doc.id,
-        valeur === "" ? null : Number(valeur),
-      );
-      if (!res.ok) onErreur(res.error);
-      // Rafraîchi dans tous les cas : en cas d'échec, la liste revient sur la
-      // valeur réellement enregistrée plutôt que d'afficher un changement
-      // qui n'a pas eu lieu.
-      router.refresh();
-    });
-  }
-
-  if (document) {
-    const Icone = iconeDe(document.nomOriginal);
-    // Même gabarit que l'onglet Documents : icône centrée sur le bloc de deux
-    // lignes (items-center), gap-3 pour la décoller du texte, mt-0.5 entre le
-    // nom et la ligne d'informations.
-    return (
-      <span className="flex min-w-0 items-center gap-3">
-        <Icone className="h-4 w-4 shrink-0 text-faint" />
-        <span className="min-w-0">
-          <span className="flex items-center gap-1">
-            <a
-              href={`/api/documents/download?id=${document.id}&inline=1`}
-              target="_blank"
-              rel="noreferrer noopener"
-              title={`Ouvrir ${document.nomOriginal}`}
-              className="min-w-0 truncate font-medium text-strong hover:text-accent"
-            >
-              {document.nomOriginal}
-            </a>
-            <a
-              href={`/api/documents/download?id=${document.id}`}
-              className="btn-ghost !p-1.5 shrink-0"
-              title="Télécharger"
-            >
-              <Download className="h-4 w-4" />
-            </a>
-          </span>
-          <span className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-faint">
-            {readOnly ? (
-              document.categorie ? (
-                <span>{document.categorie}</span>
-              ) : null
-            ) : (
-              <select
-                className="select-inline"
-                aria-label={`Type de ${document.nomOriginal}`}
-                value={document.categorieId === null ? "" : String(document.categorieId)}
-                disabled={pending}
-                onChange={(e) => changerCategorie(document, e.target.value)}
-              >
-                <option value="">— sans type —</option>
-                {categories.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.label}
-                  </option>
-                ))}
-              </select>
-            )}
-            <span>
-              {[
-                tailleLisible(document.taille),
-                document.deposeParLabel && `déposé par ${document.deposeParLabel}`,
-                document.createdAt,
-              ]
-                .filter(Boolean)
-                .join(" · ")}
-            </span>
-          </span>
-        </span>
-      </span>
-    );
-  }
-
   // Sans pièce : rien à proposer ici, le dépôt se fait en modifiant le devis.
-  return <span className="text-faint">—</span>;
+  if (!document) return <span className="text-faint">—</span>;
+  return (
+    <LigneDocument
+      document={document}
+      categories={categories}
+      readOnly={readOnly}
+      onErreur={onErreur}
+    />
+  );
 }
 
 /**

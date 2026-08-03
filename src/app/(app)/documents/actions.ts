@@ -14,24 +14,24 @@ const NOM_MAX = 180;
 
 /**
  * Revalide l'écran qui affiche la pièce jointe. Un document rattaché à une
- * ligne de CONTRAT ou à un DEVIS n'a ni logicielId ni editeurId : il se lit
+ * PIÈCE de contrat ou à un DEVIS n'a ni logicielId ni editeurId : il se lit
  * depuis la fiche du logiciel porteur, qu'il faut donc retrouver — sans quoi
  * la page resterait figée après un renommage ou une suppression.
  */
 async function revalider(doc: {
   logicielId: number | null;
   editeurId: number | null;
-  contratId: number | null;
+  pieceContratId: number | null;
   devisId: number | null;
 }) {
   if (doc.logicielId) revalidatePath(`/logiciels/${doc.logicielId}`);
   if (doc.editeurId) revalidatePath(`/editeurs/${doc.editeurId}`);
-  if (doc.contratId) {
-    const contrat = await prisma.contrat.findUnique({
-      where: { id: doc.contratId },
-      select: { logicielId: true },
+  if (doc.pieceContratId) {
+    const piece = await prisma.pieceContrat.findUnique({
+      where: { id: doc.pieceContratId },
+      select: { contrat: { select: { logicielId: true } } },
     });
-    if (contrat) revalidatePath(`/logiciels/${contrat.logicielId}`);
+    if (piece) revalidatePath(`/logiciels/${piece.contrat.logicielId}`);
   }
   if (doc.devisId) {
     const devis = await prisma.devis.findUnique({
@@ -67,7 +67,7 @@ export async function renameDocumentAction(id: number, nouveauNom: string): Prom
     select: {
       logicielId: true,
       editeurId: true,
-      contratId: true,
+      pieceContratId: true,
       devisId: true,
       nomOriginal: true,
     },
@@ -109,7 +109,7 @@ export async function updateDocumentCategorieAction(
   }
   const doc = await prisma.document.findUnique({
     where: { id },
-    select: { logicielId: true, editeurId: true, contratId: true, devisId: true },
+    select: { logicielId: true, editeurId: true, pieceContratId: true, devisId: true },
   });
   if (!doc) return { ok: false, error: "Document introuvable." };
   try {

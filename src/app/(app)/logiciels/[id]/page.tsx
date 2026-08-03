@@ -37,7 +37,9 @@ const ONGLETS = [
   { key: "synthese", label: "Synthèse" },
   { key: "support", label: "Support" },
   { key: "liaisons", label: "Liaisons" },
-  { key: "contrats", label: "Contrats" },
+  // La clé reste « contrats » : elle circule dans les liens des rappels
+  // d'échéance déjà envoyés et dans les favoris. Seul le libellé change.
+  { key: "contrats", label: "Contrats/Marchés" },
   // Les devis précèdent les tâches : ils racontent l'AVANT-contrat (mise en
   // concurrence), et se lisent juste après le contrat qui en est issu.
   { key: "devis", label: "Devis" },
@@ -307,23 +309,33 @@ async function OngletContrats({
       contrats={logiciel.contrats.map(
         (c): ContratRow => ({
           id: c.id,
-          type: c.type,
           libelle: c.libelle,
           fournisseurId: c.fournisseurId === null ? "" : String(c.fournisseurId),
           fournisseurNom: c.fournisseur?.nom ?? null,
-          coutAnnuel: c.coutAnnuel === null ? "" : String(c.coutAnnuel),
-          dateRenouvellement: dateStr(c.dateRenouvellement),
           referenceMarche: c.referenceMarche,
           notes: c.notes,
-          documents: c.documents.map((d) => ({
-            id: d.id,
-            nomOriginal: d.nomOriginal,
-            categorieId: d.categorieId,
-            categorie: d.categorie?.label ?? null,
-            taille: d.taille,
-            deposeParLabel: d.deposeParLabel,
-            createdAt: fmt.format(d.createdAt),
-          })),
+          pieces: c.pieces.map((l) => {
+            // Une seule pièce par ligne : on ne remonte que la première, même
+            // si un dépôt direct par l'API en avait laissé plusieurs.
+            const doc = l.documents[0];
+            return {
+              id: l.id,
+              type: l.type,
+              coutAnnuel: l.coutAnnuel === null ? "" : String(l.coutAnnuel),
+              dateRenouvellement: dateStr(l.dateRenouvellement),
+              document: doc
+                ? {
+                    id: doc.id,
+                    nomOriginal: doc.nomOriginal,
+                    categorieId: doc.categorieId,
+                    categorie: doc.categorie?.label ?? null,
+                    taille: doc.taille,
+                    deposeParLabel: doc.deposeParLabel,
+                    createdAt: fmt.format(doc.createdAt),
+                  }
+                : null,
+            };
+          }),
         }),
       )}
     />
@@ -434,7 +446,10 @@ async function OngletSynthese({
       // qu'applique compterPiecesLogiciel côté serveur.
       nbPiecesJointes={
         logiciel.documents.length +
-        logiciel.contrats.reduce((n, c) => n + c.documents.length, 0) +
+        logiciel.contrats.reduce(
+          (n, c) => n + c.pieces.reduce((m, l) => m + l.documents.length, 0),
+          0,
+        ) +
         logiciel.consultations.reduce(
           (n, c) => n + c.devis.reduce((m, d) => m + d.documents.length, 0),
           0,

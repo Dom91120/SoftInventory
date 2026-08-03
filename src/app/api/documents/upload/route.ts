@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 
 /**
  * Dépôt d'une pièce jointe (multipart/form-data) : fichier + parent
- * (logicielId, editeurId, contratId OU devisId) + catégorie optionnelle. Réservé aux
+ * (logicielId, editeurId, pieceContratId OU devisId) + catégorie optionnelle. Réservé aux
  * admins. Route API plutôt que server action : flux binaire + FormData
  * volumineux.
  */
@@ -36,14 +36,14 @@ export function POST(request: Request): Promise<Response> {
     };
     const logicielId = id("logicielId");
     const editeurId = id("editeurId");
-    const contratId = id("contratId");
+    const pieceContratId = id("pieceContratId");
     const devisId = id("devisId");
     const parent = logicielId
       ? { logicielId }
       : editeurId
         ? { editeurId }
-        : contratId
-          ? { contratId }
+        : pieceContratId
+          ? { pieceContratId }
           : devisId
             ? { devisId }
             : null;

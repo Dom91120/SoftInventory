@@ -476,35 +476,52 @@ model Interconnexion {
   @@map("interconnexions")
 }
 
-/// Ligne de contrat d'un logiciel. Un logiciel en accumule plusieurs au fil
-/// des marchés — d'où une table, pas des colonnes sur Logiciel.
+/// Un contrat ou marché passé pour un logiciel : ce qui l'IDENTIFIE — son
+/// libellé, sa référence, la société avec qui on s'engage. Il ne porte ni
+/// montant ni échéance : ceux-ci vivent sur ses lignes, car un même marché
+/// couvre souvent plusieurs postes aux coûts et aux termes distincts.
 model Contrat {
-  id                 Int         @id @default(autoincrement())
-  logicielId         Int         @map("logiciel_id")
+  id              Int      @id @default(autoincrement())
+  logicielId      Int      @map("logiciel_id")
   /// Société avec qui la collectivité contractualise. null = l'éditeur du
   /// logiciel, cas le plus fréquent ; renseigné quand c'est un revendeur.
-  fournisseurId      Int?        @map("fournisseur_id")
+  fournisseurId   Int?     @map("fournisseur_id")
+  libelle         String   @default("") // ex. « marché 2024-12 », « pack 50 postes »
+  referenceMarche String   @default("") @map("reference_marche")
+  notes           String   @default("")
+  createdAt       DateTime @default(now()) @db.Timestamptz
+
+  logiciel Logiciel @relation(fields: [logicielId], references: [id], onDelete: Cascade)
+  // Le fournisseur n'est pas propriétaire du contrat : supprimer sa fiche ne
+  // doit pas emporter le contrat, seulement le laisser sans fournisseur.
+  fournisseur Editeur?       @relation("ContratFournisseur", fields: [fournisseurId], references: [id], onDelete: SetNull)
+  pieces      PieceContrat[]
+
+  @@index([logicielId])
+  @@index([fournisseurId])
+  @@map("contrats")
+}
+
+/// Une pièce d'un contrat ou marché : un poste, son coût et son échéance, avec
+/// le fichier qui l'atteste. C'est ELLE que le rappel de renouvellement
+/// surveille et elle qui alimente le coût annuel du tableau de bord.
+model PieceContrat {
+  id                 Int         @id @default(autoincrement())
+  contratId          Int         @map("contrat_id")
   type               TypeContrat @default(abonnement)
-  libelle            String      @default("") // ex. « marché 2024-12 », « pack 50 postes »
   coutAnnuel         Decimal?    @map("cout_annuel") @db.Decimal(12, 2)
   dateRenouvellement DateTime?   @map("date_renouvellement") @db.Date
   /// Date de renouvellement pour laquelle le rappel a déjà été envoyé
   /// (anti-doublon du cron ; remise à null quand la date change).
   rappelEnvoyeLe     DateTime?   @map("rappel_envoye_le") @db.Date
-  referenceMarche    String      @default("") @map("reference_marche")
-  notes              String      @default("")
   createdAt          DateTime    @default(now()) @db.Timestamptz
 
-  logiciel  Logiciel   @relation(fields: [logicielId], references: [id], onDelete: Cascade)
-  // Le fournisseur n'est pas propriétaire du contrat : supprimer sa fiche ne
-  // doit pas emporter le contrat, seulement le laisser sans fournisseur.
-  fournisseur Editeur? @relation("ContratFournisseur", fields: [fournisseurId], references: [id], onDelete: SetNull)
+  contrat   Contrat    @relation(fields: [contratId], references: [id], onDelete: Cascade)
   documents Document[]
 
-  @@index([logicielId])
-  @@index([fournisseurId])
+  @@index([contratId])
   @@index([dateRenouvellement])
-  @@map("contrats")
+  @@map("pieces_contrat")
 }
 
 // ============================================================
@@ -655,10 +672,10 @@ model Document {
   id          Int  @id @default(autoincrement())
   logicielId  Int? @map("logiciel_id")
   editeurId   Int? @map("editeur_id")
-  /// Rattachement à une ligne de contrat : la décision municipale et le contrat
-  /// signé se lisent alors sous le contrat qu'ils autorisent, dans l'onglet
-  /// Contrats du logiciel.
-  contratId   Int? @map("contrat_id")
+  /// Rattachement à une PIÈCE de contrat : la décision municipale et le contrat
+  /// signé se lisent alors dans la pièce qu'ils attestent, sous leur marché,
+  /// dans l'onglet Contrats/Marchés du logiciel.
+  pieceContratId Int? @map("piece_contrat_id")
   /// Rattachement à un devis : le PDF remis par le fournisseur se lit alors
   /// sous son devis, dans l'onglet Devis du logiciel.
   devisId     Int? @map("devis_id")
@@ -677,13 +694,13 @@ model Document {
 
   logiciel  Logiciel?          @relation(fields: [logicielId], references: [id], onDelete: Cascade)
   editeur   Editeur?           @relation(fields: [editeurId], references: [id], onDelete: Cascade)
-  contrat   Contrat?           @relation(fields: [contratId], references: [id], onDelete: Cascade)
+  pieceContrat PieceContrat?   @relation(fields: [pieceContratId], references: [id], onDelete: Cascade)
   devis     Devis?             @relation(fields: [devisId], references: [id], onDelete: Cascade)
   categorie CategorieDocument? @relation(fields: [categorieId], references: [id], onDelete: SetNull)
 
   @@index([logicielId])
   @@index([editeurId])
-  @@index([contratId])
+  @@index([pieceContratId])
   @@index([devisId])
   @@index([categorieId])
   @@map("documents")
