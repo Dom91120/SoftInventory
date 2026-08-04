@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { AUDIT, recordAudit } from "@/server/audit";
-import { getConfigMany, setConfigMany } from "@/server/config";
+import { getConfigMany, setConfigMany, seuilsRappel } from "@/server/config";
 import { prisma } from "@/server/db";
 import { requireRole } from "@/server/guards";
 import { sendMail } from "@/server/mailer";
@@ -229,17 +229,22 @@ export async function deleteFailedMailAction(id: number): Promise<Result> {
  */
 export async function lireConfigMessagerie() {
   await requireRole("admin");
-  const cfg = await getConfigMany([
-    "mail.from",
-    "mail.fromName",
-    "mail.host",
-    "mail.port",
-    "mail.security",
-    "mail.username",
-    "mail.password",
-    "tache.rappelJoursAvant",
-    "contrat.rappelJoursAvant",
-    "tache.destinatairesDefaut",
+  const [cfg, seuils] = await Promise.all([
+    getConfigMany([
+      "mail.from",
+      "mail.fromName",
+      "mail.host",
+      "mail.port",
+      "mail.security",
+      "mail.username",
+      "mail.password",
+      "tache.destinatairesDefaut",
+    ]),
+    // Les seuils passent par seuilsRappel et NON par un repli écrit ici : cet
+    // écran affichait 60 quand la clé était vide, alors que le cron appliquait
+    // déjà 90. L'écran aurait proposé un délai que personne n'appliquait — la
+    // divergence même que la centralisation devait supprimer.
+    seuilsRappel(),
   ]);
   return {
     from: cfg["mail.from"],
@@ -249,8 +254,8 @@ export async function lireConfigMessagerie() {
     security: cfg["mail.security"],
     username: cfg["mail.username"],
     passwordDefini: cfg["mail.password"] !== "",
-    tacheJours: cfg["tache.rappelJoursAvant"] || "14",
-    contratJours: cfg["contrat.rappelJoursAvant"] || "60",
+    tacheJours: String(seuils.tache),
+    contratJours: String(seuils.contrat),
     destinataires: cfg["tache.destinatairesDefaut"],
   };
 }

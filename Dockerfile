@@ -49,6 +49,11 @@ COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
+# La page /readme lit ce fichier sur le disque à l'affichage. Le traçage
+# standalone ne l'embarque pas — rien dans le code ne l'y désigne comme une
+# dépendance — d'où cette copie explicite : sans elle, la page serait vide.
+COPY --from=builder /app/README.md ./README.md
+
 # Prisma : schéma + migrations + config (Prisma 7 : URL dans prisma.config.ts) +
 # CLI/engine pour `migrate deploy` au démarrage
 COPY --from=builder /app/prisma ./prisma

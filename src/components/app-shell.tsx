@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { LogoutButton } from "@/components/logout-button";
 import { SidebarNav } from "@/components/sidebar-nav";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { UserMenu } from "@/components/user-menu";
 
 export type ShellUser = {
   prenom: string;
@@ -39,39 +40,28 @@ function Brand() {
 
 function UserFooter({ user }: { user: ShellUser }) {
   return (
-    <div className="border-t border-line p-3">
-      <div className="flex items-center gap-3 px-2 py-2">
-        <span
-          className="inline-flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-full text-xs font-bold text-white"
-          style={{
-            background: "linear-gradient(135deg, var(--color-accent), var(--color-accent-strong))",
-          }}
-        >
-          {initials(user)}
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className="block truncate text-sm font-medium text-strong">
-            {displayName(user)}
-          </span>
-          <span className="block text-[0.64rem] font-bold uppercase tracking-[0.13em] text-faint">
-            {user.role === "admin" ? "Administrateur" : "Lecteur"}
-          </span>
-        </span>
-      </div>
-      {/* Thème et déconnexion descendent sur la ligne de « Mon compte » : ce
-          sont trois COMMANDES, alors qu'au-dessus le bloc ne fait qu'identifier
-          l'usager. Le nom et le rôle récupèrent au passage toute la largeur —
-          ils tronquaient face aux deux boutons. */}
-      <div className="flex items-center gap-1">
-        <Link
-          href="/mon-compte"
-          className="min-w-0 flex-1 truncate rounded-lg px-2 py-1.5 text-xs font-medium text-muted transition hover:bg-inset hover:text-strong"
-        >
-          Mon compte
-        </Link>
+    <div className="relative border-t border-line p-3">
+      <UserMenu
+        initiales={initials(user)}
+        nomAffiche={displayName(user)}
+        role={user.role === "admin" ? "Administrateur" : "Lecteur"}
+      />
+      {/* Hors du <details> : dans le <summary>, un clic sur l'un de ces boutons
+          replierait le menu par-dessus le marché. D'où le positionnement en
+          absolu — le seul moyen de les poser SUR le bloc d'identité sans être
+          dedans.
+
+          `top-1 right-1` : 4 px du trait, sur la ligne du nom. Ils ne rentrent
+          PAS dans la boîte de survol et n'ont pas à le faire.
+
+          Le fond opaque qui bloque la couleur de survol est porté par CHAQUE
+          bouton (voir ThemeToggle et LogoutButton), non par ce conteneur : posé
+          ici, il masquait aussi l'espace qui les sépare, où la couleur doit se
+          voir. */}
+      <span className="absolute top-1 right-1 z-30 flex items-center gap-1">
         <ThemeToggle />
         <LogoutButton />
-      </div>
+      </span>
     </div>
   );
 }

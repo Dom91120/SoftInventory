@@ -28,7 +28,10 @@ export function ThemeToggle() {
       type="button"
       onClick={toggle}
       title={dark ? "Passer en mode clair" : "Passer en mode sombre"}
-      className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-sub text-muted transition hover:bg-inset hover:text-strong"
+      // `bg-surface` : opaque à dessein. Le bouton flotte au-dessus du bloc
+      // d'identité de la barre latérale, dont le survol se colore — sans fond
+      // propre, cette couleur se verrait au travers.
+      className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-sub bg-surface text-muted transition hover:bg-inset hover:text-strong"
     >
       {dark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
     </button>

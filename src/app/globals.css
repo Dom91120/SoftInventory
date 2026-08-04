@@ -227,6 +227,69 @@ body {
     color: var(--color-brand-300);
   }
 
+  /* Rendu Markdown (page README). Le préflight de Tailwind remet titres, listes
+     et citations à plat : sans ces règles, le README s'afficherait comme un
+     seul bloc de texte indifférencié. Portée limitée à `.markdown` — aucune
+     balise nue n'est stylée ailleurs dans l'application. */
+  .markdown {
+    @apply text-sm leading-relaxed text-body;
+  }
+  .markdown h1 {
+    @apply mt-8 mb-3 text-xl font-semibold tracking-tight text-strong first:mt-0;
+  }
+  .markdown h2 {
+    @apply mt-8 mb-3 border-b border-line pb-2 text-lg font-semibold tracking-tight text-strong first:mt-0;
+  }
+  .markdown h3 {
+    @apply mt-6 mb-2 text-base font-semibold text-strong;
+  }
+  .markdown p {
+    @apply my-3;
+  }
+  .markdown ul {
+    @apply my-3 list-disc pl-5;
+  }
+  .markdown ol {
+    @apply my-3 list-decimal pl-5;
+  }
+  .markdown li {
+    @apply my-1;
+  }
+  .markdown a {
+    @apply text-accent underline underline-offset-2 hover:text-accent-strong;
+  }
+  .markdown strong {
+    @apply font-semibold text-strong;
+  }
+  /* `code` nu : dans un bloc, il hérite du <pre> et ne doit pas se re-décorer. */
+  .markdown code {
+    @apply rounded bg-inset px-1.5 py-0.5 font-mono text-[0.85em] text-strong;
+  }
+  .markdown pre {
+    @apply my-4 overflow-x-auto rounded-lg border border-line bg-inset p-3;
+  }
+  .markdown pre code {
+    @apply bg-transparent p-0 text-xs;
+  }
+  .markdown blockquote {
+    @apply my-4 rounded-r-lg border-l-4 border-sub bg-inset py-2 pr-3 pl-4;
+  }
+  .markdown blockquote p {
+    @apply my-1;
+  }
+  .markdown table {
+    @apply my-4 w-full text-sm;
+  }
+  .markdown th {
+    @apply border-b border-line pb-2 pr-3 text-left text-xs font-semibold uppercase tracking-wide text-faint;
+  }
+  .markdown td {
+    @apply border-t border-line py-2 pr-3 align-top;
+  }
+  .markdown hr {
+    @apply my-6 border-line;
+  }
+
   /* Tableaux : pas de zébrures, en-têtes micro-caps, lignes divisées */
   .table-wrap {
     @apply overflow-x-auto;
