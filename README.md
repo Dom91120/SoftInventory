@@ -20,17 +20,26 @@ entre logiciels, serveurs, services utilisateurs), **Contrats/Marchés**,
 
 **C'est le marché qui engage.** Il porte sa référence, son fournisseur
 (l'éditeur du logiciel par défaut, une société nommée quand c'est un
-revendeur), sa période — affichée « du 01/01/2023 au 31/12/2026 » — et son
-montant annuel. Ses **pièces** ne décrivent qu'elles-mêmes : un fichier, la
-catégorie de ce fichier, et la date du document (signature, notification).
-Elles ne chiffrent rien et ne déclenchent rien.
+revendeur), sa période — affichée « du 01/01/2023 au 31/12/2026 » —, son
+montant annuel et, quand l'acte en fixe un, son montant maximum. Ce plafond
+ne contraint pas le montant annuel : il porte souvent sur la durée entière.
+Seul le montant annuel entre dans le coût du parc — un plafond n'est pas une
+dépense.
+
+Ses **pièces** ne décrivent qu'elles-mêmes : un fichier, la catégorie de ce
+fichier, et la date du document (signature, notification). Elles ne chiffrent
+rien et ne déclenchent rien. Les marchés se lisent du plus récent au plus
+ancien.
 
 L'échéance surveillée est donc la **date de fin du marché**, et elle seule.
 Un rappel part 3 mois avant (délai réglable en Administration › Messagerie),
-une fois par échéance. Jamais rétroactivement : un marché déjà échu se
-constate — un badge **Terminé** le dit à l'écran — il ne se rappelle pas, ce
-qui permet de saisir d'anciens marchés pour l'historique sans déclencher
-d'envoi.
+une fois par échéance ; dans cette même fenêtre, une pastille **À renouveler**
+paraît sur le marché — l'écran et l'e-mail lisent le même réglage, ils ne
+peuvent pas se contredire.
+
+Jamais de rappel rétroactif : un marché déjà échu se constate — la pastille
+dit alors **Terminé** — il ne se rappelle pas. On peut ainsi saisir d'anciens
+marchés pour l'historique sans déclencher d'envoi.
 
 Les devis racontent l'avant-contrat : ils se groupent par consultation (un
 objet, une date), avec le montant de chaque fournisseur et celui qui a été
