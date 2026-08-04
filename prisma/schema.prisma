@@ -496,10 +496,18 @@ model Contrat {
   /// Montant annuel du marché entier. null = non renseigné, à distinguer de
   /// zéro (un marché à titre gratuit se saisit, lui, à 0).
   montantAnnuel   Decimal?  @map("montant_annuel") @db.Decimal(12, 2)
-  /// Terme du marché. Contrairement à PieceContrat.dateRenouvellement et à
-  /// Logiciel.finContratLe, elle ne déclenche AUCUN rappel : pas de colonne
-  /// anti-doublon ici, et le cron ne la lit pas. C'est une donnée de référence.
+  /// Début du marché : la date à laquelle il prend effet. Se lit avec dateFin,
+  /// dont elle forme la période affichée (« du … au … »). Indépendante d'elle :
+  /// un marché en cours a souvent un début connu et un terme qui ne l'est pas.
+  dateDebut       DateTime? @map("date_debut") @db.Date
+  /// Terme du marché, et ÉCHÉANCE surveillée : c'est cette date que le cron
+  /// lit pour ses rappels et le tableau de bord pour ses renouvellements. Le
+  /// suivi vivait sur la pièce ; il est remonté ici, une pièce ne portant plus
+  /// qu'une date de document.
   dateFin         DateTime? @map("date_fin") @db.Date
+  /// Date de fin pour laquelle le rappel a déjà été envoyé (anti-doublon du
+  /// cron ; remise à null quand la date change).
+  rappelEnvoyeLe  DateTime? @map("rappel_envoye_le") @db.Date
   notes           String    @default("")
   createdAt       DateTime  @default(now()) @db.Timestamptz
 
@@ -511,28 +519,31 @@ model Contrat {
 
   @@index([logicielId])
   @@index([fournisseurId])
+  @@index([dateFin])
   @@map("contrats")
 }
 
-/// Une pièce d'un contrat ou marché : un poste, son coût et son échéance, avec
-/// le fichier qui l'atteste. C'est ELLE que le rappel de renouvellement
-/// surveille et elle qui alimente le coût annuel du tableau de bord.
+/// Une pièce d'un contrat ou marché : un poste, son coût et la date de son
+/// document, avec le fichier qui l'atteste. Elle alimente le coût annuel du
+/// tableau de bord, mais ne porte plus d'échéance : le rappel de
+/// renouvellement surveille désormais Contrat.dateFin.
 model PieceContrat {
-  id                 Int         @id @default(autoincrement())
-  contratId          Int         @map("contrat_id")
-  type               TypeContrat @default(abonnement)
-  coutAnnuel         Decimal?    @map("cout_annuel") @db.Decimal(12, 2)
-  dateRenouvellement DateTime?   @map("date_renouvellement") @db.Date
-  /// Date de renouvellement pour laquelle le rappel a déjà été envoyé
-  /// (anti-doublon du cron ; remise à null quand la date change).
-  rappelEnvoyeLe     DateTime?   @map("rappel_envoye_le") @db.Date
-  createdAt          DateTime    @default(now()) @db.Timestamptz
+  id         Int         @id @default(autoincrement())
+  contratId  Int         @map("contrat_id")
+  type       TypeContrat @default(abonnement)
+  coutAnnuel Decimal?    @map("cout_annuel") @db.Decimal(12, 2)
+  /// Date du document lui-même — sa signature, sa notification. Presque
+  /// toujours PASSÉE, d'où l'absence de tout rappel accroché : la colonne
+  /// portait auparavant la date de renouvellement, dont elle a hérité les
+  /// valeurs.
+  datePiece  DateTime?   @map("date_piece") @db.Date
+  createdAt  DateTime    @default(now()) @db.Timestamptz
 
   contrat   Contrat    @relation(fields: [contratId], references: [id], onDelete: Cascade)
   documents Document[]
 
   @@index([contratId])
-  @@index([dateRenouvellement])
+  @@index([datePiece])
   @@map("pieces_contrat")
 }
 

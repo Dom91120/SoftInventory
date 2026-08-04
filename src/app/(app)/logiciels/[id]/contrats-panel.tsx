@@ -22,8 +22,8 @@ import {
 
 export type PieceContratRow = {
   id: number;
-  coutAnnuel: string; // Decimal sérialisé ("" si null)
-  dateRenouvellement: string; // AAAA-MM-JJ ou ""
+  /** Date du document (signature, notification) — AAAA-MM-JJ ou "". Sans rappel. */
+  datePiece: string;
   /** Le fichier qui atteste la pièce. Un seul — d'où le null et non un tableau. */
   document: DocumentRow | null;
 };
@@ -37,6 +37,8 @@ export type ContratRow = {
   referenceMarche: string;
   /** Montant annuel du marché entier (Decimal sérialisé ; "" si null). */
   montantAnnuel: string;
+  /** Prise d'effet du marché, AAAA-MM-JJ ou "". */
+  dateDebut: string;
   /** Terme du marché, AAAA-MM-JJ ou "". Aucun rappel ne s'y accroche. */
   dateFin: string;
   notes: string;
@@ -49,6 +51,32 @@ export type ContratRow = {
  */
 function enDateFr(iso: string): string {
   return DATE_FMT_FR_UTC.format(new Date(`${iso}T00:00:00.000Z`));
+}
+
+/**
+ * Période d'un marché : « du 01/01/2024 au 31/12/2028 ». Une seule borne se dit
+ * autrement — un marché en cours a souvent un début connu et un terme qui ne
+ * l'est pas, et l'inverse se rencontre sur les reprises d'historique. Renvoie
+ * null quand aucune date n'est saisie : l'appelant n'affiche alors rien.
+ */
+function periodeDe(debut: string, fin: string): string | null {
+  if (debut && fin) return `du ${enDateFr(debut)} au ${enDateFr(fin)}`;
+  if (debut) return `à partir du ${enDateFr(debut)}`;
+  if (fin) return `jusqu'au ${enDateFr(fin)}`;
+  return null;
+}
+
+/**
+ * Un marché est terminé quand son terme est passé. DÉDUIT, jamais stocké : un
+ * état enregistré se désynchroniserait de la date le lendemain de l'échéance,
+ * et il faudrait un traitement pour le tenir à jour.
+ *
+ * Comparaison de chaînes AAAA-MM-JJ : à ce format l'ordre lexical est l'ordre
+ * chronologique, ce qui évite de fabriquer des Date et de raisonner sur les
+ * fuseaux. Le jour du terme, le marché court encore.
+ */
+function estTermine(dateFin: string, aujourdhui: string): boolean {
+  return dateFin !== "" && dateFin < aujourdhui;
 }
 
 /**
@@ -83,6 +111,7 @@ export function ContratsPanel({
   editeurDuLogiciel,
   nbUtilisateurs,
   nbMaxUtilisateurs,
+  aujourdhui,
   readOnly,
 }: {
   logicielId: number;
@@ -95,6 +124,8 @@ export function ContratsPanel({
   editeurDuLogiciel: string | null;
   nbUtilisateurs: number | null;
   nbMaxUtilisateurs: number | null;
+  /** Jour courant en AAAA-MM-JJ, fourni par le serveur — voir son appel. */
+  aujourdhui: string;
   readOnly: boolean;
 }) {
   const router = useRouter();
@@ -219,8 +250,8 @@ export function ContratsPanel({
   function supprimerPiece(l: PieceContratRow) {
     const avert = l.document ? `\n\nSon fichier « ${l.document.nomOriginal} » aussi.` : "";
     // Le type nommait la pièce dans cette question ; à sa place, ce qui la
-    // distingue encore de ses voisines — son fichier, sinon son échéance.
-    const nom = l.document?.nomOriginal ?? l.dateRenouvellement;
+    // distingue encore de ses voisines — son fichier, sinon sa date.
+    const nom = l.document?.nomOriginal ?? l.datePiece;
     const quoi = nom ? `la pièce « ${nom} »` : "cette pièce";
     if (!window.confirm(`Supprimer ${quoi} ?${avert}`)) return;
     setError(null);
@@ -308,8 +339,21 @@ export function ContratsPanel({
                       <span className="truncate" title={c.referenceMarche || undefined}>
                         {c.referenceMarche}
                       </span>
-                      <span className="truncate" title={c.libelle || undefined}>
-                        {c.libelle || (c.referenceMarche ? "" : "sans libellé")}
+                      {/* Le badge accompagne le LIBELLÉ, pas la période : c'est
+                          le marché qui est terminé, pas ses dates. `shrink-0`
+                          le préserve — le libellé se coupe avant lui. */}
+                      <span className="flex min-w-0 items-baseline gap-2">
+                        <span className="truncate" title={c.libelle || undefined}>
+                          {c.libelle || (c.referenceMarche ? "" : "sans libellé")}
+                        </span>
+                        {estTermine(c.dateFin, aujourdhui) ? (
+                          <span
+                            className="badge-muted shrink-0 font-normal"
+                            title={`Terminé depuis le ${enDateFr(c.dateFin)}`}
+                          >
+                            Terminé
+                          </span>
+                        ) : null}
                       </span>
                       {/* Le fournisseur rejoint l'en-tête du marché : c'est lui
                           qu'on engage, au même titre que la référence.
@@ -329,9 +373,7 @@ export function ContratsPanel({
                         marché sans terme saisi n'a pas à afficher un tiret. */}
                     <span className="grid grid-cols-[minmax(3rem,5rem)_minmax(8rem,1fr)_minmax(6rem,14rem)] items-baseline gap-2 text-xs text-faint">
                       <span>{`${c.pieces.length} pièce${c.pieces.length > 1 ? "s" : ""}`}</span>
-                      <span className="truncate">
-                        {c.dateFin ? `Date de fin : ${enDateFr(c.dateFin)}` : null}
-                      </span>
+                      <span className="truncate">{periodeDe(c.dateDebut, c.dateFin)}</span>
                       <span className="truncate tabular-nums">
                         {c.montantAnnuel
                           ? `Montant annuel : ${formatEuros(c.montantAnnuel)}`
@@ -405,11 +447,10 @@ export function ContratsPanel({
                           <tr>
                             {/* La LIGNE est la pièce ; cette colonne montre le
                                 fichier qui l'atteste, d'où le nom distinct. Sa
-                                catégorie se lit et se change sous son nom, dans
-                                LigneDocument — d'où l'absence de colonne dédiée. */}
+                                catégorie ET sa date se lisent sous son nom,
+                                dans LigneDocument — d'où l'absence de colonnes
+                                dédiées. */}
                             <th>Fichier</th>
-                            <th className="text-right">Coût annuel</th>
-                            <th>Renouvellement</th>
                             {readOnly ? null : <th className="w-20" aria-label="Actions" />}
                           </tr>
                         </thead>
@@ -417,7 +458,7 @@ export function ContratsPanel({
                           {c.pieces.map((l) =>
                             pieceForm?.row?.id === l.id ? (
                               <tr key={l.id}>
-                                <td colSpan={readOnly ? 3 : 4} className="!py-2 !pr-0">
+                                <td colSpan={readOnly ? 1 : 2} className="!py-2 !pr-0">
                                   <FormulairePiece
                                     key={`p-${l.id}`}
                                     row={l}
@@ -438,19 +479,23 @@ export function ContratsPanel({
                                       document={l.document}
                                       categories={categories}
                                       readOnly={readOnly}
-                                      // Le crayon de la pièce porte la catégorie :
-                                      // elle se lit ici, elle s'y modifie.
+                                      // Le crayon de la pièce porte la catégorie
+                                      // et la date : elles se lisent ici, elles
+                                      // s'y modifient.
                                       categorieModifiable={false}
+                                      dateLigne={l.datePiece ? enDateFr(l.datePiece) : ""}
                                       onErreur={setError}
                                     />
                                   ) : (
-                                    <span className="text-faint">—</span>
+                                    // Sans fichier, LigneDocument ne s'affiche
+                                    // pas — et la date de la pièce, qui vit à
+                                    // l'intérieur, disparaîtrait avec elle.
+                                    // Elle se replie donc ici, seule.
+                                    <span className="text-faint">
+                                      {l.datePiece ? enDateFr(l.datePiece) : "—"}
+                                    </span>
                                   )}
                                 </td>
-                                <td className="text-right tabular-nums">
-                                  {formatEuros(l.coutAnnuel) ?? "—"}
-                                </td>
-                                <td>{l.dateRenouvellement || "—"}</td>
                                 {readOnly ? null : (
                                   <td>
                                     <span className="flex items-center gap-1">
@@ -600,6 +645,16 @@ function FormulaireMarche({
             className="input"
           />
         </Field>
+        <Field label="Date de début" htmlFor="dateDebut" hint="Prise d'effet du marché.">
+          <input
+            id="dateDebut"
+            name="dateDebut"
+            type="date"
+            defaultValue={row?.dateDebut ?? ""}
+            disabled={pending}
+            className="input"
+          />
+        </Field>
         <Field
           label="Date de fin"
           htmlFor="dateFin"
@@ -669,21 +724,20 @@ function FormulairePiece({
   const [fichier, setFichier] = useState<File | null>(null);
 
   /**
-   * Ce qui EXISTE prime sur ce qui est proposé : dès qu'un fichier est
-   * rattaché, sa catégorie réelle s'affiche — « sans catégorie » comprise. La
-   * distinction compte, sinon ouvrir le crayon sur une ligne « Sans catégorie »
-   * la reclasserait en « Contrat » à la simple validation.
+   * Ce qui EXISTE prime sur ce qui est proposé : un fichier déjà classé rouvre
+   * sur SA catégorie, jamais sur le défaut — sans quoi le crayon reclasserait
+   * en « Contrat » à la simple validation.
    *
-   * Le repli sur « Contrat » ne vaut donc que là où rien n'est encore classé :
-   * pièce neuve, ou pièce dont le fichier reste à déposer.
+   * « Sans catégorie » n'est plus une valeur offerte : la liste n'a plus
+   * d'option vide. Un document hérité qui n'en aurait pas retombe donc sur le
+   * défaut, comme une pièce neuve — c'est voulu, il faut bien le classer.
    */
-  const categorieInitiale = row?.document
-    ? row.document.categorieId === null
-      ? ""
-      : String(row.document.categorieId)
-    : categorieParDefautId === null
-      ? ""
-      : String(categorieParDefautId);
+  const categorieInitiale =
+    row?.document?.categorieId != null
+      ? String(row.document.categorieId)
+      : categorieParDefautId === null
+        ? ""
+        : String(categorieParDefautId);
   const fileRef = useRef<HTMLInputElement>(null);
 
   return (
@@ -743,7 +797,6 @@ function FormulairePiece({
               disabled={pending}
               className="input !w-auto"
             >
-              <option value="">— sans catégorie —</option>
               {categories.map((c) => (
                 <option key={c.id} value={String(c.id)}>
                   {c.label}
@@ -753,28 +806,16 @@ function FormulairePiece({
           </Field>
         </div>
         <div className="shrink-0">
-          <Field label="Coût annuel (€)" htmlFor="coutAnnuel">
-            <input
-              id="coutAnnuel"
-              name="coutAnnuel"
-              inputMode="decimal"
-              defaultValue={row?.coutAnnuel ?? ""}
-              disabled={pending}
-              className="input !w-[19ch]"
-            />
-          </Field>
-        </div>
-        <div className="shrink-0">
           <Field
-            label="Renouvellement"
-            htmlFor="dateRenouvellement"
-            hint="Déclenche un rappel avant l'échéance."
+            label="Date de la pièce"
+            htmlFor="datePiece"
+            hint="Date du document : signature, notification. L'échéance, elle, se saisit sur le marché."
           >
             <input
-              id="dateRenouvellement"
-              name="dateRenouvellement"
+              id="datePiece"
+              name="datePiece"
               type="date"
-              defaultValue={row?.dateRenouvellement ?? ""}
+              defaultValue={row?.datePiece ?? ""}
               disabled={pending}
               className="input !w-auto"
             />

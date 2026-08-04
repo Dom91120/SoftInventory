@@ -251,6 +251,7 @@ function parseContrat(formData: FormData) {
     fournisseurId: get("fournisseurId"),
     referenceMarche: get("referenceMarche"),
     montantAnnuel: get("montantAnnuel"),
+    dateDebut: get("dateDebut"),
     dateFin: get("dateFin"),
     notes: get("notes"),
   });
@@ -259,8 +260,7 @@ function parseContrat(formData: FormData) {
 function parsePiece(formData: FormData) {
   const get = (k: string) => String(formData.get(k) ?? "");
   return pieceContratSchema.safeParse({
-    coutAnnuel: get("coutAnnuel"),
-    dateRenouvellement: get("dateRenouvellement"),
+    datePiece: get("datePiece"),
   });
 }
 

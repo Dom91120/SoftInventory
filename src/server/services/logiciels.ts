@@ -67,7 +67,7 @@ export function getLogiciel(id: number) {
         include: {
           fournisseur: { select: { id: true, nom: true } },
           pieces: {
-            orderBy: [{ dateRenouvellement: "asc" }, { id: "asc" }],
+            orderBy: [{ datePiece: "asc" }, { id: "asc" }],
             include: {
               documents: { include: { categorie: true }, orderBy: { createdAt: "desc" } },
             },
@@ -216,7 +216,17 @@ export function createContrat(logicielId: number, data: ContratInput) {
 }
 
 export function updateContrat(id: number, data: ContratInput) {
-  return prisma.contrat.update({ where: { id }, data });
+  // Même règle que finContratLe : nouvelle date de fin ⇒ nouveau rappel. Le
+  // marqueur ne se remet à zéro que sur changement effectif, sinon chaque
+  // enregistrement rouvrirait la porte à un doublon.
+  return prisma.$transaction(async (tx) => {
+    const avant = await tx.contrat.findUnique({ where: { id }, select: { dateFin: true } });
+    const dateChangee = avant?.dateFin?.getTime() !== data.dateFin?.getTime();
+    return tx.contrat.update({
+      where: { id },
+      data: { ...data, ...(dateChangee ? { rappelEnvoyeLe: null } : {}) },
+    });
+  });
 }
 
 /**
@@ -241,19 +251,10 @@ export function createPieceContrat(contratId: number, data: PieceContratInput) {
   return prisma.pieceContrat.create({ data: { contratId, ...data } });
 }
 
+// Plus de transaction ni de remise à zéro : aucun rappel n'est accroché à la
+// pièce depuis que l'échéance est portée par le marché.
 export function updatePieceContrat(id: number, data: PieceContratInput) {
-  // Même règle que finContratLe : nouvelle date de renouvellement ⇒ nouveau rappel.
-  return prisma.$transaction(async (tx) => {
-    const avant = await tx.pieceContrat.findUnique({
-      where: { id },
-      select: { dateRenouvellement: true },
-    });
-    const dateChangee = avant?.dateRenouvellement?.getTime() !== data.dateRenouvellement?.getTime();
-    return tx.pieceContrat.update({
-      where: { id },
-      data: { ...data, ...(dateChangee ? { rappelEnvoyeLe: null } : {}) },
-    });
-  });
+  return prisma.pieceContrat.update({ where: { id }, data });
 }
 
 /** Supprime la pièce ET ses fichiers — voir deleteContrat pour le pourquoi. */

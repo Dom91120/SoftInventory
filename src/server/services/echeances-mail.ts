@@ -1,7 +1,7 @@
 import { emailButton } from "@/lib/email-theme";
 import { greeting } from "@/lib/mail-render";
 import { dateCalendaire, joursAvantEcheance, rappelDu, seuilRappel } from "@/lib/taches-core";
-import { getAppUrl, getConfigMany } from "@/server/config";
+import { getAppUrl, getConfigMany, seuilsRappel } from "@/server/config";
 import { prisma } from "@/server/db";
 import { sendTemplatedMail } from "@/server/services/mail-send";
 
@@ -26,24 +26,12 @@ async function destinatairesDefaut(): Promise<string[]> {
     .filter((s) => s.includes("@"));
 }
 
-async function seuils(): Promise<{ tache: number; contrat: number }> {
-  const cfg = await getConfigMany(["tache.rappelJoursAvant", "contrat.rappelJoursAvant"]);
-  const lire = (raw: string, defaut: number) => {
-    const n = Number(raw);
-    return Number.isInteger(n) && n >= 0 && n <= 365 ? n : defaut;
-  };
-  return {
-    tache: lire(cfg["tache.rappelJoursAvant"], 14),
-    contrat: lire(cfg["contrat.rappelJoursAvant"], 60),
-  };
-}
-
 export async function envoyerRappelsEcheances(): Promise<{
   rappelsTaches: number;
   rappelsContrats: number;
 }> {
   const aujourdhui = dateCalendaire(new Date());
-  const { tache: seuilTache, contrat: seuilContrat } = await seuils();
+  const { tache: seuilTache, contrat: seuilContrat } = await seuilsRappel();
   const fallback = await destinatairesDefaut();
   const appUrl = await getAppUrl();
 
@@ -116,33 +104,31 @@ export async function envoyerRappelsEcheances(): Promise<{
   if (fallback.length > 0) {
     const fenetreContrat = new Date(aujourdhui.getTime() + seuilContrat * 86_400_000);
 
-    // L'anti-doublon (rappelEnvoyeLe === dateRenouvellement) se tranche en
-    // mémoire : la comparaison colonne-à-colonne en SQL n'apporterait rien sur
-    // ces volumes.
-    // L'échéance vit sur la LIGNE de contrat, pas sur le marché : un même
-    // marché peut couvrir plusieurs postes aux termes distincts, et chacun
-    // mérite son rappel.
-    const lignes = await prisma.pieceContrat.findMany({
-      where: { dateRenouvellement: { not: null, lte: fenetreContrat } },
-      include: {
-        contrat: {
-          select: {
-            libelle: true,
-            referenceMarche: true,
-            logiciel: { select: { id: true, nom: true } },
-          },
-        },
+    // L'anti-doublon (rappelEnvoyeLe === dateFin) se tranche en mémoire : la
+    // comparaison colonne-à-colonne en SQL n'apporterait rien sur ces volumes.
+    // L'échéance vit sur le MARCHÉ, pas sur ses pièces : celles-ci ne portent
+    // plus qu'une date de document, presque toujours passée — les surveiller
+    // enverrait un rappel pour chacune dès le premier passage.
+    // Borne BASSE autant que haute : un marché déjà échu ne se rappelle plus,
+    // il se constate. Sans elle, chaque marché ancien saisi pour l'historique
+    // déclencherait un rappel rétroactif dès le passage suivant du cron.
+    const marches = await prisma.contrat.findMany({
+      where: { dateFin: { gte: aujourdhui, lte: fenetreContrat } },
+      select: {
+        id: true,
+        libelle: true,
+        referenceMarche: true,
+        dateFin: true,
+        rappelEnvoyeLe: true,
+        logiciel: { select: { id: true, nom: true } },
       },
     });
-    for (const l of lignes) {
-      if (!l.dateRenouvellement) continue;
-      if (l.rappelEnvoyeLe?.getTime() === l.dateRenouvellement.getTime()) continue;
-      const marche = l.contrat;
-      const url = appUrl ? `${appUrl}/logiciels/${marche.logiciel.id}?onglet=contrats` : "";
-      // C'est une PIÈCE qui arrive à échéance, mais seul le marché la nomme :
-      // une pièce ne porte plus de libellé propre.
-      const nomMarche = marche.libelle || marche.referenceMarche || "sans libellé";
-      const objet = `Une pièce du contrat « ${nomMarche} »`;
+    for (const m of marches) {
+      if (!m.dateFin) continue;
+      if (m.rappelEnvoyeLe?.getTime() === m.dateFin.getTime()) continue;
+      const url = appUrl ? `${appUrl}/logiciels/${m.logiciel.id}?onglet=contrats` : "";
+      const nomMarche = m.libelle || m.referenceMarche || "sans libellé";
+      const objet = `Le contrat « ${nomMarche} »`;
       let auMoinsUnEnvoi = false;
       for (const to of fallback) {
         const res = await sendTemplatedMail({
@@ -151,11 +137,9 @@ export async function envoyerRappelsEcheances(): Promise<{
           vars: {
             salutation: greeting(""),
             objet,
-            logiciel: marche.logiciel.nom,
-            echeance: fmtDate.format(l.dateRenouvellement),
-            details: marche.referenceMarche
-              ? `Référence marché/contrat : ${marche.referenceMarche}.`
-              : "",
+            logiciel: m.logiciel.nom,
+            echeance: fmtDate.format(m.dateFin),
+            details: m.referenceMarche ? `Référence marché/contrat : ${m.referenceMarche}.` : "",
             url,
           },
           rawVars: url ? { bouton: emailButton(url, "Ouvrir les contrats") } : {},
@@ -164,16 +148,19 @@ export async function envoyerRappelsEcheances(): Promise<{
         if (res.ok || res.queued) auMoinsUnEnvoi = true;
       }
       if (auMoinsUnEnvoi) {
-        await prisma.pieceContrat.update({
-          where: { id: l.id },
-          data: { rappelEnvoyeLe: l.dateRenouvellement },
+        await prisma.contrat.update({
+          where: { id: m.id },
+          data: { rappelEnvoyeLe: m.dateFin },
         });
         rappelsContrats += 1;
       }
     }
 
+    // Même borne basse que pour les marchés : une fin de contrat déjà passée
+    // ne se rappelle plus. Saisir une date échue pour l'historique ne doit pas
+    // déclencher d'envoi.
     const logiciels = await prisma.logiciel.findMany({
-      where: { finContratLe: { not: null, lte: fenetreContrat } },
+      where: { finContratLe: { gte: aujourdhui, lte: fenetreContrat } },
       select: { id: true, nom: true, finContratLe: true, rappelEnvoyeLe: true },
     });
     for (const l of logiciels) {

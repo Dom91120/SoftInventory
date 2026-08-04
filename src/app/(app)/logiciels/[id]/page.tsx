@@ -306,6 +306,10 @@ async function OngletContrats({
       categories={categories.map((c) => ({ id: c.id, label: c.label }))}
       editeurs={editeurs.map((e) => ({ id: e.id, nom: e.nom }))}
       editeurDuLogiciel={logiciel.editeur?.nom ?? null}
+      // Calculé ICI et non dans le composant client : le jour courant lu des
+      // deux côtés donnerait deux valeurs à cheval sur minuit, et React
+      // signalerait une divergence d'hydratation.
+      aujourdhui={dateStr(dateCalendaire(new Date()))}
       contrats={logiciel.contrats.map(
         (c): ContratRow => ({
           id: c.id,
@@ -314,6 +318,7 @@ async function OngletContrats({
           fournisseurNom: c.fournisseur?.nom ?? null,
           referenceMarche: c.referenceMarche,
           montantAnnuel: c.montantAnnuel === null ? "" : String(c.montantAnnuel),
+          dateDebut: dateStr(c.dateDebut),
           dateFin: dateStr(c.dateFin),
           notes: c.notes,
           pieces: c.pieces.map((l) => {
@@ -322,8 +327,7 @@ async function OngletContrats({
             const doc = l.documents[0];
             return {
               id: l.id,
-              coutAnnuel: l.coutAnnuel === null ? "" : String(l.coutAnnuel),
-              dateRenouvellement: dateStr(l.dateRenouvellement),
+              datePiece: dateStr(l.datePiece),
               document: doc
                 ? {
                     id: doc.id,

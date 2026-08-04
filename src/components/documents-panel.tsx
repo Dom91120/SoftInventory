@@ -30,7 +30,11 @@ import { extensionDe } from "@/lib/documents-regles";
 export type DocumentRow = {
   id: number;
   nomOriginal: string;
-  /** Identifiant de la catégorie ; null = « sans catégorie ». */
+  /**
+   * Identifiant de la catégorie. Reste nullable pour les documents hérités,
+   * mais l'application ne produit plus ce cas : aucune liste n'offre d'option
+   * vide, « Autre » servant de fourre-tout.
+   */
   categorieId: number | null;
   categorie: string | null;
   taille: number;
@@ -39,6 +43,13 @@ export type DocumentRow = {
 };
 
 export type CategorieOption = { id: number; label: string };
+
+/**
+ * Catégorie proposée d'office au dépôt — le cas courant de ce panneau, qui
+ * reçoit surtout des guides et de la documentation. Rapprochée par LIBELLÉ et
+ * non par id : le référentiel est saisi par l'admin, l'entrée peut manquer.
+ */
+const CATEGORIE_PAR_DEFAUT = "Documentation technique";
 
 /**
  * Icône par famille de fichier. Le type MIME n'est pas conservé en base : c'est
@@ -90,6 +101,7 @@ export function LigneDocument({
   categories,
   readOnly,
   categorieModifiable = true,
+  dateLigne,
   onErreur,
 }: {
   document: DocumentRow;
@@ -103,6 +115,13 @@ export function LigneDocument({
    * c'est son seul point d'entrée.
    */
   categorieModifiable?: boolean;
+  /**
+   * Date propre à la ligne qui porte ce fichier (« JJ/MM/AAAA », déjà formatée).
+   * Fournie, elle REMPLACE « déposé par … · date de dépôt » : sur une pièce de
+   * marché, ce qui compte est la date du document — sa signature, sa
+   * notification — pas le moment où quelqu'un l'a téléversé dans l'outil.
+   */
+  dateLigne?: string | null;
   onErreur: (message: string | null) => void;
 }) {
   const router = useRouter();
@@ -161,7 +180,6 @@ export function LigneDocument({
               disabled={pending}
               onChange={(e) => changerCategorie(e.target.value)}
             >
-              <option value="">— sans catégorie —</option>
               {categories.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.label}
@@ -177,15 +195,20 @@ export function LigneDocument({
               // Modifiable, le select reste à part — on ne ponctue pas une
               // commande.
               //
-              // Son absence s'ÉCRIT, elle ne se tait pas : sans cela, un
-              // document non classé serait indiscernable d'un document classé
-              // à l'œil, alors que le crayon est désormais le seul endroit où
-              // le voir. Sans tirets cadratins, réservés aux options vides des
-              // listes déroulantes.
-              categorieFigee ? (document.categorie ?? "Sans catégorie") : null,
+              // Rien à écrire quand elle manque : « sans catégorie » n'est plus
+              // un état que l'application propose (« Autre » tient ce rôle), le
+              // `filter` en dessous l'écarte donc sans laisser de séparateur.
+              categorieFigee ? document.categorie : null,
               tailleLisible(document.taille),
-              document.deposeParLabel && `déposé par ${document.deposeParLabel}`,
-              document.createdAt,
+              // `dateLigne === undefined` : l'appelant ne gère pas de date
+              // propre, on garde la traçabilité du dépôt. Fournie mais vide,
+              // elle l'efface sans la remplacer — la pièce n'est pas datée.
+              ...(dateLigne === undefined
+                ? [
+                    document.deposeParLabel && `déposé par ${document.deposeParLabel}`,
+                    document.createdAt,
+                  ]
+                : [dateLigne]),
             ]
               .filter(Boolean)
               .join(" · ")}
@@ -223,7 +246,14 @@ export function DocumentsPanel({
   const [pending, startTransition] = useTransition();
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [categorieId, setCategorieId] = useState("");
+  // Le dépôt part classé plutôt que sans catégorie : l'application ne produit
+  // plus ce cas. Repli sur la première entrée du référentiel si l'admin a
+  // renommé ou supprimé l'entrée par défaut.
+  const [categorieId, setCategorieId] = useState(() => {
+    const defaut =
+      categories.find((c) => c.label === CATEGORIE_PAR_DEFAUT)?.id ?? categories[0]?.id;
+    return defaut === undefined ? "" : String(defaut);
+  });
   // Document en cours de renommage : { id, valeur saisie }.
   const [renommage, setRenommage] = useState<{ id: number; valeur: string } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -307,7 +337,6 @@ export function DocumentsPanel({
             disabled={uploading}
             aria-label="Catégorie du document"
           >
-            <option value="">Catégorie…</option>
             {categories.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.label}
@@ -414,7 +443,6 @@ export function DocumentsPanel({
                           disabled={pending}
                           onChange={(e) => changerCategorie(d, e.target.value)}
                         >
-                          <option value="">— sans catégorie —</option>
                           {categories.map((c) => (
                             <option key={c.id} value={c.id}>
                               {c.label}

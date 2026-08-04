@@ -141,34 +141,46 @@ export type LogicielRgpdInput = z.infer<typeof logicielRgpdSchema>;
  * saisis, jamais calculés depuis les pièces — la somme des postes connus ne
  * vaut pas le montant engagé.
  */
-export const contratSchema = z.object({
-  libelle: z.string().trim().max(150, "Libellé trop long (150 caractères max)."),
-  // Vide = l'éditeur du logiciel ; renseigné quand on contractualise avec un revendeur.
-  fournisseurId: idOptionnel,
-  referenceMarche: z
-    .string()
-    .trim()
-    .max(120, "Référence marché/contrat trop longue (120 caractères max)."),
-  montantAnnuel: montantOptionnel,
-  // Aucun rappel ne s'y accroche, à la différence de `finContratLe` et de
-  // `dateRenouvellement` : c'est le terme du marché, pas une alerte.
-  dateFin: dateOptionnelle,
-  notes: z.string().trim().max(2000, "Notes trop longues (2000 caractères max)."),
-});
+export const contratSchema = z
+  .object({
+    libelle: z.string().trim().max(150, "Libellé trop long (150 caractères max)."),
+    // Vide = l'éditeur du logiciel ; renseigné quand on contractualise avec un revendeur.
+    fournisseurId: idOptionnel,
+    referenceMarche: z
+      .string()
+      .trim()
+      .max(120, "Référence marché/contrat trop longue (120 caractères max)."),
+    montantAnnuel: montantOptionnel,
+    dateDebut: dateOptionnelle,
+    // Terme du marché ET échéance surveillée : c'est elle que lisent le cron
+    // et le tableau de bord. La changer relance un rappel (voir updateContrat).
+    dateFin: dateOptionnelle,
+    notes: z.string().trim().max(2000, "Notes trop longues (2000 caractères max)."),
+  })
+  // Les deux dates forment une période : une fin antérieure au début est une
+  // faute de frappe, pas une donnée. Contrôle seulement quand les DEUX sont
+  // renseignées — un marché en cours n'a souvent que son début.
+  .refine((v) => v.dateDebut === null || v.dateFin === null || v.dateDebut <= v.dateFin, {
+    path: ["dateFin"],
+    message: "La date de fin ne peut pas précéder la date de début.",
+  });
 export type ContratInput = z.infer<typeof contratSchema>;
 
 /**
- * Pièce d'un contrat : son coût et son échéance.
+ * Pièce d'un contrat : la date de son document, et rien d'autre — c'est le
+ * fichier qui la porte.
  *
- * Plus de `type` (perpétuelle / abonnement / libre / autre) : ce que la pièce
- * EST se lit désormais sur la catégorie de son document — un référentiel que
- * l'admin fait évoluer, là où l'enum imposait quatre valeurs figées. La colonne
- * `type` demeure en base avec ses valeurs historiques ; elle n'est plus ni
- * saisie ni affichée.
+ * Tout ce qu'elle chiffrait ou surveillait est remonté au marché, qui engage :
+ *  - `type` (perpétuelle / abonnement / libre / autre) → la catégorie du
+ *    document, référentiel que l'admin fait évoluer ;
+ *  - `dateRenouvellement` → `Contrat.dateFin`, seule échéance surveillée ;
+ *  - `coutAnnuel` → `Contrat.montantAnnuel`.
+ *
+ * Les colonnes `type` et `cout_annuel` demeurent en base avec leurs valeurs
+ * historiques ; elles ne sont plus ni saisies ni affichées.
  */
 export const pieceContratSchema = z.object({
-  coutAnnuel: montantOptionnel,
-  dateRenouvellement: dateOptionnelle,
+  datePiece: dateOptionnelle,
 });
 export type PieceContratInput = z.infer<typeof pieceContratSchema>;
 

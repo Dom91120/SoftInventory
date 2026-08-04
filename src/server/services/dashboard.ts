@@ -1,4 +1,5 @@
 import { dateCalendaire, estEnRetard, joursAvantEcheance } from "@/lib/taches-core";
+import { seuilsRappel } from "@/server/config";
 import { prisma } from "@/server/db";
 
 // Agrégats du tableau de bord. Chaque chiffre renvoie vers l'écran où l'on
@@ -21,6 +22,8 @@ export type DonneesDashboard = {
     echeance: Date;
   }>;
   tachesSous30j: number;
+  /** Horizon des renouvellements, en jours — le titre de la carte l'annonce. */
+  seuilRenouvellementJours: number;
   renouvellements: Array<{
     logicielId: number;
     logiciel: string;
@@ -44,7 +47,10 @@ const LIBELLES_HEBERGEMENT: Record<string, string> = {
 
 export async function chargerDashboard(): Promise<DonneesDashboard> {
   const aujourdhui = dateCalendaire(new Date());
-  const fenetre60j = new Date(aujourdhui.getTime() + 60 * 86_400_000);
+  // Même horizon que les rappels par e-mail : la carte annonce la fenêtre que
+  // le cron applique réellement (voir seuilsRappel).
+  const { contrat: seuilJours } = await seuilsRappel();
+  const fenetre = new Date(aujourdhui.getTime() + seuilJours * 86_400_000);
 
   const [logiciels, nbEditeurs, nbServeurs, criticites, taches, contratsARenouveler] =
     await Promise.all([
@@ -59,8 +65,11 @@ export async function chargerDashboard(): Promise<DonneesDashboard> {
           nbUtilisateurs: true,
           nbMaxUtilisateurs: true,
           finContratLe: true,
-          // Le coût vit sur les LIGNES des contrats, pas sur les contrats.
-          contrats: { select: { pieces: { select: { coutAnnuel: true } } } },
+          // Le coût vit sur le MARCHÉ. Il vivait sur ses pièces, dont la
+          // colonne `cout_annuel` garde les valeurs historiques : elles ne sont
+          // plus comptées, sans quoi un marché dont le montant a été ressaisi
+          // le serait deux fois.
+          contrats: { select: { montantAnnuel: true } },
         },
       }),
       prisma.editeur.count(),
@@ -75,29 +84,26 @@ export async function chargerDashboard(): Promise<DonneesDashboard> {
           logiciel: { select: { id: true, nom: true } },
         },
       }),
-      prisma.pieceContrat.findMany({
-        where: { dateRenouvellement: { not: null, lte: fenetre60j } },
+      // Le MARCHÉ porte l'échéance ; ses pièces n'ont qu'une date de document.
+      // Borne basse comme pour les rappels : un marché terminé n'est pas à
+      // renouveler dans la fenêtre, il est de l'historique.
+      prisma.contrat.findMany({
+        where: { dateFin: { gte: aujourdhui, lte: fenetre } },
         select: {
-          dateRenouvellement: true,
-          contrat: {
-            select: {
-              libelle: true,
-              referenceMarche: true,
-              logiciel: { select: { id: true, nom: true } },
-            },
-          },
+          libelle: true,
+          referenceMarche: true,
+          dateFin: true,
+          logiciel: { select: { id: true, nom: true } },
         },
       }),
     ]);
 
-  // Coût annuel total : coût de la fiche + coûts des lignes de ses contrats.
+  // Coût annuel total : coût de la fiche + montant annuel de ses marchés.
   let coutAnnuelTotal = 0;
   for (const l of logiciels) {
     if (l.coutAnnuel) coutAnnuelTotal += Number(l.coutAnnuel);
     for (const c of l.contrats) {
-      for (const piece of c.pieces) {
-        if (piece.coutAnnuel) coutAnnuelTotal += Number(piece.coutAnnuel);
-      }
+      if (c.montantAnnuel) coutAnnuelTotal += Number(c.montantAnnuel);
     }
   }
 
@@ -128,21 +134,25 @@ export async function chargerDashboard(): Promise<DonneesDashboard> {
       joursAvantEcheance(t.prochaineEcheance, aujourdhui) <= 30,
   ).length;
 
-  // Renouvellements ≤ 60 j : lignes de contrat + fins de contrat des fiches.
+  // Renouvellements à venir : marchés + fins de contrat des fiches.
   const renouvellements = [
-    ...contratsARenouveler.map((l) => ({
-      logicielId: l.contrat.logiciel.id,
-      logiciel: l.contrat.logiciel.nom,
+    ...contratsARenouveler.map((c) => ({
+      logicielId: c.logiciel.id,
+      logiciel: c.logiciel.nom,
       // Le libellé suffit quand il est là ; le préfixer donnerait « Contrat
       // Contrat VIP Adobe » pour les libellés qui disent déjà « contrat ».
-      // Seul le marché nomme l'engagement : une pièce n'a pas de libellé propre.
-      objet:
-        l.contrat.libelle ||
-        (l.contrat.referenceMarche ? `Contrat ${l.contrat.referenceMarche}` : "Contrat"),
-      echeance: l.dateRenouvellement as Date,
+      objet: c.libelle || (c.referenceMarche ? `Contrat ${c.referenceMarche}` : "Contrat"),
+      echeance: c.dateFin as Date,
     })),
     ...logiciels
-      .filter((l) => l.finContratLe && l.finContratLe.getTime() <= fenetre60j.getTime())
+      // Même règle que pour les marchés : une fin de contrat déjà passée est de
+      // l'historique, pas un renouvellement à venir.
+      .filter(
+        (l) =>
+          l.finContratLe &&
+          l.finContratLe.getTime() >= aujourdhui.getTime() &&
+          l.finContratLe.getTime() <= fenetre.getTime(),
+      )
       .map((l) => ({
         logicielId: l.id,
         logiciel: l.nom,
@@ -180,6 +190,7 @@ export async function chargerDashboard(): Promise<DonneesDashboard> {
     contratsDepasses,
     tachesEnRetard,
     tachesSous30j,
+    seuilRenouvellementJours: seuilJours,
     renouvellements,
     parHebergement,
     parCriticite,

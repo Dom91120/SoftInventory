@@ -137,9 +137,16 @@ export default async function TableauDeBordPage() {
 
       <div className="mt-6 grid gap-6 lg:grid-cols-3">
         {/* Renouvellements à venir */}
-        <Card title="Renouvellements sous 60 jours" className="lg:col-span-2">
+        {/* Titre calculé : la fenêtre suit le délai de rappel réglé en
+            Administration › Messagerie, elle n'est plus figée à 60 jours. */}
+        <Card
+          title={`Renouvellements sous ${d.seuilRenouvellementJours} jours`}
+          className="lg:col-span-2"
+        >
           {d.renouvellements.length === 0 ? (
-            <EmptyState>Aucun contrat à renouveler dans les 60 prochains jours.</EmptyState>
+            <EmptyState>
+              Aucun contrat à renouveler dans les {d.seuilRenouvellementJours} prochains jours.
+            </EmptyState>
           ) : (
             <ul className="divide-y divide-line text-sm">
               {d.renouvellements.map((r) => (

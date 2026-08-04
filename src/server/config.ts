@@ -13,6 +13,30 @@ export async function getConfigMany(keys: string[]): Promise<Record<string, stri
 export const APP_URL_KEY = "app.url";
 
 /**
+ * Délais de rappel, en jours avant l'échéance (Administration › Messagerie).
+ *
+ * Lus ICI plutôt que dans chaque service : les rappels par e-mail et la liste
+ * « Renouvellements » du tableau de bord doivent parler du même horizon. Ils
+ * ont divergé une fois — 60 j en dur dans le tableau de bord contre le réglage
+ * pour les e-mails — et l'écran annonçait une fenêtre que le cron n'appliquait
+ * pas.
+ *
+ * Défaut contrat à 90 j (≈ 3 mois) : le délai pour relancer une consultation
+ * avant le terme d'un marché.
+ */
+export async function seuilsRappel(): Promise<{ tache: number; contrat: number }> {
+  const cfg = await getConfigMany(["tache.rappelJoursAvant", "contrat.rappelJoursAvant"]);
+  const lire = (raw: string, defaut: number) => {
+    const n = Number(raw);
+    return Number.isInteger(n) && n >= 0 && n <= 365 ? n : defaut;
+  };
+  return {
+    tache: lire(cfg["tache.rappelJoursAvant"], 14),
+    contrat: lire(cfg["contrat.rappelJoursAvant"], 90),
+  };
+}
+
+/**
  * URL publique de l'application (pour les liens dans les e-mails). Priorité à la valeur
  * saisie en Administration › Configuration (`app.url`), repli sur les variables
  * d'environnement. Sans slash final ; "" si rien n'est configuré.
