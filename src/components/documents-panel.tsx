@@ -163,9 +163,16 @@ export function LigneDocument({
           >
             {document.nomOriginal}
           </a>
+          {/* `-my-1.5` annule EXACTEMENT le `p-1.5` vertical : la surface de
+              clic et le fond au survol restent entiers, mais le bouton cesse de
+              commander la hauteur de la ligne. Sans cela il la portait à 28 px
+              (16 d'icône + 2 × 6 de marge) contre 20 px pour le texte, et les
+              8 px de trop s'ajoutaient au `mt-0.5` d'en dessous — d'où un
+              interligne plus large qu'au panneau Documents, où ce bouton vit
+              dans la colonne d'actions et ne touche pas au nom. */}
           <a
             href={`/api/documents/download?id=${document.id}`}
-            className="btn-ghost !p-1.5 shrink-0"
+            className="btn-ghost -my-1.5 !p-1.5 shrink-0"
             title="Télécharger"
           >
             <Download className="h-4 w-4" />
