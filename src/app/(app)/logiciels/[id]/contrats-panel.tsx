@@ -334,8 +334,20 @@ export function ContratsPanel({
                         marché à l'autre, référence, libellé et fournisseur
                         tombent ainsi au même endroit. Chacune tronque son
                         contenu — le libellé, seul à s'étirer, absorbe la place
-                        restante et se coupe en « … » quand il déborde. */}
-                    <span className="grid grid-cols-[minmax(3rem,5rem)_minmax(8rem,1fr)_minmax(6rem,14rem)] items-baseline gap-2 font-semibold text-strong">
+                        restante et se coupe en « … » quand il déborde.
+
+                        La référence tient sur 6.6rem au lieu de 5 : trois
+                        caractères de plus. En `rem` et NON en `ch` — cette
+                        dernière unité suit la police, or les deux rangées n'ont
+                        pas la même taille (text-sm / text-xs) : le même `3ch` y
+                        valait 25,9 px et 21,6 px, et les colonnes cessaient de
+                        tomber au même endroit. Le gabarit doit rester
+                        strictement identique entre les deux rangées.
+
+                        Cette place est prise au libellé, qui occupe le `1fr` —
+                        c'est assumé, les références se lisent et se comparent
+                        d'une ligne à l'autre. */}
+                    <span className="grid grid-cols-[minmax(3rem,6.6rem)_minmax(8rem,1fr)_minmax(6rem,14rem)] items-baseline gap-2 font-semibold text-strong">
                       <span className="truncate" title={c.referenceMarche || undefined}>
                         {c.referenceMarche}
                       </span>
@@ -371,7 +383,7 @@ export function ContratsPanel({
                         sous le fournisseur, ce qu'ils qualifient chacun. Les
                         deux se taisent quand ils ne sont pas renseignés — un
                         marché sans terme saisi n'a pas à afficher un tiret. */}
-                    <span className="grid grid-cols-[minmax(3rem,5rem)_minmax(8rem,1fr)_minmax(6rem,14rem)] items-baseline gap-2 text-xs text-faint">
+                    <span className="grid grid-cols-[minmax(3rem,6.6rem)_minmax(8rem,1fr)_minmax(6rem,14rem)] items-baseline gap-2 text-xs text-faint">
                       <span>{`${c.pieces.length} pièce${c.pieces.length > 1 ? "s" : ""}`}</span>
                       <span className="truncate">{periodeDe(c.dateDebut, c.dateFin)}</span>
                       <span className="truncate tabular-nums">
