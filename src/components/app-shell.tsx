@@ -57,15 +57,21 @@ function UserFooter({ user }: { user: ShellUser }) {
             {user.role === "admin" ? "Administrateur" : "Lecteur"}
           </span>
         </span>
+      </div>
+      {/* Thème et déconnexion descendent sur la ligne de « Mon compte » : ce
+          sont trois COMMANDES, alors qu'au-dessus le bloc ne fait qu'identifier
+          l'usager. Le nom et le rôle récupèrent au passage toute la largeur —
+          ils tronquaient face aux deux boutons. */}
+      <div className="flex items-center gap-1">
+        <Link
+          href="/mon-compte"
+          className="min-w-0 flex-1 truncate rounded-lg px-2 py-1.5 text-xs font-medium text-muted transition hover:bg-inset hover:text-strong"
+        >
+          Mon compte
+        </Link>
         <ThemeToggle />
         <LogoutButton />
       </div>
-      <Link
-        href="/mon-compte"
-        className="block rounded-lg px-2 py-1.5 text-xs font-medium text-muted transition hover:bg-inset hover:text-strong"
-      >
-        Mon compte
-      </Link>
     </div>
   );
 }
