@@ -42,7 +42,6 @@ export const CYCLES_DE_VIE = ["evaluation", "production", "fin_de_vie", "abandon
 export const TYPES_SOURCE = ["opensource", "proprietaire", "mixte"] as const;
 export const MODES_AUTH = ["locale", "sso", "ldap", "mixte", "aucune"] as const;
 export const LOCALISATIONS = ["ue", "hors_ue", "mixte", "inconnue"] as const;
-export const TYPES_CONTRAT = ["perpetuelle", "abonnement", "libre", "autre"] as const;
 export const ENVIRONNEMENTS = ["production", "test", "recette", "formation"] as const;
 
 // Libellés d'affichage des enums (une seule traduction pour toute l'app).
@@ -67,12 +66,6 @@ export const LIBELLES = {
     hors_ue: "Hors UE",
     mixte: "Mixte",
     inconnue: "Inconnue",
-  },
-  typeContrat: {
-    perpetuelle: "Perpétuelle",
-    abonnement: "Abonnement",
-    libre: "Libre",
-    autre: "Autre",
   },
   environnement: {
     production: "Production",
@@ -140,8 +133,13 @@ export const logicielRgpdSchema = z.object({
 export type LogicielRgpdInput = z.infer<typeof logicielRgpdSchema>;
 
 /**
- * Contrat ou marché (onglet Contrats) : ce qui l'IDENTIFIE. Ni montant ni
- * échéance — ceux-ci appartiennent à ses lignes.
+ * Contrat ou marché (onglet Contrats) : ce qui l'IDENTIFIE, plus ce qui
+ * l'engage globalement — montant annuel et date de fin.
+ *
+ * Ces deux champs ne doublent pas ceux des pièces : la pièce chiffre UN poste
+ * et son renouvellement, le marché chiffre l'ensemble et son terme. Ils sont
+ * saisis, jamais calculés depuis les pièces — la somme des postes connus ne
+ * vaut pas le montant engagé.
  */
 export const contratSchema = z.object({
   libelle: z.string().trim().max(150, "Libellé trop long (150 caractères max)."),
@@ -151,13 +149,24 @@ export const contratSchema = z.object({
     .string()
     .trim()
     .max(120, "Référence marché/contrat trop longue (120 caractères max)."),
+  montantAnnuel: montantOptionnel,
+  // Aucun rappel ne s'y accroche, à la différence de `finContratLe` et de
+  // `dateRenouvellement` : c'est le terme du marché, pas une alerte.
+  dateFin: dateOptionnelle,
   notes: z.string().trim().max(2000, "Notes trop longues (2000 caractères max)."),
 });
 export type ContratInput = z.infer<typeof contratSchema>;
 
-/** Pièce d'un contrat : son type, son coût, son échéance. */
+/**
+ * Pièce d'un contrat : son coût et son échéance.
+ *
+ * Plus de `type` (perpétuelle / abonnement / libre / autre) : ce que la pièce
+ * EST se lit désormais sur la catégorie de son document — un référentiel que
+ * l'admin fait évoluer, là où l'enum imposait quatre valeurs figées. La colonne
+ * `type` demeure en base avec ses valeurs historiques ; elle n'est plus ni
+ * saisie ni affichée.
+ */
 export const pieceContratSchema = z.object({
-  type: z.enum(TYPES_CONTRAT),
   coutAnnuel: montantOptionnel,
   dateRenouvellement: dateOptionnelle,
 });

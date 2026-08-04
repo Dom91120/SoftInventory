@@ -477,19 +477,31 @@ model Interconnexion {
 }
 
 /// Un contrat ou marché passé pour un logiciel : ce qui l'IDENTIFIE — son
-/// libellé, sa référence, la société avec qui on s'engage. Il ne porte ni
-/// montant ni échéance : ceux-ci vivent sur ses lignes, car un même marché
-/// couvre souvent plusieurs postes aux coûts et aux termes distincts.
+/// libellé, sa référence, la société avec qui on s'engage — et ce qui l'engage
+/// GLOBALEMENT : son montant annuel et sa date de fin.
+///
+/// Ces deux-là ne font pas double emploi avec ceux des pièces : la pièce dit ce
+/// que coûte UN poste et quand il se renouvelle, le marché dit ce qu'il pèse en
+/// tout et jusqu'à quand il court. Un même marché couvre souvent plusieurs
+/// postes aux coûts et aux termes distincts, sans que leur somme ni leur
+/// échéance la plus lointaine valent engagement.
 model Contrat {
-  id              Int      @id @default(autoincrement())
-  logicielId      Int      @map("logiciel_id")
+  id              Int       @id @default(autoincrement())
+  logicielId      Int       @map("logiciel_id")
   /// Société avec qui la collectivité contractualise. null = l'éditeur du
   /// logiciel, cas le plus fréquent ; renseigné quand c'est un revendeur.
-  fournisseurId   Int?     @map("fournisseur_id")
-  libelle         String   @default("") // ex. « marché 2024-12 », « pack 50 postes »
-  referenceMarche String   @default("") @map("reference_marche")
-  notes           String   @default("")
-  createdAt       DateTime @default(now()) @db.Timestamptz
+  fournisseurId   Int?      @map("fournisseur_id")
+  libelle         String    @default("") // ex. « marché 2024-12 », « pack 50 postes »
+  referenceMarche String    @default("") @map("reference_marche")
+  /// Montant annuel du marché entier. null = non renseigné, à distinguer de
+  /// zéro (un marché à titre gratuit se saisit, lui, à 0).
+  montantAnnuel   Decimal?  @map("montant_annuel") @db.Decimal(12, 2)
+  /// Terme du marché. Contrairement à PieceContrat.dateRenouvellement et à
+  /// Logiciel.finContratLe, elle ne déclenche AUCUN rappel : pas de colonne
+  /// anti-doublon ici, et le cron ne la lit pas. C'est une donnée de référence.
+  dateFin         DateTime? @map("date_fin") @db.Date
+  notes           String    @default("")
+  createdAt       DateTime  @default(now()) @db.Timestamptz
 
   logiciel Logiciel @relation(fields: [logicielId], references: [id], onDelete: Cascade)
   // Le fournisseur n'est pas propriétaire du contrat : supprimer sa fiche ne

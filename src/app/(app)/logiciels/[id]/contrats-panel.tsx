@@ -3,15 +3,14 @@
 import { Pencil, Plus, Trash2, Upload, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useRef, useState, useTransition } from "react";
-import { deleteDocumentAction } from "@/app/(app)/documents/actions";
+import { deleteDocumentAction, updateDocumentCategorieAction } from "@/app/(app)/documents/actions";
 import {
   type CategorieOption,
   type DocumentRow,
   LigneDocument,
 } from "@/components/documents-panel";
 import { Card, EmptyState, Field } from "@/components/ui";
-import { formatEuros } from "@/lib/format";
-import { LIBELLES } from "@/schemas/logiciel";
+import { DATE_FMT_FR_UTC, formatEuros } from "@/lib/format";
 import {
   createContratAction,
   createPieceContratAction,
@@ -23,7 +22,6 @@ import {
 
 export type PieceContratRow = {
   id: number;
-  type: string;
   coutAnnuel: string; // Decimal sérialisé ("" si null)
   dateRenouvellement: string; // AAAA-MM-JJ ou ""
   /** Le fichier qui atteste la pièce. Un seul — d'où le null et non un tableau. */
@@ -37,22 +35,37 @@ export type ContratRow = {
   fournisseurId: string;
   fournisseurNom: string | null;
   referenceMarche: string;
+  /** Montant annuel du marché entier (Decimal sérialisé ; "" si null). */
+  montantAnnuel: string;
+  /** Terme du marché, AAAA-MM-JJ ou "". Aucun rappel ne s'y accroche. */
+  dateFin: string;
   notes: string;
   pieces: PieceContratRow[];
 };
 
 /**
- * Type posé d'office sur les pièces déposées depuis cet onglet. « Marché »
- * existe aussi dans le référentiel : c'est un choix à faire au cas par cas,
- * depuis la liste sous le nom du fichier.
+ * "AAAA-MM-JJ" → "JJ/MM/AAAA". Ancrée en UTC comme la colonne `@db.Date` : sans
+ * cela, un poste à l'ouest de Greenwich reculerait l'affichage d'un jour.
  */
-const TYPE_PAR_DEFAUT = "Contrat";
+function enDateFr(iso: string): string {
+  return DATE_FMT_FR_UTC.format(new Date(`${iso}T00:00:00.000Z`));
+}
+
+/**
+ * Catégorie proposée d'office dans le formulaire d'une pièce. « Marché » existe
+ * aussi dans le référentiel : la liste reste ouverte, c'est un choix au cas par
+ * cas. Rapproché par LIBELLÉ et non par id — le référentiel est saisi par
+ * l'admin, qui peut renommer ou supprimer l'entrée, d'où le repli sur null.
+ */
+const CATEGORIE_PAR_DEFAUT = "Contrat";
 
 /**
  * Onglet Contrats : les contrats et marchés du logiciel et, sous chacun, ses
  * pièces. Même organisation que l'onglet Devis, pour la même raison : le marché
- * dit AVEC QUI on s'engage et sous quelle référence, la pièce dit COMBIEN et
- * JUSQU'À QUAND. Un marché couvre souvent plusieurs postes aux termes distincts.
+ * dit AVEC QUI on s'engage, sous quelle référence, pour COMBIEN AU TOTAL et
+ * JUSQU'À QUAND ; la pièce détaille poste par poste ce que coûte chacun et
+ * quand il se renouvelle. Un marché couvre souvent plusieurs postes aux termes
+ * distincts, et sa propre échéance ne se déduit pas des leurs.
  *
  * Saisie en UNE étape : le formulaire d'une pièce porte son fichier, et l'écran
  * enchaîne création puis dépôt. Les corbeilles emportent tout ce qui pend en
@@ -74,7 +87,7 @@ export function ContratsPanel({
 }: {
   logicielId: number;
   contrats: ContratRow[];
-  /** Référentiel des types de document, pour la liste sous le nom du fichier. */
+  /** Référentiel des catégories, pour la liste du formulaire d'une pièce. */
   categories: CategorieOption[];
   /** Annuaire des sociétés, pour désigner un revendeur. */
   editeurs: Array<{ id: number; nom: string }>;
@@ -88,7 +101,7 @@ export function ContratsPanel({
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
-  const categorieContratId = categories.find((c) => c.label === TYPE_PAR_DEFAUT)?.id ?? null;
+  const categorieParDefautId = categories.find((c) => c.label === CATEGORIE_PAR_DEFAUT)?.id ?? null;
 
   // Formulaire de marché : ouvert en création ou en édition.
   const [marcheForm, setMarcheForm] = useState<
@@ -129,6 +142,11 @@ export function ContratsPanel({
    * exister — d'où l'id renvoyé par createPieceContratAction. En modification,
    * un nouveau fichier REMPLACE l'ancien : on retire d'abord
    * (deleteDocumentAction efface aussi le fichier du disque), on dépose ensuite.
+   *
+   * La catégorie saisie porte sur le DOCUMENT, pas sur la pièce : elle part au
+   * dépôt s'il y a un fichier, sinon elle reclasse celui déjà en place. Sans
+   * fichier ni avant ni après, elle n'a rien à qualifier et se perd — c'est la
+   * conséquence assumée d'une catégorie qui appartient au document.
    */
   function soumettrePiece(e: React.FormEvent<HTMLFormElement>, fichier: File | null) {
     e.preventDefault();
@@ -136,6 +154,8 @@ export function ContratsPanel({
     setError(null);
     const form = new FormData(e.currentTarget);
     const cible = pieceForm;
+    const brut = String(form.get("categorieId") ?? "");
+    const categorieId = brut === "" ? null : Number(brut);
     startTransition(async () => {
       const res = cible.row
         ? await updatePieceContratAction(cible.row.id, form)
@@ -158,9 +178,19 @@ export function ContratsPanel({
             return;
           }
         }
-        const echec = await deposerPiece(pieceId, fichier, categorieContratId);
+        const echec = await deposerPiece(pieceId, fichier, categorieId);
         if (echec) {
           setError(`Pièce enregistrée, mais le dépôt a échoué : ${echec}`);
+          router.refresh();
+          return;
+        }
+      } else if (cible.row?.document && categorieId !== cible.row.document.categorieId) {
+        // Pas de nouveau fichier, mais la catégorie a bougé : elle s'applique au
+        // document déjà rattaché. Comparaison utile — sans elle, chaque
+        // enregistrement rejouerait une écriture inutile.
+        const maj = await updateDocumentCategorieAction(cible.row.document.id, categorieId);
+        if (!maj.ok) {
+          setError(`Pièce enregistrée, mais la catégorie du fichier n'a pas suivi : ${maj.error}`);
           router.refresh();
           return;
         }
@@ -188,8 +218,11 @@ export function ContratsPanel({
 
   function supprimerPiece(l: PieceContratRow) {
     const avert = l.document ? `\n\nSon fichier « ${l.document.nomOriginal} » aussi.` : "";
-    const nom = LIBELLES.typeContrat[l.type as keyof typeof LIBELLES.typeContrat];
-    if (!window.confirm(`Supprimer la pièce « ${nom} » ?${avert}`)) return;
+    // Le type nommait la pièce dans cette question ; à sa place, ce qui la
+    // distingue encore de ses voisines — son fichier, sinon son échéance.
+    const nom = l.document?.nomOriginal ?? l.dateRenouvellement;
+    const quoi = nom ? `la pièce « ${nom} »` : "cette pièce";
+    if (!window.confirm(`Supprimer ${quoi} ?${avert}`)) return;
     setError(null);
     startTransition(async () => {
       const res = await deletePieceContratAction(l.id);
@@ -289,8 +322,21 @@ export function ContratsPanel({
                         {c.fournisseurNom ?? editeurDuLogiciel}
                       </span>
                     </span>
-                    <span className="text-xs text-faint">
-                      {`${c.pieces.length} pièce${c.pieces.length > 1 ? "s" : ""}`}
+                    {/* Deuxième rangée, MÊME gabarit de colonnes que le titre :
+                        la date de fin tombe ainsi sous le libellé et le montant
+                        sous le fournisseur, ce qu'ils qualifient chacun. Les
+                        deux se taisent quand ils ne sont pas renseignés — un
+                        marché sans terme saisi n'a pas à afficher un tiret. */}
+                    <span className="grid grid-cols-[minmax(3rem,5rem)_minmax(8rem,1fr)_minmax(6rem,14rem)] items-baseline gap-2 text-xs text-faint">
+                      <span>{`${c.pieces.length} pièce${c.pieces.length > 1 ? "s" : ""}`}</span>
+                      <span className="truncate">
+                        {c.dateFin ? `Date de fin : ${enDateFr(c.dateFin)}` : null}
+                      </span>
+                      <span className="truncate tabular-nums">
+                        {c.montantAnnuel
+                          ? `Montant annuel : ${formatEuros(c.montantAnnuel)}`
+                          : null}
+                      </span>
                     </span>
                   </span>
                   {readOnly ? null : (
@@ -342,6 +388,8 @@ export function ContratsPanel({
                     <FormulairePiece
                       key={`p-new-${c.id}`}
                       row={null}
+                      categories={categories}
+                      categorieParDefautId={categorieParDefautId}
                       pending={pending}
                       onSubmit={soumettrePiece}
                       onCancel={() => setPieceForm(null)}
@@ -356,9 +404,10 @@ export function ContratsPanel({
                         <thead>
                           <tr>
                             {/* La LIGNE est la pièce ; cette colonne montre le
-                                fichier qui l'atteste, d'où le nom distinct. */}
+                                fichier qui l'atteste, d'où le nom distinct. Sa
+                                catégorie se lit et se change sous son nom, dans
+                                LigneDocument — d'où l'absence de colonne dédiée. */}
                             <th>Fichier</th>
-                            <th>Type</th>
                             <th className="text-right">Coût annuel</th>
                             <th>Renouvellement</th>
                             {readOnly ? null : <th className="w-20" aria-label="Actions" />}
@@ -368,10 +417,12 @@ export function ContratsPanel({
                           {c.pieces.map((l) =>
                             pieceForm?.row?.id === l.id ? (
                               <tr key={l.id}>
-                                <td colSpan={readOnly ? 4 : 5} className="!py-2 !pr-0">
+                                <td colSpan={readOnly ? 3 : 4} className="!py-2 !pr-0">
                                   <FormulairePiece
                                     key={`p-${l.id}`}
                                     row={l}
+                                    categories={categories}
+                                    categorieParDefautId={categorieParDefautId}
                                     pending={pending}
                                     onSubmit={soumettrePiece}
                                     onCancel={() => setPieceForm(null)}
@@ -387,18 +438,14 @@ export function ContratsPanel({
                                       document={l.document}
                                       categories={categories}
                                       readOnly={readOnly}
+                                      // Le crayon de la pièce porte la catégorie :
+                                      // elle se lit ici, elle s'y modifie.
+                                      categorieModifiable={false}
                                       onErreur={setError}
                                     />
                                   ) : (
                                     <span className="text-faint">—</span>
                                   )}
-                                </td>
-                                <td>
-                                  {
-                                    LIBELLES.typeContrat[
-                                      l.type as keyof typeof LIBELLES.typeContrat
-                                    ]
-                                  }
                                 </td>
                                 <td className="text-right tabular-nums">
                                   {formatEuros(l.coutAnnuel) ?? "—"}
@@ -474,7 +521,10 @@ async function deposerPiece(
   }
 }
 
-/** Le marché : ce qui l'identifie. Ni montant ni échéance, ils sont sur ses pièces. */
+/**
+ * Le marché : ce qui l'identifie, et ce qui l'engage en bloc — montant annuel et
+ * date de fin. Le détail poste par poste reste sur ses pièces.
+ */
 function FormulaireMarche({
   row,
   editeurs,
@@ -536,6 +586,34 @@ function FormulaireMarche({
             className="input"
           />
         </Field>
+        <Field
+          label="Montant annuel (€)"
+          htmlFor="montantAnnuel"
+          hint="Ce que pèse le marché entier — pas la somme de ses pièces, qui se chiffrent une à une."
+        >
+          <input
+            id="montantAnnuel"
+            name="montantAnnuel"
+            inputMode="decimal"
+            defaultValue={row?.montantAnnuel ?? ""}
+            disabled={pending}
+            className="input"
+          />
+        </Field>
+        <Field
+          label="Date de fin"
+          htmlFor="dateFin"
+          hint="Terme du marché. Ne déclenche pas de rappel : celui-ci suit le renouvellement de chaque pièce."
+        >
+          <input
+            id="dateFin"
+            name="dateFin"
+            type="date"
+            defaultValue={row?.dateFin ?? ""}
+            disabled={pending}
+            className="input"
+          />
+        </Field>
         <div className="sm:col-span-2">
           <Field label="Notes" htmlFor="notes">
             <textarea
@@ -562,18 +640,26 @@ function FormulaireMarche({
 }
 
 /**
- * La pièce : son fichier, son type, son coût, son échéance. Le fichier est retenu
- * en mémoire jusqu'à la validation — avant elle, il n'existe aucune pièce à
- * laquelle le rattacher.
+ * La pièce : son fichier, la catégorie de ce fichier, son coût, son échéance. Le
+ * fichier est retenu en mémoire jusqu'à la validation — avant elle, il n'existe
+ * aucune pièce à laquelle le rattacher.
+ *
+ * La catégorie ne vit pas sur la pièce mais sur son document : sans fichier,
+ * elle n'a rien à qualifier et ne sera appliquée qu'au dépôt.
  */
 function FormulairePiece({
   row,
+  categories,
+  categorieParDefautId,
   pending,
   onSubmit,
   onCancel,
   className = "mb-4 rounded-xl border border-sub bg-inset p-4",
 }: {
   row: PieceContratRow | null;
+  categories: CategorieOption[];
+  /** « Contrat » du référentiel ; null s'il a été renommé ou supprimé. */
+  categorieParDefautId: number | null;
   pending: boolean;
   onSubmit: (e: React.FormEvent<HTMLFormElement>, fichier: File | null) => void;
   onCancel: () => void;
@@ -581,6 +667,23 @@ function FormulairePiece({
   className?: string;
 }) {
   const [fichier, setFichier] = useState<File | null>(null);
+
+  /**
+   * Ce qui EXISTE prime sur ce qui est proposé : dès qu'un fichier est
+   * rattaché, sa catégorie réelle s'affiche — « sans catégorie » comprise. La
+   * distinction compte, sinon ouvrir le crayon sur une ligne « Sans catégorie »
+   * la reclasserait en « Contrat » à la simple validation.
+   *
+   * Le repli sur « Contrat » ne vaut donc que là où rien n'est encore classé :
+   * pièce neuve, ou pièce dont le fichier reste à déposer.
+   */
+  const categorieInitiale = row?.document
+    ? row.document.categorieId === null
+      ? ""
+      : String(row.document.categorieId)
+    : categorieParDefautId === null
+      ? ""
+      : String(categorieParDefautId);
   const fileRef = useRef<HTMLInputElement>(null);
 
   return (
@@ -632,17 +735,18 @@ function FormulairePiece({
           </Field>
         </div>
         <div className="shrink-0">
-          <Field label="Type" htmlFor="type">
+          <Field label="Catégorie du document" htmlFor="categorieId">
             <select
-              id="type"
-              name="type"
-              defaultValue={row?.type ?? "abonnement"}
+              id="categorieId"
+              name="categorieId"
+              defaultValue={categorieInitiale}
               disabled={pending}
               className="input !w-auto"
             >
-              {Object.entries(LIBELLES.typeContrat).map(([v, l]) => (
-                <option key={v} value={v}>
-                  {l}
+              <option value="">— sans catégorie —</option>
+              {categories.map((c) => (
+                <option key={c.id} value={String(c.id)}>
+                  {c.label}
                 </option>
               ))}
             </select>

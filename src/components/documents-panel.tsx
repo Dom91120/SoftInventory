@@ -78,7 +78,7 @@ export function tailleLisible(octets: number): string {
 
 /**
  * Une pièce jointe affichée DANS une ligne de tableau : nom cliquable et
- * téléchargement, puis type modifiable, taille, déposant et date en dessous.
+ * téléchargement, puis catégorie, taille, déposant et date en dessous.
  *
  * Partagée par les onglets Contrats et Devis, où les pièces se lisent dans la
  * ligne de leur contrat ou de leur devis plutôt que dans un panneau séparé. Le
@@ -89,16 +89,29 @@ export function LigneDocument({
   document,
   categories,
   readOnly,
+  categorieModifiable = true,
   onErreur,
 }: {
   document: DocumentRow;
   categories: CategorieOption[];
   readOnly: boolean;
+  /**
+   * Faux quand le formulaire de la ligne porte déjà le choix de la catégorie
+   * (onglet Contrats) : elle s'y modifie au crayon, et la figer ici évite deux
+   * commandes concurrentes pour la même valeur. L'onglet Devis, dont le
+   * formulaire pose « Devis » d'office sans le proposer, la garde modifiable —
+   * c'est son seul point d'entrée.
+   */
+  categorieModifiable?: boolean;
   onErreur: (message: string | null) => void;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const Icone = iconeDe(document.nomOriginal);
+
+  // Deux raisons de ne pas offrir la liste, un seul rendu : le lecteur ne
+  // modifie rien, et l'onglet Contrats réserve la catégorie à son crayon.
+  const categorieFigee = readOnly || !categorieModifiable;
 
   function changerCategorie(valeur: string) {
     onErreur(null);
@@ -140,19 +153,15 @@ export function LigneDocument({
           </a>
         </span>
         <span className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-faint">
-          {readOnly ? (
-            document.categorie ? (
-              <span>{document.categorie}</span>
-            ) : null
-          ) : (
+          {categorieFigee ? null : (
             <select
               className="select-inline"
-              aria-label={`Type de ${document.nomOriginal}`}
+              aria-label={`Catégorie de ${document.nomOriginal}`}
               value={document.categorieId === null ? "" : String(document.categorieId)}
               disabled={pending}
               onChange={(e) => changerCategorie(e.target.value)}
             >
-              <option value="">— sans type —</option>
+              <option value="">— sans catégorie —</option>
               {categories.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.label}
@@ -162,6 +171,18 @@ export function LigneDocument({
           )}
           <span>
             {[
+              // Figée, la catégorie n'est plus qu'une information parmi les
+              // autres : elle rejoint leur énumération plutôt que de vivre dans
+              // son propre bloc, et le « · » qui les sépare la sépare aussi.
+              // Modifiable, le select reste à part — on ne ponctue pas une
+              // commande.
+              //
+              // Son absence s'ÉCRIT, elle ne se tait pas : sans cela, un
+              // document non classé serait indiscernable d'un document classé
+              // à l'œil, alors que le crayon est désormais le seul endroit où
+              // le voir. Sans tirets cadratins, réservés aux options vides des
+              // listes déroulantes.
+              categorieFigee ? (document.categorie ?? "Sans catégorie") : null,
               tailleLisible(document.taille),
               document.deposeParLabel && `déposé par ${document.deposeParLabel}`,
               document.createdAt,

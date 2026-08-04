@@ -313,6 +313,8 @@ async function OngletContrats({
           fournisseurId: c.fournisseurId === null ? "" : String(c.fournisseurId),
           fournisseurNom: c.fournisseur?.nom ?? null,
           referenceMarche: c.referenceMarche,
+          montantAnnuel: c.montantAnnuel === null ? "" : String(c.montantAnnuel),
+          dateFin: dateStr(c.dateFin),
           notes: c.notes,
           pieces: c.pieces.map((l) => {
             // Une seule pièce par ligne : on ne remonte que la première, même
@@ -320,7 +322,6 @@ async function OngletContrats({
             const doc = l.documents[0];
             return {
               id: l.id,
-              type: l.type,
               coutAnnuel: l.coutAnnuel === null ? "" : String(l.coutAnnuel),
               dateRenouvellement: dateStr(l.dateRenouvellement),
               document: doc
