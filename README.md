@@ -18,11 +18,19 @@ Tout se rattache au logiciel, via huit onglets : **Synthèse**, **Support**
 entre logiciels, serveurs, services utilisateurs), **Contrats/Marchés**,
 **Devis**, **Tâches**, **Documents** et **RGPD**.
 
-Un marché (référence, fournisseur — l'éditeur par défaut, ou le revendeur)
-regroupe ses pièces : chacune porte son mode de licence (perpétuelle,
-abonnement, libre), son coût annuel et sa date de renouvellement. Le rappel
-d'échéance se déclenche donc à la pièce, mais se lit sous le marché qui la
-porte.
+**C'est le marché qui engage.** Il porte sa référence, son fournisseur
+(l'éditeur du logiciel par défaut, une société nommée quand c'est un
+revendeur), sa période — affichée « du 01/01/2023 au 31/12/2026 » — et son
+montant annuel. Ses **pièces** ne décrivent qu'elles-mêmes : un fichier, la
+catégorie de ce fichier, et la date du document (signature, notification).
+Elles ne chiffrent rien et ne déclenchent rien.
+
+L'échéance surveillée est donc la **date de fin du marché**, et elle seule.
+Un rappel part 3 mois avant (délai réglable en Administration › Messagerie),
+une fois par échéance. Jamais rétroactivement : un marché déjà échu se
+constate — un badge **Terminé** le dit à l'écran — il ne se rappelle pas, ce
+qui permet de saisir d'anciens marchés pour l'historique sans déclencher
+d'envoi.
 
 Les devis racontent l'avant-contrat : ils se groupent par consultation (un
 objet, une date), avec le montant de chaque fournisseur et celui qui a été
@@ -83,6 +91,14 @@ aucun contenu n'est poussé dans une base qui contient déjà du travail.
 > cache `.next` puis relancer `pnpm dev` : le manifeste du build de production
 > et celui du serveur de dev cohabitent mal dans le même dossier.
 
+> **Après toute migration, arrêter `pnpm dev` avant `pnpm db:generate`.** Sous
+> Windows, le serveur verrouille les fichiers du client généré : la génération
+> paraît réussir mais `pnpm typecheck` continue d'ignorer les nouveaux champs,
+> et Turbopack sert un bundle à cheval sur l'ancien client. Le symptôme est
+> déroutant — une écriture échoue en `Unknown argument` sur un champ **ancien**
+> et non sur celui qu'on vient d'ajouter. Arrêter le serveur, `pnpm
+> db:generate`, supprimer `.next` au besoin, relancer.
+
 ## Production (Docker)
 
 ```bash
@@ -104,8 +120,11 @@ docker compose run --rm init   # une fois : admin + référentiels
 
 1. Connectez-vous avec le compte admin du seed, changez son mot de passe.
 2. Administration › Référentiels : ajustez services utilisateurs, serveurs,
-   technologies, criticités, types de tâches, catégories de documents.
-3. Administration › Messagerie : SMTP + destinataires par défaut des rappels.
+   technologies, criticités, types de tâches, catégories de documents. Ces
+   dernières avant tout dépôt de fichier : aucune liste n'offre de choix vide,
+   un document a toujours une catégorie.
+3. Administration › Messagerie : SMTP, destinataires par défaut des rappels et
+   délais (3 mois avant la fin d'un marché, 14 jours avant une tâche).
 4. Administration › Authentification : annuaire LDAP/AD si souhaité.
-5. Créez vos éditeurs puis vos logiciels — licences, tâches et documents se
-   gèrent depuis chaque fiche.
+5. Créez vos éditeurs puis vos logiciels — marchés, devis, tâches et documents
+   se gèrent depuis chaque fiche.
