@@ -2,13 +2,31 @@
 
 Inventaire des logiciels d'une collectivité territoriale : fiches logiciels
 (éditeur, hébergement, criticité, licences, RGPD…), éditeurs et leurs canaux de
-support, services utilisateurs, serveurs, pièces jointes (contrats, guides,
-délibérations) et tâches récurrentes (mises à jour, renouvellements, purges,
-certificats) avec rappels par e-mail.
+support, services utilisateurs, serveurs, marchés et leurs pièces contractuelles,
+devis de mise en concurrence, pièces jointes (guides, délibérations) et tâches
+récurrentes (mises à jour, renouvellements, purges, certificats) avec rappels par
+e-mail.
 
 Application interne (réseau de la collectivité) : deux rôles (administrateur /
 lecteur), authentification par comptes locaux et/ou annuaire LDAP – Active
 Directory (paramétrable dans l'admin), double authentification TOTP disponible.
+
+## La fiche logiciel
+
+Tout se rattache au logiciel, via huit onglets : **Synthèse**, **Support**
+(canaux hérités de l'éditeur ou propres au logiciel), **Liaisons** (dépendances
+entre logiciels, serveurs, services utilisateurs), **Contrats/Marchés**,
+**Devis**, **Tâches**, **Documents** et **RGPD**.
+
+Un marché (référence, fournisseur — l'éditeur par défaut, ou le revendeur)
+regroupe ses pièces : chacune porte son mode de licence (perpétuelle,
+abonnement, libre), son coût annuel et sa date de renouvellement. Le rappel
+d'échéance se déclenche donc à la pièce, mais se lit sous le marché qui la
+porte.
+
+Les devis racontent l'avant-contrat : ils se groupent par consultation (un
+objet, une date), avec le montant de chaque fournisseur et celui qui a été
+retenu — la mise en concurrence dont le marché est issu.
 
 ## Briques
 
