@@ -37,6 +37,8 @@ export type ContratRow = {
   referenceMarche: string;
   /** Montant annuel du marché entier (Decimal sérialisé ; "" si null). */
   montantAnnuel: string;
+  /** Plafond du marché, quand l'acte en fixe un (Decimal sérialisé ; "" si null). */
+  montantMaxi: string;
   /** Prise d'effet du marché, AAAA-MM-JJ ou "". */
   dateDebut: string;
   /** Terme du marché, AAAA-MM-JJ ou "". Aucun rappel ne s'y accroche. */
@@ -80,6 +82,17 @@ function estTermine(dateFin: string, aujourdhui: string): boolean {
 }
 
 /**
+ * Marché encore en cours dont le terme approche : il faut relancer une
+ * consultation. La borne haute vient du serveur, qui la calcule sur le délai de
+ * rappel — la pastille et l'e-mail se déclenchent donc au même moment.
+ *
+ * Exclusif de `estTermine` : le terme est soit passé, soit à venir.
+ */
+function estARenouveler(dateFin: string, aujourdhui: string, limite: string): boolean {
+  return dateFin !== "" && dateFin >= aujourdhui && dateFin <= limite;
+}
+
+/**
  * Catégorie proposée d'office dans le formulaire d'une pièce. « Marché » existe
  * aussi dans le référentiel : la liste reste ouverte, c'est un choix au cas par
  * cas. Rapproché par LIBELLÉ et non par id — le référentiel est saisi par
@@ -112,6 +125,7 @@ export function ContratsPanel({
   nbUtilisateurs,
   nbMaxUtilisateurs,
   aujourdhui,
+  limiteRenouvellement,
   readOnly,
 }: {
   logicielId: number;
@@ -126,6 +140,8 @@ export function ContratsPanel({
   nbMaxUtilisateurs: number | null;
   /** Jour courant en AAAA-MM-JJ, fourni par le serveur — voir son appel. */
   aujourdhui: string;
+  /** Dernier jour de la fenêtre « à renouveler », AAAA-MM-JJ. Même origine. */
+  limiteRenouvellement: string;
   readOnly: boolean;
 }) {
   const router = useRouter();
@@ -336,18 +352,20 @@ export function ContratsPanel({
                         contenu — le libellé, seul à s'étirer, absorbe la place
                         restante et se coupe en « … » quand il déborde.
 
-                        La référence tient sur 6.6rem au lieu de 5 : trois
-                        caractères de plus. En `rem` et NON en `ch` — cette
-                        dernière unité suit la police, or les deux rangées n'ont
-                        pas la même taille (text-sm / text-xs) : le même `3ch` y
-                        valait 25,9 px et 21,6 px, et les colonnes cessaient de
-                        tomber au même endroit. Le gabarit doit rester
-                        strictement identique entre les deux rangées.
+                        Largeurs en `rem` et JAMAIS en `ch`, malgré l'attrait de
+                        cette dernière pour raisonner en caractères : elle suit
+                        la police, or les deux rangées n'ont pas la même taille
+                        (text-sm / text-xs). Un `3ch` y valait 25,9 px et
+                        21,6 px, et les colonnes cessaient de tomber au même
+                        endroit. Le gabarit doit rester strictement identique
+                        entre les deux rangées.
 
-                        Cette place est prise au libellé, qui occupe le `1fr` —
-                        c'est assumé, les références se lisent et se comparent
-                        d'une ligne à l'autre. */}
-                    <span className="grid grid-cols-[minmax(3rem,6.6rem)_minmax(8rem,1fr)_minmax(6rem,14rem)] items-baseline gap-2 font-semibold text-strong">
+                        Référence 6.25rem (100 px) et montants 16.25rem (260 px,
+                        le minimum pour « Mnt annuel : 999 999,99 € · Maxi :
+                        999 999,99 € », mesuré à 258,14 px). Tout ce qui n'est
+                        pas pris par ces deux-là revient au libellé, seul à
+                        s'étirer — les élargir le raccourcit d'autant. */}
+                    <span className="grid grid-cols-[minmax(3rem,6.25rem)_minmax(8rem,1fr)_minmax(6rem,16.25rem)] items-baseline gap-2 font-semibold text-strong">
                       <span className="truncate" title={c.referenceMarche || undefined}>
                         {c.referenceMarche}
                       </span>
@@ -358,12 +376,31 @@ export function ContratsPanel({
                         <span className="truncate" title={c.libelle || undefined}>
                           {c.libelle || (c.referenceMarche ? "" : "sans libellé")}
                         </span>
+                        {/* Gris, mais un cran plus soutenu que `badge-muted`,
+                            dont le fond `inset` (#f1f5f9) se confondait avec le
+                            texte secondaire alentour. `sub` (#cbd5e1) se
+                            détache sans crier — ni l'ambre ni le rouge, qui
+                            désignent dans la charte une échéance proche ou un
+                            retard : un marché arrivé à son terme est un fait,
+                            pas une anomalie. `line` aurait été trop proche de
+                            l'ancien pour que la différence se voie. */}
                         {estTermine(c.dateFin, aujourdhui) ? (
                           <span
-                            className="badge-muted shrink-0 font-normal"
+                            className="badge shrink-0 bg-sub text-body"
                             title={`Terminé depuis le ${enDateFr(c.dateFin)}`}
                           >
                             Terminé
+                          </span>
+                        ) : estARenouveler(c.dateFin, aujourdhui, limiteRenouvellement) ? (
+                          // Ambre, cette fois à bon droit : la charte lui donne
+                          // le sens d'« échéance proche », et il y a ici quelque
+                          // chose à FAIRE avant une date — au contraire d'un
+                          // marché terminé, qui ne se constate que.
+                          <span
+                            className="badge-warn shrink-0"
+                            title={`À renouveler avant le ${enDateFr(c.dateFin)}`}
+                          >
+                            À renouveler
                           </span>
                         ) : null}
                       </span>
@@ -383,21 +420,47 @@ export function ContratsPanel({
                         sous le fournisseur, ce qu'ils qualifient chacun. Les
                         deux se taisent quand ils ne sont pas renseignés — un
                         marché sans terme saisi n'a pas à afficher un tiret. */}
-                    <span className="grid grid-cols-[minmax(3rem,6.6rem)_minmax(8rem,1fr)_minmax(6rem,14rem)] items-baseline gap-2 text-xs text-faint">
+                    <span className="grid grid-cols-[minmax(3rem,6.25rem)_minmax(8rem,1fr)_minmax(6rem,16.25rem)] items-baseline gap-2 text-xs text-faint">
                       <span>{`${c.pieces.length} pièce${c.pieces.length > 1 ? "s" : ""}`}</span>
                       <span className="truncate">{periodeDe(c.dateDebut, c.dateFin)}</span>
-                      <span className="truncate tabular-nums">
-                        {c.montantAnnuel
-                          ? `Montant annuel : ${formatEuros(c.montantAnnuel)}`
-                          : null}
+                      {/* « Mnt annuel » abrégé : les deux montants partagent
+                          une colonne qui contenait déjà tout juste le premier.
+                          Le plafond ne s'affiche que s'il est saisi — tous les
+                          actes n'en fixent pas. `title` porte les libellés
+                          entiers, la colonne tronquant au besoin. */}
+                      <span
+                        className="truncate tabular-nums"
+                        title={
+                          [
+                            c.montantAnnuel
+                              ? `Montant annuel : ${formatEuros(c.montantAnnuel)}`
+                              : null,
+                            c.montantMaxi
+                              ? `Montant maximum : ${formatEuros(c.montantMaxi)}`
+                              : null,
+                          ]
+                            .filter(Boolean)
+                            .join(" — ") || undefined
+                        }
+                      >
+                        {[
+                          c.montantAnnuel ? `Mnt annuel : ${formatEuros(c.montantAnnuel)}` : null,
+                          c.montantMaxi ? `Maxi : ${formatEuros(c.montantMaxi)}` : null,
+                        ]
+                          .filter(Boolean)
+                          .join(" · ")}
                       </span>
                     </span>
                   </span>
                   {readOnly ? null : (
                     <span className="flex shrink-0 items-center gap-1">
+                      {/* `!px-3` : plus resserré que le `px-4` de .btn — l'icône
+                          et un mot de cinq lettres n'ont pas besoin d'autant de
+                          marge, et la place gagnée revient à l'en-tête du
+                          marché, qui est à l'étroit. */}
                       <button
                         type="button"
-                        className="btn-secondary !py-1.5"
+                        className="btn-secondary !px-3 !py-1.5"
                         disabled={pending}
                         onClick={() =>
                           setPieceForm((f) =>
@@ -653,6 +716,20 @@ function FormulaireMarche({
             name="montantAnnuel"
             inputMode="decimal"
             defaultValue={row?.montantAnnuel ?? ""}
+            disabled={pending}
+            className="input"
+          />
+        </Field>
+        <Field
+          label="Montant maximum (€)"
+          htmlFor="montantMaxi"
+          hint="Le plafond fixé par l'acte, s'il y en a un. Souvent sur la durée entière du marché, pas sur l'année."
+        >
+          <input
+            id="montantMaxi"
+            name="montantMaxi"
+            inputMode="decimal"
+            defaultValue={row?.montantMaxi ?? ""}
             disabled={pending}
             className="input"
           />

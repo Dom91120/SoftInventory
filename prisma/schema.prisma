@@ -496,6 +496,10 @@ model Contrat {
   /// Montant annuel du marché entier. null = non renseigné, à distinguer de
   /// zéro (un marché à titre gratuit se saisit, lui, à 0).
   montantAnnuel   Decimal?  @map("montant_annuel") @db.Decimal(12, 2)
+  /// Plafond du marché : ce qu'il ne peut pas dépasser, quand l'acte en fixe
+  /// un. Indépendant du montant annuel — un maximum porte souvent sur la durée
+  /// entière — et sans contrainte entre les deux : c'est l'acte qui fait foi.
+  montantMaxi     Decimal?  @map("montant_maxi") @db.Decimal(12, 2)
   /// Début du marché : la date à laquelle il prend effet. Se lit avec dateFin,
   /// dont elle forme la période affichée (« du … au … »). Indépendante d'elle :
   /// un marché en cours a souvent un début connu et un terme qui ne l'est pas.

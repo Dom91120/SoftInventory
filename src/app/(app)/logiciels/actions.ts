@@ -251,6 +251,7 @@ function parseContrat(formData: FormData) {
     fournisseurId: get("fournisseurId"),
     referenceMarche: get("referenceMarche"),
     montantAnnuel: get("montantAnnuel"),
+    montantMaxi: get("montantMaxi"),
     dateDebut: get("dateDebut"),
     dateFin: get("dateFin"),
     notes: get("notes"),

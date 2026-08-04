@@ -62,8 +62,19 @@ export function getLogiciel(id: number) {
       criticite: true,
       services: { include: { service: true } },
       serveurs: { include: { serveur: true } },
+      // Marchés les plus RÉCENTS en tête, comme les consultations plus bas. Le
+      // rang se lit sur la date de début — celle à laquelle le marché a pris
+      // effet — puis sur la date de fin pour ceux qui n'ont que celle-là.
+      //
+      // `nulls: "last"` est indispensable : en tri décroissant, PostgreSQL
+      // remonte les NULL en PREMIER, si bien qu'un marché sans date saisie
+      // coifferait tous les autres.
       contrats: {
-        orderBy: [{ id: "asc" }],
+        orderBy: [
+          { dateDebut: { sort: "desc", nulls: "last" } },
+          { dateFin: { sort: "desc", nulls: "last" } },
+          { id: "desc" },
+        ],
         include: {
           fournisseur: { select: { id: true, nom: true } },
           pieces: {

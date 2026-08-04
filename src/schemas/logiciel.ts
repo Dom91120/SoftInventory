@@ -151,6 +151,9 @@ export const contratSchema = z
       .trim()
       .max(120, "Référence marché/contrat trop longue (120 caractères max)."),
     montantAnnuel: montantOptionnel,
+    // Aucune contrainte avec le montant annuel : un plafond porte souvent sur
+    // la durée entière du marché, pas sur l'année. C'est l'acte qui fait foi.
+    montantMaxi: montantOptionnel,
     dateDebut: dateOptionnelle,
     // Terme du marché ET échéance surveillée : c'est elle que lisent le cron
     // et le tableau de bord. La changer relance un rappel (voir updateContrat).

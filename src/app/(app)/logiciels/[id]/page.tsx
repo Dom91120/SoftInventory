@@ -8,6 +8,7 @@ import { EcheanceBadge } from "@/components/tache-badges";
 import { PageHeader } from "@/components/ui";
 import type { Role } from "@/generated/prisma/client";
 import { dateCalendaire } from "@/lib/taches-core";
+import { seuilsRappel } from "@/server/config";
 import { prisma } from "@/server/db";
 import { requireUser } from "@/server/guards";
 import { listEditeurs } from "@/server/services/editeurs";
@@ -295,8 +296,17 @@ async function OngletContrats({
   // Les catégories servent aux pièces jointes déposées sous une ligne de
   // contrat (décision municipale, contrat signé…) ; les éditeurs servent à
   // désigner le fournisseur, souvent l'éditeur mais parfois un revendeur.
-  const [categories, editeurs] = await Promise.all([listCategoriesDocuments(), listEditeurs()]);
+  const [categories, editeurs, seuils] = await Promise.all([
+    listCategoriesDocuments(),
+    listEditeurs(),
+    seuilsRappel(),
+  ]);
   const fmt = new Intl.DateTimeFormat("fr-FR", { dateStyle: "short", timeZone: "Europe/Paris" });
+  const jour = dateCalendaire(new Date());
+  // Borne haute du « à renouveler » : le MÊME délai que les rappels par e-mail
+  // et le tableau de bord (Administration › Messagerie). La pastille et le mail
+  // apparaissent donc ensemble ; la figer à 90 les aurait laissés diverger.
+  const limiteRenouvellement = dateStr(new Date(jour.getTime() + seuils.contrat * 86_400_000));
   return (
     <ContratsPanel
       logicielId={logiciel.id}
@@ -309,7 +319,8 @@ async function OngletContrats({
       // Calculé ICI et non dans le composant client : le jour courant lu des
       // deux côtés donnerait deux valeurs à cheval sur minuit, et React
       // signalerait une divergence d'hydratation.
-      aujourdhui={dateStr(dateCalendaire(new Date()))}
+      aujourdhui={dateStr(jour)}
+      limiteRenouvellement={limiteRenouvellement}
       contrats={logiciel.contrats.map(
         (c): ContratRow => ({
           id: c.id,
@@ -318,6 +329,7 @@ async function OngletContrats({
           fournisseurNom: c.fournisseur?.nom ?? null,
           referenceMarche: c.referenceMarche,
           montantAnnuel: c.montantAnnuel === null ? "" : String(c.montantAnnuel),
+          montantMaxi: c.montantMaxi === null ? "" : String(c.montantMaxi),
           dateDebut: dateStr(c.dateDebut),
           dateFin: dateStr(c.dateFin),
           notes: c.notes,
