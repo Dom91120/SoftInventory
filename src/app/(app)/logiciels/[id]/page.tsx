@@ -206,6 +206,10 @@ export default async function LogicielPage({
                   supportEmail: logiciel.editeur.supportEmail,
                   supportTelephone: logiciel.editeur.supportTelephone,
                   supportHoraires: logiciel.editeur.supportHoraires,
+                  commercialTelephone: logiciel.editeur.commercialTelephone,
+                  commercialEmail: logiciel.editeur.commercialEmail,
+                  adminTelephone: logiciel.editeur.adminTelephone,
+                  adminEmail: logiciel.editeur.adminEmail,
                 }
               : null
           }
