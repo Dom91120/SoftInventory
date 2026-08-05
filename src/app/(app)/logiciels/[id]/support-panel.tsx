@@ -106,7 +106,7 @@ function CarteContacts({
 }
 
 /**
- * Onglet « Support » : les coordonnées de l'ÉDITEUR du logiciel, en lecture
+ * Onglet « Contacts » : les coordonnées de l'ÉDITEUR du logiciel, en lecture
  * seule — l'assistance d'abord, puis le commercial et l'administratif. C'est
  * la carte « Contacts » de la fiche éditeur remontée ici, dans le même ordre
  * et la même grille, parce que la question « qui j'appelle ? » se pose devant
@@ -121,7 +121,7 @@ export function SupportPanel({ editeur }: { editeur: SupportEditeur | null }) {
     return (
       <EmptyState>
         Aucun éditeur n'est rattaché à ce logiciel. Renseignez-le dans l'onglet « Synthèse » pour
-        retrouver ici ses coordonnées de support.
+        retrouver ici ses contacts.
       </EmptyState>
     );
   }
@@ -146,7 +146,7 @@ export function SupportPanel({ editeur }: { editeur: SupportEditeur | null }) {
     ligneTel("Téléphone du support", editeur.supportTelephone),
     {
       icone: <Clock className="h-4 w-4" />,
-      label: "Horaires",
+      label: "Horaires du support",
       valeur: editeur.supportHoraires || null,
       pleineLargeur: true,
     },

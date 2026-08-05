@@ -198,7 +198,7 @@ export function EditeurForm({
             de trois tiers par interlocuteur : l'assistance, puis ses horaires
             en pleine largeur — une plage se lit d'un trait —, puis le
             commercial et l'administratif, chacun sur son rang « qui, son
-            numéro, son adresse ». L'onglet Support du logiciel reprend cette
+            numéro, son adresse ». L'onglet Contacts du logiciel reprend cette
             grille.
 
             `items-end` : au tiers de largeur, « Téléphone administratif »
@@ -211,7 +211,9 @@ export function EditeurForm({
             {champ("supportEmail", "E-mail du support", { type: "email" })}
             {champ("supportTelephone", "Téléphone du support", { type: "tel" })}
             <div className="sm:col-span-3">
-              {champ("supportHoraires", "Horaires", { placeholder: "Ex. lun-ven 9h-18h" })}
+              {champ("supportHoraires", "Horaires du support", {
+                placeholder: "Ex. lun-ven 9h-18h",
+              })}
             </div>
             {champ("commercialContact", "Contact commercial")}
             {champ("commercialTelephone", "Téléphone commercial", { type: "tel" })}

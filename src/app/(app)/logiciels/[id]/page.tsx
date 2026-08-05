@@ -36,7 +36,10 @@ export const metadata: Metadata = { title: "Logiciel" };
 
 const ONGLETS = [
   { key: "synthese", label: "Synthèse" },
-  { key: "support", label: "Support" },
+  // Même raison que « contrats » plus bas : la clé reste « support », elle
+  // circule dans les favoris. Seul le libellé change — l'onglet ne montre plus
+  // que l'assistance depuis qu'il porte aussi le commercial et l'administratif.
+  { key: "support", label: "Contacts" },
   { key: "liaisons", label: "Liaisons" },
   // La clé reste « contrats » : elle circule dans les liens des rappels
   // d'échéance déjà envoyés et dans les favoris. Seul le libellé change.
