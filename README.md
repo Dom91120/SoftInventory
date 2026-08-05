@@ -21,9 +21,9 @@ entre logiciels, serveurs, services utilisateurs), **Contrats/Marchés**,
 
 **Les coordonnées de l'éditeur ne se saisissent qu'une fois**, sur sa fiche :
 le support (portail de tickets, mail, téléphone, horaires) et, sous
-**Divers**, les contacts hors incident — téléphone et mail du commercial pour
-l'offre et le renouvellement, de l'administratif pour la facturation, plus un
-champ libre d'observations. L'onglet Support du logiciel les remonte en deux
+**Divers**, les contacts hors incident — nom, téléphone et mail du commercial
+pour l'offre et le renouvellement, de l'administratif pour la facturation,
+plus un champ libre d'observations. L'onglet Support du logiciel les remonte en deux
 cartes, en lecture seule : la question « qui j'appelle ? » se pose devant le
 logiciel, mais la réponse vaut pour tous les logiciels du même éditeur —
 la recopier fiche par fiche garantirait des numéros divergents.

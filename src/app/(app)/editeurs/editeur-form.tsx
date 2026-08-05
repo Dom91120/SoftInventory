@@ -17,8 +17,10 @@ export type EditeurValues = {
   supportEmail: string;
   supportTelephone: string;
   supportHoraires: string;
+  commercialContact: string;
   commercialTelephone: string;
   commercialEmail: string;
+  adminContact: string;
   adminTelephone: string;
   adminEmail: string;
   notes: string;
@@ -36,8 +38,10 @@ const VIDE: EditeurValues = {
   supportEmail: "",
   supportTelephone: "",
   supportHoraires: "",
+  commercialContact: "",
   commercialTelephone: "",
   commercialEmail: "",
+  adminContact: "",
   adminTelephone: "",
   adminEmail: "",
   notes: "",
@@ -169,9 +173,19 @@ export function EditeurForm({
 
       <Card title="Divers">
         <div className="space-y-3">
-          <div className="grid gap-x-3 gap-y-2 sm:grid-cols-2">
+          {/* Une ligne par interlocuteur, en trois tiers : qui, son numéro,
+              son adresse — l'ordre dans lequel on le cherche. L'onglet Support
+              du logiciel reprend la même grille.
+
+              `items-end` : au tiers de largeur, « Téléphone administratif »
+              passe sur deux lignes là où « Mail » tient sur une. Aligner les
+              cellules par le BAS garde les champs sur la même ligne, quel que
+              soit le nombre de lignes du libellé. */}
+          <div className="grid items-end gap-x-3 gap-y-2 sm:grid-cols-3">
+            {champ("commercialContact", "Contact commercial")}
             {champ("commercialTelephone", "Téléphone commercial", { type: "tel" })}
             {champ("commercialEmail", "Mail commercial", { type: "email" })}
+            {champ("adminContact", "Contact administratif")}
             {champ("adminTelephone", "Téléphone administratif", { type: "tel" })}
             {champ("adminEmail", "Mail administratif", { type: "email" })}
           </div>

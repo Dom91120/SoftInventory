@@ -1,4 +1,4 @@
-import { Clock, LifeBuoy, Mail, Phone } from "lucide-react";
+import { Clock, LifeBuoy, Mail, Phone, User } from "lucide-react";
 import type { ReactNode } from "react";
 import { Card, EmptyState } from "@/components/ui";
 import { formatTel } from "@/lib/format";
@@ -10,8 +10,10 @@ export type SupportEditeur = {
   supportEmail: string;
   supportTelephone: string;
   supportHoraires: string;
+  commercialContact: string;
   commercialTelephone: string;
   commercialEmail: string;
+  adminContact: string;
   adminTelephone: string;
   adminEmail: string;
 };
@@ -30,6 +32,11 @@ function ligneTel(label: string, numero: string): Ligne {
       </a>
     ) : null,
   };
+}
+
+/** Une ligne « personne » : un nom, rien à ouvrir. */
+function ligneContact(label: string, nom: string): Ligne {
+  return { icone: <User className="h-4 w-4" />, label, valeur: nom || null };
 }
 
 /** Une ligne « e-mail » : lien `mailto:`. */
@@ -54,17 +61,22 @@ function CarteContacts({
   titre,
   lignes,
   vide,
+  colonnes = 2,
 }: {
   titre: string;
   lignes: Ligne[];
   vide: ReactNode;
+  /** Tiers pour les contacts (qui, numéro, adresse), moitiés pour le support. */
+  colonnes?: 2 | 3;
 }) {
   return (
     <Card title={titre}>
       {lignes.every((l) => l.valeur === null) ? (
         <EmptyState>{vide}</EmptyState>
       ) : (
-        <dl className="grid gap-x-3 gap-y-2 sm:grid-cols-2">
+        <dl
+          className={`grid gap-x-3 gap-y-2 ${colonnes === 3 ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}
+        >
           {lignes.map((l) => (
             <div key={l.label} className="flex items-start gap-3">
               <span className="mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-inset text-muted">
@@ -131,8 +143,10 @@ export function SupportPanel({ editeur }: { editeur: SupportEditeur | null }) {
   ];
 
   const divers: Ligne[] = [
+    ligneContact("Contact commercial", editeur.commercialContact),
     ligneTel("Téléphone commercial", editeur.commercialTelephone),
     ligneMail("Mail commercial", editeur.commercialEmail),
+    ligneContact("Contact administratif", editeur.adminContact),
     ligneTel("Téléphone administratif", editeur.adminTelephone),
     ligneMail("Mail administratif", editeur.adminEmail),
   ];
@@ -147,6 +161,7 @@ export function SupportPanel({ editeur }: { editeur: SupportEditeur | null }) {
       <CarteContacts
         titre={`Divers — ${editeur.nom}`}
         lignes={divers}
+        colonnes={3}
         vide={
           <>
             Aucun contact commercial ni administratif n'est renseigné sur la fiche de «{" "}

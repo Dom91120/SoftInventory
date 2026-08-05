@@ -263,10 +263,13 @@ model Editeur {
   supportTelephone    String   @default("") @map("support_telephone")
   supportHoraires     String   @default("") @map("support_horaires")
   /// Contacts hors support : le commercial pour l'offre et le renouvellement,
-  /// l'administratif pour la facturation. Distincts des `telephone`/`email` du
-  /// standard, qui restent ceux de la société.
+  /// l'administratif pour la facturation. Chacun porte le NOM de la personne
+  /// puis ses coordonnées. Distincts des `telephone`/`email` du standard, qui
+  /// restent ceux de la société.
+  commercialContact   String   @default("") @map("commercial_contact")
   commercialTelephone String   @default("") @map("commercial_telephone")
   commercialEmail     String   @default("") @map("commercial_email")
+  adminContact        String   @default("") @map("admin_contact")
   adminTelephone      String   @default("") @map("admin_telephone")
   adminEmail          String   @default("") @map("admin_email")
   notes               String   @default("")
