@@ -18,7 +18,7 @@ export default async function MonComptePage() {
   return (
     <>
       <PageHeader title="Mon compte" subtitle="Profil et sécurité de votre compte" />
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-4 lg:grid-cols-2">
         <Card title="Profil">
           <ProfileForm
             prenom={u.prenom ?? ""}

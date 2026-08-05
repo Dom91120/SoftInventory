@@ -31,10 +31,10 @@ function ResetForm() {
 
   return (
     <div className="rounded-2xl bg-surface p-6 shadow-2xl">
-      <h1 className="mb-4 text-lg font-semibold tracking-tight text-strong">
+      <h1 className="mb-3 text-lg font-semibold tracking-tight text-strong">
         Nouveau mot de passe
       </h1>
-      <form onSubmit={submit} className="space-y-4">
+      <form onSubmit={submit} className="space-y-3">
         <Field
           label="Nouveau mot de passe"
           htmlFor="password"
@@ -66,7 +66,7 @@ function ResetForm() {
           {pending ? "Enregistrement…" : "Définir le mot de passe"}
         </button>
       </form>
-      <p className="mt-4 text-center text-xs text-muted">
+      <p className="mt-3 text-center text-xs text-muted">
         <Link href="/auth/login" className="underline hover:text-accent">
           Retour à la connexion
         </Link>

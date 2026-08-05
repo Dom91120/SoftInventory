@@ -105,7 +105,7 @@ export function TachesPanel({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3">
       {error ? <p className="alert-error">{error}</p> : null}
 
       <Card
@@ -224,7 +224,7 @@ export function TachesPanel({
 
       {completion ? (
         <Card title={`Marquer « ${completion.titre} » comme faite`}>
-          <form onSubmit={submitCompletion} className="space-y-4">
+          <form onSubmit={submitCompletion} className="space-y-3">
             <Field label="Commentaire (optionnel)" htmlFor="commentaire">
               <textarea
                 id="commentaire"
@@ -256,7 +256,7 @@ export function TachesPanel({
           <form
             key={enEdition ? `edit-${enEdition.id}` : "new"}
             onSubmit={submitTache}
-            className="grid gap-4 sm:grid-cols-2"
+            className="grid gap-x-3 gap-y-2 sm:grid-cols-2"
           >
             <Field label="Titre" htmlFor="titre" required>
               <input

@@ -47,7 +47,7 @@ export function RgpdPanel({
   }
 
   return (
-    <form onSubmit={submit} className="space-y-6">
+    <form onSubmit={submit} className="space-y-3">
       <Card title="Données personnelles">
         <label className="flex items-center gap-3 text-sm text-body">
           <input
@@ -61,7 +61,7 @@ export function RgpdPanel({
           Ce logiciel traite des données personnelles
         </label>
         {traite ? (
-          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          <div className="mt-3 grid gap-x-3 gap-y-2 sm:grid-cols-2">
             <div className="sm:col-span-2">
               <Field label="Catégories de données traitées" htmlFor="categoriesDonnees">
                 <textarea

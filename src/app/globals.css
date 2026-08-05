@@ -123,7 +123,10 @@ body {
   .btn-secondary,
   .btn-danger,
   .btn-ghost {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition disabled:opacity-50 disabled:pointer-events-none;
+    /* Bordure transparente dans la base : les variantes bordées (secondary,
+       danger) mesuraient 2 px de plus que les autres. Toutes font désormais
+       30 px, comme les champs. */
+    @apply inline-flex items-center justify-center gap-2 rounded-lg border border-transparent px-4 py-1 text-sm font-medium transition disabled:opacity-50 disabled:pointer-events-none;
   }
   .btn-primary {
     @apply bg-accent font-semibold text-white shadow-sm hover:bg-accent-strong active:translate-y-px;
@@ -139,11 +142,16 @@ body {
   }
 
   /* Champs de formulaire */
+  /* `leading-4` : en capitales de 12,5 px, l'interligne par défaut (1,5) laisse
+     3 px perdus au-dessus et en dessous du libellé, sur chaque champ. */
   .label {
-    @apply mb-1 block text-[0.78rem] font-semibold uppercase tracking-wide text-muted;
+    @apply mb-0.5 block text-[0.78rem] font-semibold uppercase leading-4 tracking-wide text-muted;
   }
+  /* 30 px de haut : 20 de ligne + 2 × 4 de retrait + 2 de bordure — la même
+     hauteur que les boutons, si bien qu'un champ et un bouton posés sur la même
+     ligne (barre de dépôt, filtres) restent alignés. */
   .input {
-    @apply w-full rounded-lg border border-sub bg-surface px-3 py-2 text-sm text-strong placeholder:text-faint outline-none transition focus:border-accent disabled:bg-inset disabled:text-muted;
+    @apply w-full rounded-lg border border-sub bg-surface px-3 py-1 text-sm text-strong placeholder:text-faint outline-none transition focus:border-accent disabled:bg-inset disabled:text-muted;
   }
   .input:focus {
     box-shadow: 0 0 0 3px var(--color-accent-ring);
@@ -174,7 +182,7 @@ body {
     @apply rounded-2xl border border-line bg-surface shadow-sm;
   }
   .card-header {
-    @apply relative flex items-center justify-between gap-3 border-b border-line px-5 py-3.5;
+    @apply relative flex items-center justify-between gap-3 border-b border-line px-5 py-2;
   }
   .card-header::before {
     content: "";
@@ -190,8 +198,10 @@ body {
   .card-title {
     @apply text-xs font-bold uppercase tracking-wider text-muted;
   }
+  /* Retrait horizontal conservé (5), vertical resserré (4) : c'est la hauteur
+     qu'on cherche à gagner, pas la respiration sur les côtés. */
   .card-body {
-    @apply p-5;
+    @apply px-5 py-3;
   }
 
   /* Badges pilule pastel (même contrainte : base répétée, pas de composition) */
@@ -298,7 +308,7 @@ body {
     @apply w-full text-sm;
   }
   .data-table thead th {
-    @apply pb-2 pr-3 text-left text-xs font-semibold uppercase tracking-wide text-faint;
+    @apply pb-1.5 pr-3 text-left text-xs font-semibold uppercase tracking-wide text-faint;
   }
   .data-table tbody tr {
     @apply border-t border-line transition;
@@ -307,7 +317,7 @@ body {
     background: var(--color-inset);
   }
   .data-table tbody td {
-    @apply py-2.5 pr-3 align-middle;
+    @apply py-1.5 pr-3 align-middle;
   }
   /* Chaque cellule pousse 12 px à sa droite, y compris la dernière : sans
      contrepartie à gauche, la ligne est collée au bord gauche et décollée du
@@ -319,20 +329,20 @@ body {
 
   /* Bandeau d'alerte actionnable */
   .alert-warn {
-    @apply rounded-2xl border border-warn/30 p-4 text-sm;
+    @apply rounded-2xl border border-warn/30 px-4 py-3 text-sm;
     background: color-mix(in srgb, var(--color-warn) 8%, transparent);
   }
   .alert-danger {
-    @apply rounded-2xl border border-danger/30 p-4 text-sm;
+    @apply rounded-2xl border border-danger/30 px-4 py-3 text-sm;
     background: color-mix(in srgb, var(--color-danger) 7%, transparent);
   }
   .alert-error {
-    @apply rounded-lg border border-danger/30 px-4 py-3 text-sm;
+    @apply rounded-lg border border-danger/30 px-4 py-2.5 text-sm;
     background: color-mix(in srgb, var(--color-danger) 7%, transparent);
     color: var(--color-danger-text);
   }
   .alert-success {
-    @apply rounded-lg border border-ok/30 px-4 py-3 text-sm;
+    @apply rounded-lg border border-ok/30 px-4 py-2.5 text-sm;
     background: color-mix(in srgb, var(--color-ok) 8%, transparent);
     color: var(--color-ok-text);
   }

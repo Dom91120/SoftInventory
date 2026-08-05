@@ -68,7 +68,7 @@ export default async function TableauDeBordPage() {
       {d.tachesEnRetard.length > 0 ? (
         <Link
           href="/taches"
-          className="alert-danger mb-4 flex items-center gap-3 transition hover:brightness-110"
+          className="alert-danger mb-3 flex items-center gap-3 transition hover:brightness-110"
         >
           <AlertTriangle className="h-5 w-5 shrink-0 text-danger" />
           <span>
@@ -85,7 +85,7 @@ export default async function TableauDeBordPage() {
       {d.contratsDepasses.length > 0 ? (
         <Link
           href="/logiciels"
-          className="alert-warn mb-4 flex items-center gap-3 transition hover:brightness-110"
+          className="alert-warn mb-3 flex items-center gap-3 transition hover:brightness-110"
         >
           <Users className="h-5 w-5 shrink-0 text-warn" />
           <span>
@@ -135,7 +135,7 @@ export default async function TableauDeBordPage() {
         />
       </div>
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-3">
+      <div className="mt-3 grid gap-3 lg:grid-cols-3">
         {/* Renouvellements à venir */}
         {/* Titre calculé : la fenêtre suit le délai de rappel réglé en
             Administration › Messagerie, elle n'est plus figée à 60 jours. */}
@@ -174,7 +174,7 @@ export default async function TableauDeBordPage() {
         </Card>
 
         {/* Répartitions */}
-        <div className="space-y-6">
+        <div className="space-y-3">
           <Card title="Par criticité">
             <BarreRepartition data={d.parCriticite} />
           </Card>

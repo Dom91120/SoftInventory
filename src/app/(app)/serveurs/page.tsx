@@ -36,9 +36,9 @@ export default async function ServeursPage() {
           Référentiels › Serveurs.
         </EmptyState>
       ) : (
-        <div className="grid gap-4 lg:grid-cols-2">
+        <div className="grid gap-x-3 gap-y-2 lg:grid-cols-2">
           {serveurs.map((s) => (
-            <section key={s.id} className="card p-5">
+            <section key={s.id} className="card px-5 py-4">
               <div className="mb-1 flex items-baseline justify-between gap-3">
                 <h2 className="font-semibold text-strong">{s.nom}</h2>
                 <span className="text-xs text-faint">

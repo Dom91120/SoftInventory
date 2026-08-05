@@ -42,7 +42,7 @@ export function CronPanel({ taches }: { taches: TacheCronRow[] }) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3">
       {msg ? <p className={msg.ok ? "alert-success" : "alert-error"}>{msg.text}</p> : null}
       {taches.map((t) => (
         <Card
@@ -60,8 +60,8 @@ export function CronPanel({ taches }: { taches: TacheCronRow[] }) {
             </button>
           }
         >
-          <p className="mb-4 text-sm text-muted">{t.description}</p>
-          <div className="mb-4 grid gap-2 text-sm sm:grid-cols-2">
+          <p className="mb-3 text-sm text-muted">{t.description}</p>
+          <div className="mb-3 grid gap-2 text-sm sm:grid-cols-2">
             <div>
               <span className="label !mb-0">Planification</span>
               <span className="text-body">{t.scheduleLabel}</span>

@@ -33,7 +33,7 @@ export default async function EditeursPage() {
           {isAdmin ? " Créez le premier avec le bouton « Nouvel éditeur »." : ""}
         </EmptyState>
       ) : (
-        <div className="card p-5">
+        <div className="card px-5 py-4">
           <div className="table-wrap">
             <table className="data-table">
               <thead>

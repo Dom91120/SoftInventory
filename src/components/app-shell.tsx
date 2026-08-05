@@ -28,7 +28,7 @@ function Brand() {
   return (
     <Link
       href="/tableau-de-bord"
-      className="flex h-14 items-center gap-2.5 border-b border-line px-5"
+      className="flex h-12 items-center gap-2.5 border-b border-line px-5"
     >
       <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-brand-600 text-white">
         <Boxes className="h-5 w-5" />
@@ -40,7 +40,7 @@ function Brand() {
 
 function UserFooter({ user }: { user: ShellUser }) {
   return (
-    <div className="relative border-t border-line p-3">
+    <div className="relative border-t border-line p-2">
       <UserMenu
         initiales={initials(user)}
         nomAffiche={displayName(user)}
@@ -105,7 +105,9 @@ export function AppShell({ user, children }: { user: ShellUser; children: ReactN
           </div>
         </details>
 
-        <main className="mx-auto w-full max-w-6xl flex-1 p-4 lg:p-8">{children}</main>
+        <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-3 lg:px-8 lg:py-4">
+          {children}
+        </main>
       </div>
     </div>
   );

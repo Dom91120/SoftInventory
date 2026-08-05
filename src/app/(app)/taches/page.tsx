@@ -87,7 +87,7 @@ export default async function TachesPage() {
           Aucune tâche récurrente : elles se créent depuis la fiche d'un logiciel, onglet Tâches.
         </EmptyState>
       ) : (
-        <div className="space-y-6">
+        <div className="space-y-3">
           {enRetard.length > 0 ? (
             <Card title={`En retard (${enRetard.length})`}>
               <ul className="divide-y divide-line">
@@ -130,7 +130,7 @@ export default async function TachesPage() {
       )}
 
       {executions.length > 0 ? (
-        <div className="mt-6">
+        <div className="mt-3">
           <Card title="Réalisées récemment">
             <ul className="divide-y divide-line text-sm">
               {executions.map((ex) => (

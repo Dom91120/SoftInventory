@@ -95,7 +95,7 @@ export default async function LogicielPage({
           MÊME onglet en changeant de logiciel, ce qui permet de parcourir
           l'inventaire onglet par onglet (les documents de l'un, puis de
           l'autre…). */}
-      <div className="mb-6 flex items-start gap-2">
+      <div className="mb-3 flex items-start gap-2">
         <FlecheVoisin
           voisin={precedent}
           sens="precedent"
@@ -178,7 +178,7 @@ export default async function LogicielPage({
         />
       </div>
 
-      <div className="mb-6 flex flex-wrap gap-1.5 border-b border-line pb-px">
+      <div className="mb-3 flex flex-wrap gap-1.5 border-b border-line pb-px">
         {ONGLETS.map((o) => (
           <Link
             key={o.key}

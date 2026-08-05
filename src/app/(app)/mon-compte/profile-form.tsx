@@ -18,11 +18,11 @@ export function ProfileForm({
 }) {
   const [state, action, pending] = useActionState(updateProfileAction, initialActionState);
   return (
-    <form action={action} className="space-y-4">
+    <form action={action} className="space-y-3">
       <Field label="Adresse e-mail" htmlFor="email">
         <input id="email" type="email" value={email} disabled className="input" />
       </Field>
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-x-3 gap-y-2 sm:grid-cols-2">
         <Field label="Prénom" htmlFor="prenom">
           <input id="prenom" name="prenom" defaultValue={prenom} className="input" />
         </Field>

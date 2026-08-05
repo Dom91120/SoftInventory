@@ -72,7 +72,7 @@ export function LiaisonsPanel({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3">
       {error ? <p className="alert-error">{error}</p> : null}
 
       <Card title="Services utilisateurs">
@@ -104,7 +104,7 @@ export function LiaisonsPanel({
             {readOnly ? null : (
               <button
                 type="button"
-                className="btn-primary mt-4"
+                className="btn-primary mt-3"
                 disabled={pending || !dirtyServices}
                 onClick={() => run(() => setServicesAction(logicielId, [...coches]))}
               >

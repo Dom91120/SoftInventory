@@ -30,7 +30,7 @@ export function ReglagesPanel({ config }: { config: Config }) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3">
       {msg ? <p className={msg.ok ? "alert-success" : "alert-error"}>{msg.text}</p> : null}
 
       <Card title="Serveur SMTP">
@@ -42,7 +42,7 @@ export function ReglagesPanel({ config }: { config: Config }) {
               "Réglages SMTP enregistrés.",
             );
           }}
-          className="grid gap-4 sm:grid-cols-2"
+          className="grid gap-x-3 gap-y-2 sm:grid-cols-2"
         >
           <Field label="Hôte" htmlFor="host" hint="Vide = variable SMTP_HOST.">
             <input
@@ -168,7 +168,7 @@ export function ReglagesPanel({ config }: { config: Config }) {
               "Réglages des rappels enregistrés.",
             );
           }}
-          className="grid gap-4 sm:grid-cols-2"
+          className="grid gap-x-3 gap-y-2 sm:grid-cols-2"
         >
           <Field
             label="Rappel des tâches (jours avant)"

@@ -54,7 +54,7 @@ export function UsersPanel({ users }: { users: UserRow[] }) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3">
       {msg ? <p className={msg.ok ? "alert-success" : "alert-error"}>{msg.text}</p> : null}
 
       <Card
@@ -177,7 +177,7 @@ export function UsersPanel({ users }: { users: UserRow[] }) {
           <form
             key={enEdition ? `edit-${enEdition.id}` : "new"}
             onSubmit={submit}
-            className="grid gap-4 sm:grid-cols-2"
+            className="grid gap-x-3 gap-y-2 sm:grid-cols-2"
           >
             {enEdition ? null : (
               <Field

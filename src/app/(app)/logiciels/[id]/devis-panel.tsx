@@ -203,7 +203,7 @@ export function DevisPanel({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3">
       {error ? <p className="alert-error">{error}</p> : null}
 
       <Card
@@ -233,7 +233,7 @@ export function DevisPanel({
             onSubmit={soumettreConsultation}
             className="mb-5 rounded-xl border border-sub bg-inset p-4"
           >
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-x-3 gap-y-2 sm:grid-cols-2">
               <Field label="Objet de la consultation" htmlFor="objet" required>
                 <input
                   id="objet"
@@ -261,7 +261,7 @@ export function DevisPanel({
                 />
               </Field>
             </div>
-            <div className="mt-4 flex items-center gap-2">
+            <div className="mt-3 flex items-center gap-2">
               <button type="submit" disabled={pending} className="btn-primary">
                 {pending ? "Enregistrement…" : "Enregistrer"}
               </button>
@@ -563,7 +563,7 @@ function FormulaireDevis({
   pending,
   onSubmit,
   onCancel,
-  className = "mb-4 rounded-xl border border-sub bg-inset p-4",
+  className = "mb-3 rounded-xl border border-sub bg-inset p-4",
 }: {
   row: DevisRow | null;
   editeurs: Array<{ id: number; nom: string }>;
@@ -708,7 +708,7 @@ function FormulaireDevis({
           </Field>
         </div>
       </div>
-      <div className="mt-4 flex items-center gap-2">
+      <div className="mt-3 flex items-center gap-2">
         <button type="submit" disabled={pending} className="btn-primary">
           {pending ? "Enregistrement…" : "Enregistrer"}
         </button>
@@ -832,18 +832,18 @@ function ModaleSociete({
         role="dialog"
         aria-modal="true"
         aria-labelledby="titre-societe"
-        className="my-8 w-full max-w-2xl rounded-2xl border border-line bg-surface p-5 shadow-lg"
+        className="my-8 w-full max-w-2xl rounded-2xl border border-line bg-surface px-5 py-4 shadow-lg"
       >
         <h3
           id="titre-societe"
-          className="mb-4 text-sm font-bold uppercase tracking-wider text-muted"
+          className="mb-3 text-sm font-bold uppercase tracking-wider text-muted"
         >
           Nouvel éditeur
         </h3>
-        {erreur ? <p className="alert-error mb-4">{erreur}</p> : null}
+        {erreur ? <p className="alert-error mb-3">{erreur}</p> : null}
 
         <div ref={champsRef} className="space-y-5">
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-x-3 gap-y-2 sm:grid-cols-2">
             <Field label="Nom de l'éditeur" htmlFor="soc-nom" required>
               <input
                 // biome-ignore lint/a11y/noAutofocus: la modale vient d'être ouverte par un clic délibéré sur « + ».
@@ -868,7 +868,7 @@ function ModaleSociete({
 
           <div className="border-t border-line pt-4">
             <p className="mb-3 text-xs font-bold uppercase tracking-wider text-muted">Support</p>
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-x-3 gap-y-2 sm:grid-cols-2">
               {champ("supportUrl", "Portail de tickets", {
                 type: "url",
                 placeholder: "https://…",

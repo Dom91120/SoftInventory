@@ -57,7 +57,7 @@ function NavSection({
 }) {
   return (
     <>
-      <div className="mb-1 mt-4 px-3 text-[0.64rem] font-bold uppercase tracking-[0.13em] text-faint">
+      <div className="mb-0.5 mt-2 px-3 text-[0.64rem] font-bold uppercase leading-4 tracking-[0.13em] text-faint">
         {title}
       </div>
       {items.map((item) => {
@@ -66,7 +66,7 @@ function NavSection({
           <Link
             key={item.href}
             href={item.href}
-            className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition ${
+            className={`flex items-center gap-3 rounded-lg px-3 py-1 text-sm font-medium transition ${
               active ? "bg-accent-dim text-accent" : "text-muted hover:bg-inset hover:text-strong"
             }`}
           >
@@ -83,7 +83,7 @@ function NavSection({
 export function SidebarNav({ isAdmin }: { isAdmin: boolean }) {
   const pathname = usePathname();
   return (
-    <nav className="flex-1 space-y-0.5 overflow-y-auto p-3">
+    <nav className="flex-1 space-y-0.5 overflow-y-auto px-3 py-2">
       <NavSection title="Inventaire" items={INVENTAIRE} pathname={pathname} />
       {isAdmin ? (
         <NavSection title="Administration" items={ADMINISTRATION} pathname={pathname} />

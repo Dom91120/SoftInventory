@@ -83,7 +83,7 @@ export function SupportPanel({ editeur }: { editeur: SupportEditeur | null }) {
           Aucune coordonnée de support n'est renseignée sur la fiche de « {editeur.nom} ».
         </EmptyState>
       ) : (
-        <dl className="grid gap-5 sm:grid-cols-2">
+        <dl className="grid gap-4 sm:grid-cols-2">
           {lignes.map((l) => (
             <div key={l.label} className="flex items-start gap-3">
               <span className="mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-inset text-muted">

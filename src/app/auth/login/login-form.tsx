@@ -24,13 +24,13 @@ export function LoginForm({ expired }: { expired: boolean }) {
 
   return (
     <div className="rounded-2xl bg-surface p-6 shadow-2xl">
-      <h1 className="mb-4 text-lg font-semibold tracking-tight text-strong">Connexion</h1>
+      <h1 className="mb-3 text-lg font-semibold tracking-tight text-strong">Connexion</h1>
       {expired ? (
-        <p className="alert-warn mb-4 !rounded-lg !p-3 text-muted">
+        <p className="alert-warn mb-3 !rounded-lg !p-3 text-muted">
           Votre session a expiré, reconnectez-vous.
         </p>
       ) : null}
-      <form onSubmit={submit} className="space-y-4">
+      <form onSubmit={submit} className="space-y-3">
         <Field label="Adresse e-mail" htmlFor="email" required>
           <input
             id="email"
@@ -57,7 +57,7 @@ export function LoginForm({ expired }: { expired: boolean }) {
           {pending ? "Connexion…" : "Se connecter"}
         </button>
       </form>
-      <p className="mt-4 text-center text-xs text-muted">
+      <p className="mt-3 text-center text-xs text-muted">
         <Link href="/auth/forgot-password" className="underline hover:text-accent">
           Mot de passe oublié ?
         </Link>

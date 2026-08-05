@@ -34,7 +34,7 @@ export function EchecsPanel({ echecs }: { echecs: EchecRow[] }) {
   return (
     <Card title={`E-mails en échec (${echecs.length})`}>
       {msg ? (
-        <p className={`mb-4 ${msg.ok ? "alert-success" : "alert-error"}`}>{msg.text}</p>
+        <p className={`mb-3 ${msg.ok ? "alert-success" : "alert-error"}`}>{msg.text}</p>
       ) : null}
       {echecs.length === 0 ? (
         <EmptyState>

@@ -168,9 +168,9 @@ export function FicheForm({
   const refOptions = (list: Option[]) => list.map((o) => ({ value: String(o.id), label: o.label }));
 
   return (
-    <form onSubmit={submit} className="space-y-6">
+    <form onSubmit={submit} className="space-y-3">
       <Card title="Identité">
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-x-3 gap-y-2 sm:grid-cols-2">
           <Field label="Nom du logiciel" htmlFor="nom" required>
             <input
               id="nom"
@@ -238,7 +238,7 @@ export function FicheForm({
       </Card>
 
       <Card title="Technique">
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-x-3 gap-y-2 sm:grid-cols-2">
           <Field label="Hébergement" htmlFor="hebergement">
             <Select
               name="hebergement"
@@ -312,7 +312,7 @@ export function FicheForm({
       </Card>
 
       <Card title="Usage et coûts">
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-x-3 gap-y-2 sm:grid-cols-2">
           <Field
             label="Nombre d'utilisateurs réels"
             htmlFor="nbUtilisateurs"

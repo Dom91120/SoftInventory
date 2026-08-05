@@ -67,7 +67,7 @@ export default async function LogicielsPage({
           {isAdmin ? " Ajoutez-en un avec « Nouveau logiciel », ou élargissez les filtres." : ""}
         </EmptyState>
       ) : (
-        <div className="card p-5">
+        <div className="card px-5 py-4">
           <div className="table-wrap">
             <table className="data-table">
               <thead>

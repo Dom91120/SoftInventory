@@ -37,7 +37,7 @@ export default async function MessageriePage({
         title="Messagerie"
         subtitle="Serveur d'envoi, modèles d'e-mails et rappels d'échéances"
       />
-      <div className="mb-4 flex flex-wrap gap-1.5">
+      <div className="mb-3 flex flex-wrap gap-1.5">
         {ONGLETS.map((o) => (
           <Link
             key={o.key}

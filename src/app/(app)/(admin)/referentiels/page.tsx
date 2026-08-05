@@ -99,7 +99,7 @@ export default async function ReferentielsPage({
         title="Référentiels"
         subtitle="Les listes de valeurs de l'inventaire, extensibles sans redéploiement"
       />
-      <div className="mb-4 flex flex-wrap gap-1.5">
+      <div className="mb-3 flex flex-wrap gap-1.5">
         {ONGLETS.map((o) => (
           <Link
             key={o.key}

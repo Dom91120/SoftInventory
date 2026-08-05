@@ -27,7 +27,7 @@ export function PasswordForm() {
   });
 
   return (
-    <form onSubmit={submit} className="space-y-4">
+    <form onSubmit={submit} className="space-y-3">
       <Field label="Mot de passe actuel" htmlFor="current" required>
         <input
           id="current"
@@ -38,7 +38,7 @@ export function PasswordForm() {
           className="input"
         />
       </Field>
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-x-3 gap-y-2 sm:grid-cols-2">
         <Field label="Nouveau mot de passe" htmlFor="next" required hint={PASSWORD_POLICY_MESSAGE}>
           <input
             id="next"

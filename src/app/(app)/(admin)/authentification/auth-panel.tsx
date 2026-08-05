@@ -37,7 +37,7 @@ export function AuthPanel({ config }: { config: Config }) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3">
       {msg ? <p className={msg.ok ? "alert-success" : "alert-error"}>{msg.text}</p> : null}
 
       <Card
@@ -54,7 +54,7 @@ export function AuthPanel({ config }: { config: Config }) {
           </button>
         }
       >
-        <p className="mb-4 text-sm text-muted">
+        <p className="mb-3 text-sm text-muted">
           Quand l'annuaire est actif, les agents se connectent avec leur identifiant Windows
           (sAMAccountName, UPN ou adresse) : le compte est créé/synchronisé automatiquement, le rôle
           découle des groupes ci-dessous. Les comptes locaux (dont l'admin de secours) continuent de
@@ -68,7 +68,7 @@ export function AuthPanel({ config }: { config: Config }) {
               "Réglages LDAP enregistrés.",
             );
           }}
-          className="grid gap-4 sm:grid-cols-2"
+          className="grid gap-x-3 gap-y-2 sm:grid-cols-2"
         >
           <label className="flex items-center gap-3 text-sm font-medium text-body sm:col-span-2">
             <input
@@ -192,7 +192,7 @@ export function AuthPanel({ config }: { config: Config }) {
               "Réglage enregistré.",
             );
           }}
-          className="space-y-4"
+          className="space-y-3"
         >
           <label className="flex items-center gap-3 text-sm font-medium text-body">
             <input

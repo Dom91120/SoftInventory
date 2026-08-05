@@ -15,7 +15,7 @@ export function PageHeader({
   title,
   subtitle,
   actions,
-  className = "mb-6",
+  className = "mb-3",
 }: {
   /** Texte, ou composition quand le titre porte une action (icône d'ouverture…). */
   title: ReactNode;
@@ -27,7 +27,7 @@ export function PageHeader({
     <div className={`flex flex-wrap items-start justify-between gap-4 ${className}`}>
       <div>
         <h1 className="text-2xl font-semibold tracking-tight text-strong">{title}</h1>
-        {subtitle ? <p className="mt-1 text-sm text-muted">{subtitle}</p> : null}
+        {subtitle ? <p className="mt-0.5 text-sm text-muted">{subtitle}</p> : null}
       </div>
       {actions ? <div className="flex items-center gap-2">{actions}</div> : null}
     </div>
@@ -89,7 +89,7 @@ export function Stat({
   };
   const inner = (
     <div
-      className="relative flex items-center gap-4 overflow-hidden rounded-2xl border border-line bg-surface p-5 shadow-sm transition group-hover:-translate-y-0.5 group-hover:shadow-md"
+      className="relative flex items-center gap-4 overflow-hidden rounded-2xl border border-line bg-surface px-5 py-3 shadow-sm transition group-hover:-translate-y-0.5 group-hover:shadow-md"
       style={{ borderLeftWidth: 0 }}
     >
       <span
@@ -131,7 +131,7 @@ export function Stat({
 /** État vide en pointillés. */
 export function EmptyState({ children }: { children: ReactNode }) {
   return (
-    <div className="rounded-2xl border border-dashed border-sub px-6 py-12 text-center text-sm text-faint">
+    <div className="rounded-2xl border border-dashed border-sub px-6 py-6 text-center text-sm text-faint">
       {children}
     </div>
   );

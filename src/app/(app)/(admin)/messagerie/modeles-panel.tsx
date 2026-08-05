@@ -37,7 +37,7 @@ export function ModelesPanel({ modeles }: { modeles: ModeleRow[] }) {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {msg ? <p className={msg.ok ? "alert-success" : "alert-error"}>{msg.text}</p> : null}
       {modeles.map((m) => (
         <Card key={m.key} title={m.label}>
@@ -58,7 +58,7 @@ export function ModelesPanel({ modeles }: { modeles: ModeleRow[] }) {
                   "Gabarit enregistré.",
                 );
               }}
-              className="space-y-4"
+              className="space-y-3"
             >
               <Field label="Sujet" htmlFor={`subject-${m.key}`}>
                 <input
