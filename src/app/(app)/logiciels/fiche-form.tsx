@@ -28,7 +28,6 @@ export type FicheValues = {
   referentTechnique: string;
   coutAnnuel: string;
   finContratLe: string;
-  notes: string;
 };
 
 export const FICHE_VIDE: FicheValues = {
@@ -51,7 +50,6 @@ export const FICHE_VIDE: FicheValues = {
   referentTechnique: "",
   coutAnnuel: "",
   finContratLe: "",
-  notes: "",
 };
 
 function Select({
@@ -221,7 +219,9 @@ export function FicheForm({
             />
           </Field>
           {/* Le descriptif ferme la carte : c'est le seul champ long, et il
-              tient les deux colonnes. */}
+              tient les deux colonnes. Seul champ libre de la fiche depuis que
+              les notes l'ont rejoint — d'où le « puis » du placeholder : la
+              phrase d'usage d'abord, elle part telle quelle dans l'export. */}
           <div className="sm:col-span-2">
             <Field label="Descriptif" htmlFor="description">
               <textarea
@@ -229,9 +229,9 @@ export function FicheForm({
                 name="description"
                 defaultValue={values.description}
                 disabled={dis}
-                rows={3}
+                rows={4}
                 className="input"
-                placeholder="À quoi sert ce logiciel, pour qui…"
+                placeholder="À quoi sert ce logiciel, pour qui… puis historique, particularités, points de vigilance."
               />
             </Field>
           </div>
@@ -398,17 +398,6 @@ export function FicheForm({
             />
           </Field>
         </div>
-      </Card>
-
-      <Card title="Notes">
-        <textarea
-          name="notes"
-          defaultValue={values.notes}
-          disabled={dis}
-          rows={4}
-          className="input"
-          placeholder="Historique, particularités, points de vigilance…"
-        />
       </Card>
 
       {error ? <p className="alert-error">{error}</p> : null}

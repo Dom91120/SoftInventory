@@ -72,7 +72,6 @@ function parseFiche(formData: FormData) {
     referentTechnique: get("referentTechnique"),
     coutAnnuel: get("coutAnnuel"),
     finContratLe: get("finContratLe"),
-    notes: get("notes"),
   });
 }
 

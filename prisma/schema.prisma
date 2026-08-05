@@ -414,7 +414,6 @@ model Logiciel {
   /// Date de fin de contrat pour laquelle le rappel a déjà été envoyé
   /// (anti-doublon du cron ; remise à null quand la date change).
   rappelEnvoyeLe    DateTime?            @map("rappel_envoye_le") @db.Date
-  notes             String               @default("")
 
   // ── Volet RGPD (simple) ──
   donneesPersonnelles Boolean             @default(false) @map("donnees_personnelles")

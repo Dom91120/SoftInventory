@@ -122,7 +122,6 @@ export const logicielSchema = z.object({
     .max(150, "Référent technique trop long (150 caractères max)."),
   coutAnnuel: montantOptionnel,
   finContratLe: dateOptionnelle,
-  notes: z.string().trim().max(8000, "Notes trop longues (8000 caractères max)."),
 });
 export type LogicielInput = z.infer<typeof logicielSchema>;
 

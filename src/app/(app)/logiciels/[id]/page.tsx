@@ -504,7 +504,6 @@ async function OngletSynthese({
         referentTechnique: logiciel.referentTechnique,
         coutAnnuel: logiciel.coutAnnuel === null ? "" : String(logiciel.coutAnnuel),
         finContratLe: dateStr(logiciel.finContratLe),
-        notes: logiciel.notes,
       }}
     />
   );
