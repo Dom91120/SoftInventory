@@ -174,7 +174,7 @@ export function EditeurForm({
               {champ("codePostal", "Code postal")}
               {champ("ville", "Ville")}
             </div>
-            {champ("telephone", "Téléphone", { type: "tel" })}
+            {champ("telephone", "Téléphone standard", { type: "tel" })}
             {champ("email", "E-mail", { type: "email" })}
             {/* Pleine largeur : c'est de la prose, elle ne se lit pas en
                 colonne de 8 rem comme un code postal. */}

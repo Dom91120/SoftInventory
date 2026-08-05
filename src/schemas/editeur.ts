@@ -30,7 +30,7 @@ export const editeurSchema = z.object({
   adresse: texte(300, "Adresse"),
   codePostal: texte(10, "Code postal"),
   ville: texte(120, "Ville"),
-  telephone: texte(30, "Téléphone"),
+  telephone: texte(30, "Téléphone standard"),
   email: emailOptionnel(200),
   siteWeb: urlOptionnelle(300),
   supportUrl: urlOptionnelle(300),

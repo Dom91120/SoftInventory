@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { Card, Field } from "@/components/ui";
-import { LIBELLES } from "@/schemas/logiciel";
+import { EDITEUR_INTERNE, LIBELLES } from "@/schemas/logiciel";
 import { createLogicielAction, deleteLogicielAction, updateLogicielAction } from "./actions";
 
 export type Option = { id: number; label: string };
@@ -94,6 +94,7 @@ export function FicheForm({
   technologies,
   criticites,
   statuts,
+  rappelJoursAvant,
   nbPiecesJointes = 0,
   readOnly = false,
 }: {
@@ -104,6 +105,12 @@ export function FicheForm({
   criticites: Option[];
   /** Statuts du référentiel : la clé est envoyée, le libellé est affiché. */
   statuts: Array<{ cle: string; label: string }>;
+  /**
+   * Délai de rappel avant la fin de contrat, en jours (Administration ›
+   * Messagerie). Reçu du serveur et affiché tel quel plutôt que renvoyé au
+   * réglage : l'aide annonce le délai que le cron applique réellement.
+   */
+  rappelJoursAvant: number;
   /**
    * Pièces jointes qu'emporterait la suppression : celles de la fiche, de ses
    * contrats et de ses devis. Tant qu'il y en a, le bouton Supprimer reste
@@ -117,8 +124,6 @@ export function FicheForm({
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
-  // Coché, l'éditeur n'a plus lieu d'être : la liste se neutralise aussitôt.
-  const [interne, setInterne] = useState(values.developpementInterne);
   const dis = readOnly || pending;
 
   function submit(e: React.FormEvent<HTMLFormElement>) {
@@ -181,42 +186,23 @@ export function FicheForm({
               className="input"
             />
           </Field>
+          {/* Une seule liste pour une seule question : qui édite ce logiciel ?
+              « Développement interne » y est une réponse comme une autre — fait
+              maison, il n'y a pas d'éditeur à désigner. La sentinelle redevient
+              le booléen `developpementInterne` côté serveur (voir parseFiche) ;
+              rien n'entre dans l'annuaire des éditeurs. */}
           <Field label="Éditeur / fournisseur" htmlFor="editeurId">
             <Select
               name="editeurId"
-              value={values.editeurId}
-              options={refOptions(editeurs)}
-              disabled={dis || interne}
+              value={values.developpementInterne ? EDITEUR_INTERNE : values.editeurId}
+              options={[
+                { value: EDITEUR_INTERNE, label: "— développement interne —" },
+                ...refOptions(editeurs),
+              ]}
+              disabled={dis}
               aucun="— aucun —"
             />
-            {/* Fait maison : il n'y a pas d'éditeur à désigner. La liste est
-                donc neutralisée, et le champ part vide à l'enregistrement —
-                un select désactivé n'est pas soumis. */}
-            <label className="mt-2 flex items-center gap-2 text-sm text-body">
-              <input
-                type="checkbox"
-                name="developpementInterne"
-                checked={interne}
-                onChange={(e) => setInterne(e.target.checked)}
-                disabled={dis}
-                className="h-4 w-4 accent-(--color-accent)"
-              />
-              Développement interne
-            </label>
           </Field>
-          <div className="sm:col-span-2">
-            <Field label="Descriptif" htmlFor="description">
-              <textarea
-                id="description"
-                name="description"
-                defaultValue={values.description}
-                disabled={dis}
-                rows={3}
-                className="input"
-                placeholder="À quoi sert ce logiciel, pour qui…"
-              />
-            </Field>
-          </div>
           <Field label="Statut" htmlFor="statut">
             <Select
               name="statut"
@@ -234,11 +220,28 @@ export function FicheForm({
               aucun="— non évaluée —"
             />
           </Field>
+          {/* Le descriptif ferme la carte : c'est le seul champ long, et il
+              tient les deux colonnes. */}
+          <div className="sm:col-span-2">
+            <Field label="Descriptif" htmlFor="description">
+              <textarea
+                id="description"
+                name="description"
+                defaultValue={values.description}
+                disabled={dis}
+                rows={3}
+                className="input"
+                placeholder="À quoi sert ce logiciel, pour qui…"
+              />
+            </Field>
+          </div>
         </div>
       </Card>
 
       <Card title="Technique">
-        <div className="grid gap-x-3 gap-y-2 sm:grid-cols-2">
+        {/* Six champs courts en trois tiers, deux rangs — puis l'URL, seule sur
+            sa ligne : c'est la seule valeur qui a besoin de la largeur. */}
+        <div className="grid gap-x-3 gap-y-2 sm:grid-cols-3">
           <Field label="Hébergement" htmlFor="hebergement">
             <Select
               name="hebergement"
@@ -291,7 +294,7 @@ export function FicheForm({
               className="input"
             />
           </Field>
-          <div className="sm:col-span-2">
+          <div className="sm:col-span-3">
             <Field
               label="URL de l'application"
               htmlFor="url"
@@ -311,12 +314,16 @@ export function FicheForm({
         </div>
       </Card>
 
+      {/* Trois tiers : six champs courts, deux rangs au lieu de trois. Pas de
+          `items-end` ici, contrairement aux contacts de la fiche éditeur — ces
+          champs portent des aides de longueurs très inégales sous la saisie,
+          aligner par le bas décalerait les champs eux-mêmes. */}
       <Card title="Usage et coûts">
-        <div className="grid gap-x-3 gap-y-2 sm:grid-cols-2">
+        <div className="grid gap-x-3 gap-y-2 sm:grid-cols-3">
           <Field
-            label="Nombre d'utilisateurs réels"
+            label="Utilisateurs réels"
             htmlFor="nbUtilisateurs"
-            hint="Vide = pas encore compté, à distinguer de zéro utilisateur."
+            hint="Vide = pas encore compté, différent de 0 utilisateur."
           >
             <input
               id="nbUtilisateurs"
@@ -331,7 +338,7 @@ export function FicheForm({
           <Field
             label="Utilisateurs max"
             htmlFor="nbMaxUtilisateurs"
-            hint="Plafond prévu au contrat. Vide = illimité ; au-delà, la colonne « Plafond » de la liste passe à « Dépassé »."
+            hint="Plafond prévu au contrat. Vide = illimité."
           >
             <input
               id="nbMaxUtilisateurs"
@@ -375,7 +382,11 @@ export function FicheForm({
           <Field
             label="Fin de contrat / marché"
             htmlFor="finContratLe"
-            hint="Déclenche un rappel avant l'échéance (délai réglable en admin)."
+            hint={
+              rappelJoursAvant === 0
+                ? "Déclenche un rappel le jour de l'échéance."
+                : `Déclenche un rappel ${rappelJoursAvant} jour${rappelJoursAvant > 1 ? "s" : ""} avant l'échéance.`
+            }
           >
             <input
               id="finContratLe"

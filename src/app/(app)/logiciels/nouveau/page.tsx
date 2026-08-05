@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { PageHeader } from "@/components/ui";
+import { seuilsRappel } from "@/server/config";
 import { requireRole } from "@/server/guards";
 import { listEditeurs } from "@/server/services/editeurs";
 import {
@@ -13,11 +14,12 @@ export const metadata: Metadata = { title: "Nouveau logiciel" };
 
 export default async function NouveauLogicielPage() {
   await requireRole("admin");
-  const [editeurs, technologies, criticites, statuts] = await Promise.all([
+  const [editeurs, technologies, criticites, statuts, seuils] = await Promise.all([
     listEditeurs(),
     listTechnologies(),
     listCriticites(),
     listStatutsLogiciels(),
+    seuilsRappel(),
   ]);
   return (
     <>
@@ -30,6 +32,7 @@ export default async function NouveauLogicielPage() {
         technologies={technologies.map((t) => ({ id: t.id, label: t.label }))}
         criticites={criticites.map((c) => ({ id: c.id, label: c.label }))}
         statuts={statuts.map((s) => ({ cle: s.cle, label: s.label }))}
+        rappelJoursAvant={seuils.contrat}
       />
     </>
   );

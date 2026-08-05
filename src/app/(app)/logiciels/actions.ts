@@ -5,6 +5,7 @@ import {
   consultationSchema,
   contratSchema,
   devisSchema,
+  EDITEUR_INTERNE,
   ENVIRONNEMENTS,
   logicielRgpdSchema,
   logicielSchema,
@@ -47,11 +48,15 @@ function refusPieces(n: number, quoi: string): Result {
 /** Champs de la fiche principale depuis le FormData. */
 function parseFiche(formData: FormData) {
   const get = (k: string) => String(formData.get(k) ?? "");
+  // Une seule liste porte les deux informations : le fournisseur, ou la
+  // sentinelle « développement interne » — auquel cas il n'y a pas d'éditeur à
+  // enregistrer, par construction.
+  const interne = get("editeurId") === EDITEUR_INTERNE;
   return logicielSchema.safeParse({
     nom: get("nom"),
     description: get("description"),
-    editeurId: get("editeurId"),
-    developpementInterne: formData.get("developpementInterne") === "on",
+    editeurId: interne ? "" : get("editeurId"),
+    developpementInterne: interne,
     technologieId: get("technologieId"),
     criticiteId: get("criticiteId"),
     hebergement: get("hebergement"),

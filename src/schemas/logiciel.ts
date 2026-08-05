@@ -75,6 +75,15 @@ export const LIBELLES = {
   },
 } as const;
 
+/**
+ * Valeur sentinelle de la liste « Éditeur / fournisseur » : le logiciel est
+ * fait maison, il n'y a donc pas d'éditeur à désigner. Elle ne vit QUE dans
+ * l'écran et le formulaire — en base, c'est le booléen `developpementInterne`
+ * qui porte l'information. Un éditeur sentinelle « Développement interne » dans
+ * la table aurait pollué l'annuaire et toutes les listes de fournisseurs.
+ */
+export const EDITEUR_INTERNE = "interne";
+
 /** Fiche principale (onglet Synthèse). */
 export const logicielSchema = z.object({
   nom: z

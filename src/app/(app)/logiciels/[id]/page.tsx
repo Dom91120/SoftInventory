@@ -454,11 +454,12 @@ async function OngletSynthese({
   logiciel: LogicielComplet;
   readOnly: boolean;
 }) {
-  const [editeurs, technologies, criticites, statuts] = await Promise.all([
+  const [editeurs, technologies, criticites, statuts, seuils] = await Promise.all([
     listEditeurs(),
     listTechnologies(),
     listCriticites(),
     listStatutsLogiciels(),
+    seuilsRappel(),
   ]);
   return (
     <FicheForm
@@ -468,6 +469,7 @@ async function OngletSynthese({
       technologies={technologies.map((t) => ({ id: t.id, label: t.label }))}
       criticites={criticites.map((c) => ({ id: c.id, label: c.label }))}
       statuts={statuts.map((s) => ({ cle: s.cle, label: s.label }))}
+      rappelJoursAvant={seuils.contrat}
       // Les TROIS chemins de cascade vers `documents`, comme le compte
       // qu'applique compterPiecesLogiciel côté serveur.
       nbPiecesJointes={
