@@ -19,14 +19,14 @@ Tout se rattache au logiciel, via huit onglets : **Synthèse**, **Support**
 entre logiciels, serveurs, services utilisateurs), **Contrats/Marchés**,
 **Devis**, **Tâches**, **Documents** et **RGPD**.
 
-**Les coordonnées de l'éditeur ne se saisissent qu'une fois**, sur sa fiche :
-le support (portail de tickets, mail, téléphone, horaires) et, sous
-**Divers**, les contacts hors incident — nom, téléphone et mail du commercial
-pour l'offre et le renouvellement, de l'administratif pour la facturation,
-plus un champ libre d'observations. L'onglet Support du logiciel les remonte en deux
-cartes, en lecture seule : la question « qui j'appelle ? » se pose devant le
-logiciel, mais la réponse vaut pour tous les logiciels du même éditeur —
-la recopier fiche par fiche garantirait des numéros divergents.
+**Les coordonnées de l'éditeur ne se saisissent qu'une fois**, sur sa fiche,
+dans une carte **Contacts** unique : l'assistance (portail de tickets, mail,
+téléphone, horaires), puis les contacts hors incident — nom, téléphone et mail
+du commercial pour l'offre et le renouvellement, de l'administratif pour la
+facturation. L'onglet Support du logiciel les remonte tels quels, en lecture
+seule : la question « qui j'appelle ? » se pose devant le logiciel, mais la
+réponse vaut pour tous les logiciels du même éditeur — la recopier fiche par
+fiche garantirait des numéros divergents.
 
 **C'est le marché qui engage.** Il porte sa référence, son fournisseur
 (l'éditeur du logiciel par défaut, une société nommée quand c'est un

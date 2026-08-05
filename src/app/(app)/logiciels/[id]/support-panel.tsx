@@ -1,5 +1,5 @@
 import { Clock, LifeBuoy, Mail, Phone, User } from "lucide-react";
-import type { ReactNode } from "react";
+import { Fragment, type ReactNode } from "react";
 import { Card, EmptyState } from "@/components/ui";
 import { formatTel } from "@/lib/format";
 
@@ -18,7 +18,15 @@ export type SupportEditeur = {
   adminEmail: string;
 };
 
-type Ligne = { icone: ReactNode; label: string; valeur: ReactNode | null };
+type Ligne = {
+  icone: ReactNode;
+  label: string;
+  valeur: ReactNode | null;
+  /** Occupe les trois tiers : les horaires se lisent d'un trait, pas en colonne. */
+  pleineLargeur?: boolean;
+  /** Ouvre un bloc : un filet la précède. Sépare l'assistance des contacts. */
+  separateurAvant?: boolean;
+};
 
 /** Une ligne « téléphone » : lien `tel:` sans espaces, affichage groupé par deux. */
 function ligneTel(label: string, numero: string): Ligne {
@@ -53,42 +61,43 @@ function ligneMail(label: string, adresse: string): Ligne {
 }
 
 /**
- * Carte de coordonnées : deux colonnes d'icône + libellé + valeur, et un état
- * vide quand aucune ligne n'est renseignée — le lecteur voit alors qu'il n'y a
- * rien à trouver, plutôt qu'une grille de « Non renseigné ».
+ * Carte de coordonnées : trois tiers d'icône + libellé + valeur, comme la grille
+ * de saisie de la fiche éditeur, et un état vide quand aucune ligne n'est
+ * renseignée — le lecteur voit alors qu'il n'y a rien à trouver, plutôt qu'une
+ * grille de « Non renseigné ».
  */
 function CarteContacts({
   titre,
   lignes,
   vide,
-  colonnes = 2,
 }: {
   titre: string;
   lignes: Ligne[];
   vide: ReactNode;
-  /** Tiers pour les contacts (qui, numéro, adresse), moitiés pour le support. */
-  colonnes?: 2 | 3;
 }) {
   return (
     <Card title={titre}>
       {lignes.every((l) => l.valeur === null) ? (
         <EmptyState>{vide}</EmptyState>
       ) : (
-        <dl
-          className={`grid gap-x-3 gap-y-2 ${colonnes === 3 ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}
-        >
+        <dl className="grid gap-x-3 gap-y-2 sm:grid-cols-3">
           {lignes.map((l) => (
-            <div key={l.label} className="flex items-start gap-3">
-              <span className="mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-inset text-muted">
-                {l.icone}
-              </span>
-              <div className="min-w-0">
-                <dt className="label">{l.label}</dt>
-                <dd className="truncate text-sm text-strong">
-                  {l.valeur ?? <span className="text-faint">Non renseigné</span>}
-                </dd>
+            <Fragment key={l.label}>
+              {l.separateurAvant ? (
+                <div aria-hidden className="my-1 border-t border-line sm:col-span-3" />
+              ) : null}
+              <div className={`flex items-start gap-3 ${l.pleineLargeur ? "sm:col-span-3" : ""}`}>
+                <span className="mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-inset text-muted">
+                  {l.icone}
+                </span>
+                <div className="min-w-0">
+                  <dt className="label">{l.label}</dt>
+                  <dd className="truncate text-sm text-strong">
+                    {l.valeur ?? <span className="text-faint">Non renseigné</span>}
+                  </dd>
+                </div>
               </div>
-            </div>
+            </Fragment>
           ))}
         </dl>
       )}
@@ -98,10 +107,10 @@ function CarteContacts({
 
 /**
  * Onglet « Support » : les coordonnées de l'ÉDITEUR du logiciel, en lecture
- * seule — l'assistance d'abord, puis les contacts commerciaux et
- * administratifs. Ce sont les cartes « Support » et « Divers » de la fiche
- * éditeur remontées ici, parce que la question « qui j'appelle ? » se pose
- * devant le logiciel, pas devant l'éditeur.
+ * seule — l'assistance d'abord, puis le commercial et l'administratif. C'est
+ * la carte « Contacts » de la fiche éditeur remontée ici, dans le même ordre
+ * et la même grille, parce que la question « qui j'appelle ? » se pose devant
+ * le logiciel, pas devant l'éditeur.
  *
  * La SAISIE reste sur la fiche éditeur (lien en en-tête) : une seule source,
  * valable pour tous ses logiciels — la recopier par logiciel garantirait des
@@ -117,7 +126,7 @@ export function SupportPanel({ editeur }: { editeur: SupportEditeur | null }) {
     );
   }
 
-  const support: Ligne[] = [
+  const lignes: Ligne[] = [
     {
       icone: <LifeBuoy className="h-4 w-4" />,
       label: "Portail de tickets",
@@ -139,11 +148,10 @@ export function SupportPanel({ editeur }: { editeur: SupportEditeur | null }) {
       icone: <Clock className="h-4 w-4" />,
       label: "Horaires",
       valeur: editeur.supportHoraires || null,
+      pleineLargeur: true,
     },
-  ];
-
-  const divers: Ligne[] = [
-    ligneContact("Contact commercial", editeur.commercialContact),
+    // Le filet ferme l'assistance : en dessous, on n'appelle plus pour une panne.
+    { ...ligneContact("Contact commercial", editeur.commercialContact), separateurAvant: true },
     ligneTel("Téléphone commercial", editeur.commercialTelephone),
     ligneMail("Mail commercial", editeur.commercialEmail),
     ligneContact("Contact administratif", editeur.adminContact),
@@ -152,23 +160,10 @@ export function SupportPanel({ editeur }: { editeur: SupportEditeur | null }) {
   ];
 
   return (
-    <div className="space-y-3">
-      <CarteContacts
-        titre={`Support — ${editeur.nom}`}
-        lignes={support}
-        vide={<>Aucune coordonnée de support n'est renseignée sur la fiche de « {editeur.nom} ».</>}
-      />
-      <CarteContacts
-        titre={`Divers — ${editeur.nom}`}
-        lignes={divers}
-        colonnes={3}
-        vide={
-          <>
-            Aucun contact commercial ni administratif n'est renseigné sur la fiche de «{" "}
-            {editeur.nom} ».
-          </>
-        }
-      />
-    </div>
+    <CarteContacts
+      titre={`Contacts — ${editeur.nom}`}
+      lignes={lignes}
+      vide={<>Aucun contact n'est renseigné sur la fiche de « {editeur.nom} ».</>}
+    />
   );
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { type ReactNode, useState, useTransition } from "react";
 import { Card, Field } from "@/components/ui";
 import { createEditeurAction, deleteEditeurAction, updateEditeurAction } from "./actions";
 
@@ -47,8 +47,12 @@ const VIDE: EditeurValues = {
   notes: "",
 };
 
+/** Cible du bouton d'enregistrement, qui vit HORS du <form> — voir `children`. */
+const FORM_ID = "editeur-form";
+
 /**
- * Formulaire de fiche éditeur, en trois cartes (coordonnées / support / divers).
+ * Formulaire de fiche éditeur, en deux cartes : la société (coordonnées et
+ * observations) puis ses contacts (assistance, commercial, administratif).
  * `id` absent = création (redirige vers la fiche créée). Le lecteur reçoit
  * `readOnly` : champs désactivés, aucun bouton — la protection réelle reste
  * dans les server actions (requireRole admin).
@@ -58,6 +62,7 @@ export function EditeurForm({
   values = VIDE,
   nbPiecesJointes = 0,
   readOnly = false,
+  children,
 }: {
   id?: number;
   values?: EditeurValues;
@@ -68,6 +73,17 @@ export function EditeurForm({
    */
   nbPiecesJointes?: number;
   readOnly?: boolean;
+  /**
+   * Le reste de la fiche (logiciels rattachés, pièces jointes), posé ENTRE les
+   * cartes de saisie et la ligne d'actions : Enregistrer et Supprimer closent
+   * la page, pas seulement le formulaire.
+   *
+   * Rendu hors du <form> — le panneau de documents porte ses propres champs, et
+   * une touche Entrée y déclencherait l'enregistrement de la fiche. D'où
+   * l'attribut `form` sur le bouton de soumission, qui le rattache au
+   * formulaire sans être dedans.
+   */
+  children?: ReactNode;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -138,50 +154,65 @@ export function EditeurForm({
   );
 
   return (
-    <form onSubmit={submit} className="space-y-3">
-      <Card title="Coordonnées">
-        <div className="grid gap-x-3 gap-y-2 sm:grid-cols-2">
-          <Field label="Nom de l'éditeur" htmlFor="nom" required>
-            <input
-              id="nom"
-              name="nom"
-              defaultValue={values.nom}
-              required
-              disabled={dis}
-              className="input"
-            />
-          </Field>
-          {champ("siteWeb", "Site web", { type: "url", placeholder: "https://…" })}
-          {champ("adresse", "Adresse")}
-          <div className="grid grid-cols-[8rem_1fr] gap-4">
-            {champ("codePostal", "Code postal")}
-            {champ("ville", "Ville")}
+    <div className="space-y-3">
+      <form id={FORM_ID} onSubmit={submit} className="space-y-3">
+        <Card title="Coordonnées">
+          <div className="grid gap-x-3 gap-y-2 sm:grid-cols-2">
+            <Field label="Nom de l'éditeur" htmlFor="nom" required>
+              <input
+                id="nom"
+                name="nom"
+                defaultValue={values.nom}
+                required
+                disabled={dis}
+                className="input"
+              />
+            </Field>
+            {champ("siteWeb", "Site web", { type: "url", placeholder: "https://…" })}
+            {champ("adresse", "Adresse")}
+            <div className="grid grid-cols-[8rem_1fr] gap-4">
+              {champ("codePostal", "Code postal")}
+              {champ("ville", "Ville")}
+            </div>
+            {champ("telephone", "Téléphone", { type: "tel" })}
+            {champ("email", "E-mail", { type: "email" })}
+            {/* Pleine largeur : c'est de la prose, elle ne se lit pas en
+                colonne de 8 rem comme un code postal. */}
+            <div className="sm:col-span-2">
+              <Field label="Observations" htmlFor="notes">
+                <textarea
+                  id="notes"
+                  name="notes"
+                  defaultValue={values.notes}
+                  disabled={dis}
+                  rows={3}
+                  className="input"
+                  placeholder="Informations libres : interlocuteurs, historique, particularités du contrat…"
+                />
+              </Field>
+            </div>
           </div>
-          {champ("telephone", "Téléphone", { type: "tel" })}
-          {champ("email", "E-mail", { type: "email" })}
-        </div>
-      </Card>
+        </Card>
 
-      <Card title="Support">
-        <div className="grid gap-x-3 gap-y-2 sm:grid-cols-2">
-          {champ("supportUrl", "Portail de tickets", { type: "url", placeholder: "https://…" })}
-          {champ("supportEmail", "E-mail du support", { type: "email" })}
-          {champ("supportTelephone", "Téléphone du support", { type: "tel" })}
-          {champ("supportHoraires", "Horaires", { placeholder: "Ex. lun-ven 9h-18h" })}
-        </div>
-      </Card>
+        {/* Tous les interlocuteurs de l'éditeur dans une seule carte, une ligne
+            de trois tiers par interlocuteur : l'assistance, puis ses horaires
+            en pleine largeur — une plage se lit d'un trait —, puis le
+            commercial et l'administratif, chacun sur son rang « qui, son
+            numéro, son adresse ». L'onglet Support du logiciel reprend cette
+            grille.
 
-      <Card title="Divers">
-        <div className="space-y-3">
-          {/* Une ligne par interlocuteur, en trois tiers : qui, son numéro,
-              son adresse — l'ordre dans lequel on le cherche. L'onglet Support
-              du logiciel reprend la même grille.
-
-              `items-end` : au tiers de largeur, « Téléphone administratif »
-              passe sur deux lignes là où « Mail » tient sur une. Aligner les
-              cellules par le BAS garde les champs sur la même ligne, quel que
-              soit le nombre de lignes du libellé. */}
+            `items-end` : au tiers de largeur, « Téléphone administratif »
+            passe sur deux lignes là où « Mail » tient sur une. Aligner les
+            cellules par le BAS garde les champs sur la même ligne, quel que
+            soit le nombre de lignes du libellé. */}
+        <Card title="Contacts">
           <div className="grid items-end gap-x-3 gap-y-2 sm:grid-cols-3">
+            {champ("supportUrl", "Portail de tickets", { type: "url", placeholder: "https://…" })}
+            {champ("supportEmail", "E-mail du support", { type: "email" })}
+            {champ("supportTelephone", "Téléphone du support", { type: "tel" })}
+            <div className="sm:col-span-3">
+              {champ("supportHoraires", "Horaires", { placeholder: "Ex. lun-ven 9h-18h" })}
+            </div>
             {champ("commercialContact", "Contact commercial")}
             {champ("commercialTelephone", "Téléphone commercial", { type: "tel" })}
             {champ("commercialEmail", "Mail commercial", { type: "email" })}
@@ -189,26 +220,17 @@ export function EditeurForm({
             {champ("adminTelephone", "Téléphone administratif", { type: "tel" })}
             {champ("adminEmail", "Mail administratif", { type: "email" })}
           </div>
-          <Field label="Observations" htmlFor="notes">
-            <textarea
-              id="notes"
-              name="notes"
-              defaultValue={values.notes}
-              disabled={dis}
-              rows={3}
-              className="input"
-              placeholder="Informations libres : interlocuteurs, historique, particularités du contrat…"
-            />
-          </Field>
-        </div>
-      </Card>
+        </Card>
+      </form>
+
+      {children}
 
       {error ? <p className="alert-error">{error}</p> : null}
       {saved ? <p className="alert-success">Fiche enregistrée.</p> : null}
 
       {readOnly ? null : (
         <div className="flex items-center justify-between gap-3">
-          <button type="submit" disabled={pending} className="btn-primary">
+          <button type="submit" form={FORM_ID} disabled={pending} className="btn-primary">
             {pending ? "Enregistrement…" : id === undefined ? "Créer l'éditeur" : "Enregistrer"}
           </button>
           {id !== undefined ? (
@@ -228,6 +250,6 @@ export function EditeurForm({
           ) : null}
         </div>
       )}
-    </form>
+    </div>
   );
 }

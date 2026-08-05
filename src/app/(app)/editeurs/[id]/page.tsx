@@ -74,9 +74,7 @@ export default async function EditeurPage({ params }: { params: Promise<{ id: st
           adminEmail: editeur.adminEmail,
           notes: editeur.notes,
         }}
-      />
-
-      <div className="mt-3 space-y-3">
+      >
         <Card title="Logiciels de cet éditeur">
           {editeur.logiciels.length === 0 ? (
             <p className="text-sm text-faint">
@@ -113,7 +111,7 @@ export default async function EditeurPage({ params }: { params: Promise<{ id: st
             createdAt: fmt.format(d.createdAt),
           }))}
         />
-      </div>
+      </EditeurForm>
     </>
   );
 }
