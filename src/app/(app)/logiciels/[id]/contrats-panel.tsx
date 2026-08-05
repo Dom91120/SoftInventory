@@ -283,7 +283,7 @@ export function ContratsPanel({
     nbUtilisateurs !== null && nbMaxUtilisateurs !== null && nbUtilisateurs > nbMaxUtilisateurs;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3">
       {error ? <p className="alert-error">{error}</p> : null}
 
       {depassement ? (
@@ -520,12 +520,11 @@ export function ContratsPanel({
                       <table className="data-table">
                         <thead>
                           <tr>
-                            {/* La LIGNE est la pièce ; cette colonne montre le
-                                fichier qui l'atteste, d'où le nom distinct. Sa
-                                catégorie ET sa date se lisent sous son nom,
-                                dans LigneDocument — d'où l'absence de colonnes
-                                dédiées. */}
-                            <th>Fichier</th>
+                            {/* La ligne EST la pièce : l'en-tête la nomme et
+                                s'accorde à leur nombre. Sa catégorie ET sa date
+                                se lisent sous son nom, dans LigneDocument —
+                                d'où l'absence de colonnes dédiées. */}
+                            <th>{c.pieces.length > 1 ? "Pièces" : "Pièce"}</th>
                             {readOnly ? null : <th className="w-20" aria-label="Actions" />}
                           </tr>
                         </thead>
@@ -662,7 +661,7 @@ function FormulaireMarche({
 }) {
   return (
     <form onSubmit={onSubmit} className="mb-5 rounded-xl border border-sub bg-inset p-4">
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-x-3 gap-y-2 sm:grid-cols-2">
         <Field label="Référence marché/contrat" htmlFor="referenceMarche">
           <input
             id="referenceMarche"
@@ -798,7 +797,7 @@ function FormulairePiece({
   pending,
   onSubmit,
   onCancel,
-  className = "mb-4 rounded-xl border border-sub bg-inset p-4",
+  className = "mb-3 rounded-xl border border-sub bg-inset p-4",
 }: {
   row: PieceContratRow | null;
   categories: CategorieOption[];
