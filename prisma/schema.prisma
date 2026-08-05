@@ -250,21 +250,28 @@ model ThrottleBucket {
 /// (portail de tickets, mail, téléphone, horaires) vit AU NIVEAU ÉDITEUR — un
 /// même fournisseur assure le support de tous ses produits.
 model Editeur {
-  id               Int      @id @default(autoincrement())
-  nom              String   @unique
-  adresse          String   @default("")
-  codePostal       String   @default("") @map("code_postal")
-  ville            String   @default("")
-  telephone        String   @default("")
-  email            String   @default("")
-  siteWeb          String   @default("") @map("site_web")
-  supportUrl       String   @default("") @map("support_url")
-  supportEmail     String   @default("") @map("support_email")
-  supportTelephone String   @default("") @map("support_telephone")
-  supportHoraires  String   @default("") @map("support_horaires")
-  notes            String   @default("")
-  createdAt        DateTime @default(now()) @db.Timestamptz
-  updatedAt        DateTime @updatedAt @db.Timestamptz
+  id                  Int      @id @default(autoincrement())
+  nom                 String   @unique
+  adresse             String   @default("")
+  codePostal          String   @default("") @map("code_postal")
+  ville               String   @default("")
+  telephone           String   @default("")
+  email               String   @default("")
+  siteWeb             String   @default("") @map("site_web")
+  supportUrl          String   @default("") @map("support_url")
+  supportEmail        String   @default("") @map("support_email")
+  supportTelephone    String   @default("") @map("support_telephone")
+  supportHoraires     String   @default("") @map("support_horaires")
+  /// Contacts hors support : le commercial pour l'offre et le renouvellement,
+  /// l'administratif pour la facturation. Distincts des `telephone`/`email` du
+  /// standard, qui restent ceux de la société.
+  commercialTelephone String   @default("") @map("commercial_telephone")
+  commercialEmail     String   @default("") @map("commercial_email")
+  adminTelephone      String   @default("") @map("admin_telephone")
+  adminEmail          String   @default("") @map("admin_email")
+  notes               String   @default("")
+  createdAt           DateTime @default(now()) @db.Timestamptz
+  updatedAt           DateTime @updatedAt @db.Timestamptz
 
   logiciels Logiciel[]
   documents Document[]

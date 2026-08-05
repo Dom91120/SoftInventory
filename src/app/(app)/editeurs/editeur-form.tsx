@@ -17,6 +17,10 @@ export type EditeurValues = {
   supportEmail: string;
   supportTelephone: string;
   supportHoraires: string;
+  commercialTelephone: string;
+  commercialEmail: string;
+  adminTelephone: string;
+  adminEmail: string;
   notes: string;
 };
 
@@ -32,11 +36,15 @@ const VIDE: EditeurValues = {
   supportEmail: "",
   supportTelephone: "",
   supportHoraires: "",
+  commercialTelephone: "",
+  commercialEmail: "",
+  adminTelephone: "",
+  adminEmail: "",
   notes: "",
 };
 
 /**
- * Formulaire de fiche éditeur, en deux cartes (coordonnées / support).
+ * Formulaire de fiche éditeur, en trois cartes (coordonnées / support / divers).
  * `id` absent = création (redirige vers la fiche créée). Le lecteur reçoit
  * `readOnly` : champs désactivés, aucun bouton — la protection réelle reste
  * dans les server actions (requireRole admin).
@@ -126,9 +134,9 @@ export function EditeurForm({
   );
 
   return (
-    <form onSubmit={submit} className="space-y-6">
+    <form onSubmit={submit} className="space-y-3">
       <Card title="Coordonnées">
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-x-3 gap-y-2 sm:grid-cols-2">
           <Field label="Nom de l'éditeur" htmlFor="nom" required>
             <input
               id="nom"
@@ -151,7 +159,7 @@ export function EditeurForm({
       </Card>
 
       <Card title="Support">
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-x-3 gap-y-2 sm:grid-cols-2">
           {champ("supportUrl", "Portail de tickets", { type: "url", placeholder: "https://…" })}
           {champ("supportEmail", "E-mail du support", { type: "email" })}
           {champ("supportTelephone", "Téléphone du support", { type: "tel" })}
@@ -159,15 +167,26 @@ export function EditeurForm({
         </div>
       </Card>
 
-      <Card title="Notes">
-        <textarea
-          name="notes"
-          defaultValue={values.notes}
-          disabled={dis}
-          rows={4}
-          className="input"
-          placeholder="Informations libres : interlocuteurs, historique, particularités du contrat…"
-        />
+      <Card title="Divers">
+        <div className="space-y-3">
+          <div className="grid gap-x-3 gap-y-2 sm:grid-cols-2">
+            {champ("commercialTelephone", "Téléphone commercial", { type: "tel" })}
+            {champ("commercialEmail", "Mail commercial", { type: "email" })}
+            {champ("adminTelephone", "Téléphone administratif", { type: "tel" })}
+            {champ("adminEmail", "Mail administratif", { type: "email" })}
+          </div>
+          <Field label="Observations" htmlFor="notes">
+            <textarea
+              id="notes"
+              name="notes"
+              defaultValue={values.notes}
+              disabled={dis}
+              rows={3}
+              className="input"
+              placeholder="Informations libres : interlocuteurs, historique, particularités du contrat…"
+            />
+          </Field>
+        </div>
       </Card>
 
       {error ? <p className="alert-error">{error}</p> : null}

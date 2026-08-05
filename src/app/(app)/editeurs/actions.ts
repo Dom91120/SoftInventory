@@ -34,6 +34,10 @@ function parseForm(formData: FormData) {
     supportEmail: formData.get("supportEmail") ?? "",
     supportTelephone: formData.get("supportTelephone") ?? "",
     supportHoraires: formData.get("supportHoraires") ?? "",
+    commercialTelephone: formData.get("commercialTelephone") ?? "",
+    commercialEmail: formData.get("commercialEmail") ?? "",
+    adminTelephone: formData.get("adminTelephone") ?? "",
+    adminEmail: formData.get("adminEmail") ?? "",
     notes: formData.get("notes") ?? "",
   });
 }

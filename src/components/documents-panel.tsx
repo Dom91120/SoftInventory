@@ -48,6 +48,7 @@ export type CategorieOption = { id: number; label: string };
  * Catégorie proposée d'office au dépôt — le cas courant de ce panneau, qui
  * reçoit surtout des guides et de la documentation. Rapprochée par LIBELLÉ et
  * non par id : le référentiel est saisi par l'admin, l'entrée peut manquer.
+ * La fiche éditeur en propose une autre (voir `categorieParDefaut`).
  */
 const CATEGORIE_PAR_DEFAUT = "Documentation technique";
 
@@ -237,6 +238,7 @@ export function DocumentsPanel({
   categories,
   readOnly,
   titre = "Documents",
+  categorieParDefaut = CATEGORIE_PAR_DEFAUT,
 }: {
   parent:
     | { logicielId: number }
@@ -248,6 +250,12 @@ export function DocumentsPanel({
   readOnly: boolean;
   /** Titre de la carte — précisé quand le panneau vise une ligne de contrat. */
   titre?: string;
+  /**
+   * Libellé de la catégorie présélectionnée au dépôt, quand ce panneau reçoit
+   * autre chose que de la documentation technique — la fiche éditeur, qui
+   * collecte surtout des présentations commerciales.
+   */
+  categorieParDefaut?: string;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -257,8 +265,7 @@ export function DocumentsPanel({
   // plus ce cas. Repli sur la première entrée du référentiel si l'admin a
   // renommé ou supprimé l'entrée par défaut.
   const [categorieId, setCategorieId] = useState(() => {
-    const defaut =
-      categories.find((c) => c.label === CATEGORIE_PAR_DEFAUT)?.id ?? categories[0]?.id;
+    const defaut = categories.find((c) => c.label === categorieParDefaut)?.id ?? categories[0]?.id;
     return defaut === undefined ? "" : String(defaut);
   });
   // Document en cours de renommage : { id, valeur saisie }.
@@ -333,10 +340,10 @@ export function DocumentsPanel({
 
   return (
     <Card title={titre}>
-      {error ? <p className="alert-error mb-4">{error}</p> : null}
+      {error ? <p className="alert-error mb-3">{error}</p> : null}
 
       {readOnly ? null : (
-        <div className="mb-4 flex flex-wrap items-center gap-2">
+        <div className="mb-3 flex flex-wrap items-center gap-2">
           <select
             className="input !w-auto"
             value={categorieId}

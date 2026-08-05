@@ -29,7 +29,7 @@ export default async function EditeurPage({ params }: { params: Promise<{ id: st
 
   return (
     <>
-      <div className="mb-6 flex items-start gap-2">
+      <div className="mb-3 flex items-start gap-2">
         <FlecheVoisin
           voisin={voisins.precedent}
           sens="precedent"
@@ -66,11 +66,15 @@ export default async function EditeurPage({ params }: { params: Promise<{ id: st
           supportEmail: editeur.supportEmail,
           supportTelephone: editeur.supportTelephone,
           supportHoraires: editeur.supportHoraires,
+          commercialTelephone: editeur.commercialTelephone,
+          commercialEmail: editeur.commercialEmail,
+          adminTelephone: editeur.adminTelephone,
+          adminEmail: editeur.adminEmail,
           notes: editeur.notes,
         }}
       />
 
-      <div className="mt-6 space-y-6">
+      <div className="mt-3 space-y-3">
         <Card title="Logiciels de cet éditeur">
           {editeur.logiciels.length === 0 ? (
             <p className="text-sm text-faint">
@@ -95,6 +99,7 @@ export default async function EditeurPage({ params }: { params: Promise<{ id: st
         <DocumentsPanel
           parent={{ editeurId: editeur.id }}
           readOnly={!isAdmin}
+          categorieParDefaut="Présentation commerciale"
           categories={categories.map((c) => ({ id: c.id, label: c.label }))}
           documents={editeur.documents.map((d) => ({
             id: d.id,
