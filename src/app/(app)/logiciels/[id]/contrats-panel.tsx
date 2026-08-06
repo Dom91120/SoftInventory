@@ -1,32 +1,15 @@
 "use client";
 
-import { Pencil, Plus, Trash2, Upload, X } from "lucide-react";
+import { Pencil, Plus, Trash2, X } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useRef, useState, useTransition } from "react";
-import { deleteDocumentAction, updateDocumentCategorieAction } from "@/app/(app)/documents/actions";
-import {
-  type CategorieOption,
-  type DocumentRow,
-  LigneDocument,
-} from "@/components/documents-panel";
+import { useState, useTransition } from "react";
+import { type CategorieOption, LigneDocument } from "@/components/documents-panel";
+import { FormulairePiece, type PieceContratRow, usePieceContrat } from "@/components/piece-contrat";
 import { Card, EmptyState, Field } from "@/components/ui";
 import { DATE_FMT_FR_UTC, formatEuros } from "@/lib/format";
-import {
-  createContratAction,
-  createPieceContratAction,
-  deleteContratAction,
-  deletePieceContratAction,
-  updateContratAction,
-  updatePieceContratAction,
-} from "../actions";
+import { createContratAction, deleteContratAction, updateContratAction } from "../actions";
 
-export type PieceContratRow = {
-  id: number;
-  /** Date du document (signature, notification) — AAAA-MM-JJ ou "". Sans rappel. */
-  datePiece: string;
-  /** Le fichier qui atteste la pièce. Un seul — d'où le null et non un tableau. */
-  document: DocumentRow | null;
-};
+export type { PieceContratRow };
 
 export type ContratRow = {
   id: number;
@@ -156,11 +139,13 @@ export function ContratsPanel({
   const [marcheForm, setMarcheForm] = useState<
     { mode: "creation" } | { mode: "edition"; row: ContratRow } | null
   >(null);
-  // Formulaire de pièce : rattaché à un marché, en création ou édition.
+  // Formulaire de pièce : rattaché à un marché, en création ou édition. Son
+  // enregistrement et sa suppression sont partagés avec la fiche du marché.
   const [pieceForm, setPieceForm] = useState<{
     contratId: number;
     row: PieceContratRow | null;
   } | null>(null);
+  const piece = usePieceContrat(setError);
 
   const nomDe = (c: ContratRow) => c.libelle || c.referenceMarche || "sans libellé";
 
@@ -184,71 +169,6 @@ export function ContratsPanel({
     });
   }
 
-  /**
-   * Enregistre la pièce PUIS son fichier, en un seul geste pour qui saisit.
-   *
-   * L'ordre est imposé : le dépôt se rattache à une pièce, qui doit donc
-   * exister — d'où l'id renvoyé par createPieceContratAction. En modification,
-   * un nouveau fichier REMPLACE l'ancien : on retire d'abord
-   * (deleteDocumentAction efface aussi le fichier du disque), on dépose ensuite.
-   *
-   * La catégorie saisie porte sur le DOCUMENT, pas sur la pièce : elle part au
-   * dépôt s'il y a un fichier, sinon elle reclasse celui déjà en place. Sans
-   * fichier ni avant ni après, elle n'a rien à qualifier et se perd — c'est la
-   * conséquence assumée d'une catégorie qui appartient au document.
-   */
-  function soumettrePiece(e: React.FormEvent<HTMLFormElement>, fichier: File | null) {
-    e.preventDefault();
-    if (!pieceForm) return;
-    setError(null);
-    const form = new FormData(e.currentTarget);
-    const cible = pieceForm;
-    const brut = String(form.get("categorieId") ?? "");
-    const categorieId = brut === "" ? null : Number(brut);
-    startTransition(async () => {
-      const res = cible.row
-        ? await updatePieceContratAction(cible.row.id, form)
-        : await createPieceContratAction(cible.contratId, form);
-      if (!res.ok) {
-        setError(res.error);
-        return;
-      }
-      const pieceId = cible.row?.id ?? res.id;
-      if (fichier && pieceId !== undefined) {
-        if (cible.row?.document) {
-          const retrait = await deleteDocumentAction(cible.row.document.id);
-          if (!retrait.ok) {
-            // La pièce est enregistrée, le fichier non : on le dit plutôt que de
-            // refermer le formulaire sur un demi-résultat.
-            setError(
-              `Pièce enregistrée, mais le fichier n'a pas pu être remplacé : ${retrait.error}`,
-            );
-            router.refresh();
-            return;
-          }
-        }
-        const echec = await deposerPiece(pieceId, fichier, categorieId);
-        if (echec) {
-          setError(`Pièce enregistrée, mais le dépôt a échoué : ${echec}`);
-          router.refresh();
-          return;
-        }
-      } else if (cible.row?.document && categorieId !== cible.row.document.categorieId) {
-        // Pas de nouveau fichier, mais la catégorie a bougé : elle s'applique au
-        // document déjà rattaché. Comparaison utile — sans elle, chaque
-        // enregistrement rejouerait une écriture inutile.
-        const maj = await updateDocumentCategorieAction(cible.row.document.id, categorieId);
-        if (!maj.ok) {
-          setError(`Pièce enregistrée, mais la catégorie du fichier n'a pas suivi : ${maj.error}`);
-          router.refresh();
-          return;
-        }
-      }
-      setPieceForm(null);
-      router.refresh();
-    });
-  }
-
   function supprimerMarche(c: ContratRow) {
     const nbFichiers = c.pieces.filter((l) => l.document).length;
     const details = [
@@ -260,21 +180,6 @@ export function ContratsPanel({
     setError(null);
     startTransition(async () => {
       const res = await deleteContratAction(c.id);
-      if (!res.ok) setError(res.error);
-      else router.refresh();
-    });
-  }
-
-  function supprimerPiece(l: PieceContratRow) {
-    const avert = l.document ? `\n\nSon fichier « ${l.document.nomOriginal} » aussi.` : "";
-    // Le type nommait la pièce dans cette question ; à sa place, ce qui la
-    // distingue encore de ses voisines — son fichier, sinon sa date.
-    const nom = l.document?.nomOriginal ?? l.datePiece;
-    const quoi = nom ? `la pièce « ${nom} »` : "cette pièce";
-    if (!window.confirm(`Supprimer ${quoi} ?${avert}`)) return;
-    setError(null);
-    startTransition(async () => {
-      const res = await deletePieceContratAction(l.id);
       if (!res.ok) setError(res.error);
       else router.refresh();
     });
@@ -511,8 +416,12 @@ export function ContratsPanel({
                       row={null}
                       categories={categories}
                       categorieParDefautId={categorieParDefautId}
-                      pending={pending}
-                      onSubmit={soumettrePiece}
+                      pending={piece.pending}
+                      onSubmit={(e, fichier) =>
+                        piece.soumettre(e, fichier, { contratId: c.id, row: null }, () =>
+                          setPieceForm(null),
+                        )
+                      }
                       onCancel={() => setPieceForm(null)}
                     />
                   ) : null}
@@ -542,8 +451,12 @@ export function ContratsPanel({
                                     row={l}
                                     categories={categories}
                                     categorieParDefautId={categorieParDefautId}
-                                    pending={pending}
-                                    onSubmit={soumettrePiece}
+                                    pending={piece.pending}
+                                    onSubmit={(e, fichier) =>
+                                      piece.soumettre(e, fichier, { contratId: c.id, row: l }, () =>
+                                        setPieceForm(null),
+                                      )
+                                    }
                                     onCancel={() => setPieceForm(null)}
                                     className="rounded-xl border border-sub bg-inset p-4"
                                   />
@@ -595,7 +508,7 @@ export function ContratsPanel({
                                             : "Supprimer la pièce"
                                         }
                                         disabled={pending}
-                                        onClick={() => supprimerPiece(l)}
+                                        onClick={() => piece.supprimer(l, enDateFr)}
                                       >
                                         <Trash2 className="h-4 w-4" />
                                       </button>
@@ -617,31 +530,6 @@ export function ContratsPanel({
       </Card>
     </div>
   );
-}
-
-/**
- * Dépose le fichier d'une pièce. Renvoie null si tout s'est bien passé, sinon le
- * message d'erreur — l'appelant décide quoi en dire.
- *
- * Route API et non server action : c'est un flux binaire.
- */
-async function deposerPiece(
-  pieceContratId: number,
-  fichier: File,
-  categorieId: number | null,
-): Promise<string | null> {
-  try {
-    const form = new FormData();
-    form.set("file", fichier);
-    form.set("pieceContratId", String(pieceContratId));
-    if (categorieId !== null) form.set("categorieId", String(categorieId));
-    const r = await fetch("/api/documents/upload", { method: "POST", body: form });
-    const j = (await r.json().catch(() => ({}))) as { error?: string };
-    if (!r.ok) return j.error ?? "le dépôt a échoué, réessayez.";
-    return null;
-  } catch {
-    return "le dépôt a échoué (réseau), réessayez.";
-  }
 }
 
 /**
@@ -782,154 +670,6 @@ function FormulaireMarche({
           <button type="button" className="btn-ghost" disabled={pending} onClick={onCancel}>
             Annuler
           </button>
-        </div>
-      </div>
-    </form>
-  );
-}
-
-/**
- * La pièce : son fichier, la catégorie de ce fichier, son coût, son échéance. Le
- * fichier est retenu en mémoire jusqu'à la validation — avant elle, il n'existe
- * aucune pièce à laquelle le rattacher.
- *
- * La catégorie ne vit pas sur la pièce mais sur son document : sans fichier,
- * elle n'a rien à qualifier et ne sera appliquée qu'au dépôt.
- */
-function FormulairePiece({
-  row,
-  categories,
-  categorieParDefautId,
-  pending,
-  onSubmit,
-  onCancel,
-  className = "mb-3 rounded-xl border border-sub bg-inset p-4",
-}: {
-  row: PieceContratRow | null;
-  categories: CategorieOption[];
-  /** « Contrat » du référentiel ; null s'il a été renommé ou supprimé. */
-  categorieParDefautId: number | null;
-  pending: boolean;
-  onSubmit: (e: React.FormEvent<HTMLFormElement>, fichier: File | null) => void;
-  onCancel: () => void;
-  /** Habillage : la marge basse saute quand le formulaire tient dans une ligne de tableau. */
-  className?: string;
-}) {
-  const [fichier, setFichier] = useState<File | null>(null);
-
-  /**
-   * Ce qui EXISTE prime sur ce qui est proposé : un fichier déjà classé rouvre
-   * sur SA catégorie, jamais sur le défaut — sans quoi le crayon reclasserait
-   * en « Contrat » à la simple validation.
-   *
-   * « Sans catégorie » n'est plus une valeur offerte : la liste n'a plus
-   * d'option vide. Un document hérité qui n'en aurait pas retombe donc sur le
-   * défaut, comme une pièce neuve — c'est voulu, il faut bien le classer.
-   */
-  const categorieInitiale =
-    row?.document?.categorieId != null
-      ? String(row.document.categorieId)
-      : categorieParDefautId === null
-        ? ""
-        : String(categorieParDefautId);
-  const fileRef = useRef<HTMLInputElement>(null);
-
-  return (
-    <form onSubmit={(e) => onSubmit(e, fichier)} className={className}>
-      <div className="flex flex-wrap items-start gap-4">
-        <div className="w-full sm:w-44">
-          <Field
-            label="Fichier"
-            hint={
-              row?.document && !fichier
-                ? `Actuel : ${row.document.nomOriginal}. En choisir un autre le remplace.`
-                : "PDF, Office, images, zip — 25 Mo max."
-            }
-          >
-            <input
-              ref={fileRef}
-              type="file"
-              className="hidden"
-              onChange={(e) => setFichier(e.target.files?.[0] ?? null)}
-            />
-            <button
-              type="button"
-              className="btn-secondary w-full"
-              disabled={pending}
-              onClick={() => fileRef.current?.click()}
-            >
-              <Upload className="h-4 w-4" />
-              Déposer un fichier
-            </button>
-            {fichier ? (
-              <p className="mt-1 flex min-w-0 items-center gap-1">
-                <span className="min-w-0 truncate text-xs text-strong" title={fichier.name}>
-                  {fichier.name}
-                </span>
-                <button
-                  type="button"
-                  className="btn-ghost !p-1 shrink-0"
-                  title={`Retirer ${fichier.name} de la sélection`}
-                  disabled={pending}
-                  onClick={() => {
-                    setFichier(null);
-                    if (fileRef.current) fileRef.current.value = "";
-                  }}
-                >
-                  <X className="h-3.5 w-3.5" />
-                </button>
-              </p>
-            ) : null}
-          </Field>
-        </div>
-        <div className="shrink-0">
-          <Field label="Catégorie du document" htmlFor="categorieId">
-            <select
-              id="categorieId"
-              name="categorieId"
-              defaultValue={categorieInitiale}
-              disabled={pending}
-              className="input !w-auto"
-            >
-              {categories.map((c) => (
-                <option key={c.id} value={String(c.id)}>
-                  {c.label}
-                </option>
-              ))}
-            </select>
-          </Field>
-        </div>
-        <div className="shrink-0">
-          <Field
-            label="Date de la pièce"
-            htmlFor="datePiece"
-            hint="Date du document : signature, notification. L'échéance, elle, se saisit sur le marché."
-          >
-            <input
-              id="datePiece"
-              name="datePiece"
-              type="date"
-              defaultValue={row?.datePiece ?? ""}
-              disabled={pending}
-              className="input !w-auto"
-            />
-          </Field>
-        </div>
-        {/* Les boutons rejoignent la rangée des champs. Le libellé invisible
-            leur donne le même décalage que les autres colonnes : sans lui, ils
-            se caleraient sur le haut du bloc, au niveau des étiquettes. */}
-        <div className="shrink-0">
-          <span className="label invisible" aria-hidden="true">
-            Actions
-          </span>
-          <span className="flex items-center gap-2">
-            <button type="submit" disabled={pending} className="btn-primary">
-              {pending ? "Enregistrement…" : "Enregistrer"}
-            </button>
-            <button type="button" className="btn-secondary" disabled={pending} onClick={onCancel}>
-              Annuler
-            </button>
-          </span>
         </div>
       </div>
     </form>

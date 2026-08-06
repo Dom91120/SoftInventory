@@ -1,11 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { LigneDocument } from "@/components/documents-panel";
 import { FlecheVoisin } from "@/components/fleche-voisin";
-import { Card, EmptyState, PageHeader } from "@/components/ui";
+import { PageHeader } from "@/components/ui";
 import type { Role } from "@/generated/prisma/client";
-import { DATE_FMT_FR_UTC } from "@/lib/format";
 import { dateCalendaire } from "@/lib/taches-core";
 import { seuilsRappel } from "@/server/config";
 import { requireUser } from "@/server/guards";
@@ -20,8 +18,16 @@ import { listEditeurs } from "@/server/services/editeurs";
 import { listCategoriesDocuments } from "@/server/services/referentiels";
 import { ContratForm } from "../contrat-form";
 import { LogicielsCouverts } from "../logiciels-couverts";
+import { PiecesMarche } from "../pieces-marche";
 
 export const metadata: Metadata = { title: "Contrat / marché" };
+
+/**
+ * Catégorie proposée d'office au dépôt d'une pièce, comme dans l'onglet
+ * Contrats/Marchés d'un logiciel. Rapprochée par LIBELLÉ : le référentiel est
+ * saisi par l'admin, l'entrée peut manquer — d'où le repli sur null.
+ */
+const CATEGORIE_PAR_DEFAUT = "Contrat";
 
 const dateStr = (d: Date | null) => (d ? d.toISOString().slice(0, 10) : "");
 
@@ -128,52 +134,36 @@ export default async function ContratPage({ params }: { params: Promise<{ id: st
             (l) => !contrat.logiciels.some((r) => r.logiciel.id === l.id),
           )}
         />
-        {/* Les pièces se LISENT ici et se saisissent depuis l'onglet
-            Contrats/Marchés d'un logiciel couvert : c'est là que vit le
-            formulaire de dépôt, avec son enchaînement « créer la pièce puis
-            déposer son fichier ». */}
-        <Card title="Pièces du marché">
-          {contrat.pieces.length === 0 ? (
-            <EmptyState>
-              Aucune pièce.{" "}
-              {contrat.logiciels.length > 0
-                ? "Elles s'ajoutent depuis l'onglet Contrats/Marchés d'un logiciel couvert."
-                : "Rattachez d'abord un logiciel : c'est depuis son onglet Contrats/Marchés que les pièces se déposent."}
-            </EmptyState>
-          ) : (
-            <ul className="divide-y divide-line text-sm">
-              {contrat.pieces.map((p) => (
-                <li key={p.id} className="py-2">
-                  {p.documents.length === 0 ? (
-                    <span className="text-faint">
-                      Pièce sans fichier
-                      {p.datePiece ? ` · ${DATE_FMT_FR_UTC.format(p.datePiece)}` : ""}
-                    </span>
-                  ) : (
-                    p.documents.map((d) => (
-                      <LigneDocument
-                        key={d.id}
-                        readOnly
-                        categorieModifiable={false}
-                        categories={optionsCategories}
-                        dateLigne={p.datePiece ? DATE_FMT_FR_UTC.format(p.datePiece) : null}
-                        document={{
-                          id: d.id,
-                          nomOriginal: d.nomOriginal,
-                          categorieId: d.categorieId,
-                          categorie: d.categorie?.label ?? null,
-                          taille: d.taille,
-                          deposeParLabel: d.deposeParLabel,
-                          createdAt: fmt.format(d.createdAt),
-                        }}
-                      />
-                    ))
-                  )}
-                </li>
-              ))}
-            </ul>
-          )}
-        </Card>
+        {/* Les pièces se saisissent ICI, avec le même formulaire que l'onglet
+            d'un logiciel : c'est ce qui rend utilisable un marché qui ne couvre
+            encore rien. Une pièce n'a qu'UN fichier — d'où le premier document
+            et lui seul, les éventuels autres étant hérités d'avant cette règle. */}
+        <PiecesMarche
+          contratId={contrat.id}
+          readOnly={!isAdmin}
+          categories={optionsCategories}
+          categorieParDefautId={
+            categories.find((c) => c.label === CATEGORIE_PAR_DEFAUT)?.id ?? null
+          }
+          pieces={contrat.pieces.map((p) => {
+            const d = p.documents[0];
+            return {
+              id: p.id,
+              datePiece: dateStr(p.datePiece),
+              document: d
+                ? {
+                    id: d.id,
+                    nomOriginal: d.nomOriginal,
+                    categorieId: d.categorieId,
+                    categorie: d.categorie?.label ?? null,
+                    taille: d.taille,
+                    deposeParLabel: d.deposeParLabel,
+                    createdAt: fmt.format(d.createdAt),
+                  }
+                : null,
+            };
+          })}
+        />
       </ContratForm>
     </>
   );
