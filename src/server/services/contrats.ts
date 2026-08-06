@@ -180,22 +180,48 @@ export async function cheminsDuContrat(contratId: number): Promise<string[]> {
 }
 
 /**
- * Marchés ORPHELINS — ceux qu'aucun logiciel ne couvre —, pour la liste de
- * rattachement de l'onglet d'un logiciel.
+ * Marchés proposés au rattachement dans l'onglet d'un logiciel. Deux familles,
+ * et deux seulement — un menu qui déroulerait tout l'inventaire ne servirait à
+ * personne :
  *
- * Restreinte à eux volontairement : depuis la fiche d'un logiciel on RÉCUPÈRE
- * un marché qui n'a pas trouvé sa place (saisi d'avance, ou détaché). Étendre
- * un marché déjà en service à un logiciel de plus est une décision qui se prend
- * en voyant tout ce qu'il couvre — donc sur SA fiche, où la liste des logiciels
- * est sous les yeux.
+ *  - les ORPHELINS, qu'aucun logiciel ne couvre : saisis d'avance, ou détachés.
+ *    On les RÉCUPÈRE plutôt que de les ressaisir ;
+ *  - ceux du MÊME ÉDITEUR que le logiciel. C'est de ce côté que se trouvent les
+ *    marchés à étendre : un éditeur signe un acte qui couvre plusieurs de ses
+ *    applications, et on rattache la seconde depuis sa fiche.
+ *
+ * Un marché sans fournisseur nommé appartient à l'éditeur des logiciels qu'il
+ * couvre — c'est ainsi que l'écran l'affiche (`fournisseurNom ?? editeurDuLogiciel`),
+ * et la seconde famille le retient à ce titre. Sans quoi les marchés saisis
+ * depuis une fiche, qui ne nomment presque jamais leur fournisseur, seraient
+ * les grands absents de la liste.
+ *
+ * Les marchés que ce logiciel couvre DÉJÀ sont exclus : ils sont sous les yeux,
+ * juste au-dessus du menu.
  *
  * Étiquetés « référence — libellé » : dans un menu déroulant c'est la référence
  * qui identifie ; plusieurs marchés partagent le même libellé (« Marché UGAP »),
  * aucun ne partage sa référence.
  */
-export async function listMarchesPourRattachement(): Promise<Array<{ id: number; nom: string }>> {
+export async function listMarchesPourRattachement(
+  logicielId: number,
+  editeurId: number | null,
+): Promise<Array<{ id: number; nom: string }>> {
   const contrats = await prisma.contrat.findMany({
-    where: { logiciels: { none: {} } },
+    where: {
+      logiciels: { none: { logicielId } },
+      OR: [
+        { logiciels: { none: {} } },
+        // Un logiciel sans éditeur — développement interne — n'a pas de famille
+        // à proposer : il ne lui reste que les orphelins.
+        ...(editeurId === null
+          ? []
+          : [
+              { fournisseurId: editeurId },
+              { fournisseurId: null, logiciels: { some: { logiciel: { editeurId } } } },
+            ]),
+      ],
+    },
     select: { id: true, libelle: true, referenceMarche: true, dateDebut: true, dateFin: true },
   });
   return ordonner(contrats).map((c) => ({

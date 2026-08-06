@@ -306,13 +306,14 @@ async function OngletContrats({
   // Les catégories servent aux pièces jointes déposées sous une ligne de
   // contrat (décision municipale, contrat signé…) ; les éditeurs servent à
   // désigner le fournisseur, souvent l'éditeur mais parfois un revendeur.
-  // `listMarchesPourRattachement` ne rend que les marchés ORPHELINS : aucun
-  // filtrage à faire ici, un marché déjà rattaché ailleurs n'y figure pas.
+  // `listMarchesPourRattachement` tient le filtrage : les marchés orphelins et
+  // ceux du même éditeur, moins ceux que cette fiche couvre déjà. D'où l'id du
+  // logiciel ET celui de son éditeur — aucun tri à refaire ici.
   const [categories, editeurs, seuils, marchesDisponibles] = await Promise.all([
     listCategoriesDocuments(),
     listEditeurs(),
     seuilsRappel(),
-    listMarchesPourRattachement(),
+    listMarchesPourRattachement(logiciel.id, logiciel.editeurId),
   ]);
   const fmt = new Intl.DateTimeFormat("fr-FR", { dateStyle: "short", timeZone: "Europe/Paris" });
   const jour = dateCalendaire(new Date());

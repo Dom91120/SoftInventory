@@ -125,10 +125,9 @@ export function ContratsPanel({
   /** Éditeur du logiciel : fournisseur par défaut quand le marché n'en nomme pas. */
   editeurDuLogiciel: string | null;
   /**
-   * Marchés qu'aucun logiciel ne couvre : saisis d'avance, ou détachés. On les
-   * RÉCUPÈRE d'ici plutôt que de les ressaisir. Étendre un marché déjà en
-   * service à un logiciel de plus se fait depuis SA fiche, qui montre tout ce
-   * qu'il couvre déjà.
+   * Marchés rattachables : les orphelins et ceux du même éditeur, déjà filtrés
+   * par le serveur (voir `listMarchesPourRattachement`). Vide = rien à
+   * proposer, et le menu disparaît.
    */
   marchesDisponibles: Array<{ id: number; nom: string }>;
   nbUtilisateurs: number | null;
@@ -156,8 +155,6 @@ export function ContratsPanel({
     row: PieceContratRow | null;
   } | null>(null);
   const piece = usePieceContrat(setError);
-  // Marché choisi dans la liste de rattachement, tant qu'on n'a pas validé.
-  const [choixMarche, setChoixMarche] = useState("");
 
   const nomDe = (c: ContratRow) => c.libelle || c.referenceMarche || "sans libellé";
 
@@ -188,17 +185,17 @@ export function ContratsPanel({
    * lesquels. La suppression pure reste sur la fiche du marché, seul endroit
    * d'où l'on voit ce que l'on détruit.
    */
-  /** Rattache un marché EXISTANT, aussitôt — le pendant de la corbeille. */
+  /**
+   * Rattache un marché EXISTANT dès qu'on le choisit, sans bouton de validation :
+   * le geste est celui du maillon coupé à l'envers, et il se défait d'un clic
+   * sur ce même maillon, à côté du marché qui vient d'apparaître.
+   */
   function rattacherMarche(contratId: number) {
     setError(null);
     startTransition(async () => {
       const res = await attacherLogicielAction(contratId, logicielId);
-      if (!res.ok) {
-        setError(res.error);
-        return;
-      }
-      setChoixMarche("");
-      router.refresh();
+      if (!res.ok) setError(res.error);
+      else router.refresh();
     });
   }
 
@@ -240,20 +237,55 @@ export function ContratsPanel({
         title="Contrats et marchés"
         actions={
           readOnly ? undefined : (
-            <button
-              type="button"
-              className="btn-secondary !py-1.5"
-              onClick={() =>
-                setMarcheForm((f) => (f?.mode === "creation" ? null : { mode: "creation" }))
-              }
-            >
-              {marcheForm?.mode === "creation" ? (
-                <X className="h-4 w-4" />
-              ) : (
-                <Plus className="h-4 w-4" />
+            <>
+              {/* Récupérer un marché plutôt que le ressaisir : le menu voisine
+                  avec « Ajouter », les deux façons de garnir la carte se
+                  lisant d'un seul coup d'œil. Il se tait quand il n'a rien à
+                  proposer — le cas courant d'un inventaire à jour.
+
+                  Pas de bouton « Rattacher » : choisir DÉCLENCHE. Un bouton de
+                  validation pour un geste qui se défait d'un clic sur le
+                  maillon d'à côté ne protégeait de rien et coûtait une place
+                  que cet en-tête n'a pas. `value=""` maintient le menu sur son
+                  intitulé, qui reste ainsi une invitation et jamais le compte
+                  rendu d'un choix passé. */}
+              {marchesDisponibles.length === 0 ? null : (
+                <select
+                  className="input !w-auto max-w-40 sm:max-w-56"
+                  value=""
+                  onChange={(e) => {
+                    if (e.target.value) rattacherMarche(Number(e.target.value));
+                  }}
+                  disabled={pending}
+                  aria-label="Rattacher un marché existant"
+                >
+                  <option value="">Rattacher existant…</option>
+                  {marchesDisponibles.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.nom}
+                    </option>
+                  ))}
+                </select>
               )}
-              {marcheForm?.mode === "creation" ? "Fermer" : "Ajouter un contrat ou marché"}
-            </button>
+              {/* « Créer » face à « Rattacher » : deux verbes qui s'opposent,
+                  l'objet étant dit par le titre de la carte. Un libellé entier
+                  — « Ajouter un contrat ou marché » — poussait le menu hors de
+                  l'en-tête sur un écran ordinaire. */}
+              <button
+                type="button"
+                className="btn-secondary !py-1.5"
+                onClick={() =>
+                  setMarcheForm((f) => (f?.mode === "creation" ? null : { mode: "creation" }))
+                }
+              >
+                {marcheForm?.mode === "creation" ? (
+                  <X className="h-4 w-4" />
+                ) : (
+                  <Plus className="h-4 w-4" />
+                )}
+                {marcheForm?.mode === "creation" ? "Fermer" : "Créer"}
+              </button>
+            </>
           )
         }
       >
@@ -583,42 +615,6 @@ export function ContratsPanel({
                 </div>
               </section>
             ))}
-          </div>
-        )}
-
-        {/* Récupérer un marché ORPHELIN, en pendant de la corbeille qui détache :
-            un marché saisi d'avance, ou détaché d'une autre fiche, retrouve sa
-            place sans qu'on le ressaisisse. La liste disparaît quand il n'y en a
-            aucun — le cas courant d'un inventaire à jour. */}
-        {readOnly || marchesDisponibles.length === 0 ? null : (
-          <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-line pt-4">
-            {/* `max-w` indispensable : sans elle, le select prend la largeur de
-                sa plus longue option — « C208365 / CT00000800 / CT00001843 /
-                CT00004208 — … » débordait de la carte. Le navigateur tronque
-                l'affichage, la liste déroulée reste entière. */}
-            <select
-              className="input !w-auto max-w-full sm:max-w-md"
-              value={choixMarche}
-              onChange={(e) => setChoixMarche(e.target.value)}
-              disabled={pending}
-              aria-label="Marché à rattacher"
-            >
-              <option value="">Rattacher un marché existant…</option>
-              {marchesDisponibles.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.nom}
-                </option>
-              ))}
-            </select>
-            <button
-              type="button"
-              className="btn-secondary"
-              disabled={pending || !choixMarche}
-              onClick={() => rattacherMarche(Number(choixMarche))}
-            >
-              <Plus className="h-4 w-4" />
-              Rattacher
-            </button>
           </div>
         )}
       </Card>
