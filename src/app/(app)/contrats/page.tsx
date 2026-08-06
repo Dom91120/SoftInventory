@@ -1,6 +1,8 @@
 import { Plus } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
+import { BarreListe } from "@/components/barre-liste";
+import { Pagination, pageDepuisParams, paginer } from "@/components/pagination";
 import { EmptyState, PageHeader } from "@/components/ui";
 import type { Role } from "@/generated/prisma/client";
 import { DATE_FMT_FR_UTC, formatEuros } from "@/lib/format";
@@ -8,6 +10,8 @@ import { dateCalendaire } from "@/lib/taches-core";
 import { seuilsRappel } from "@/server/config";
 import { requireUser } from "@/server/guards";
 import { etatMarche, listContrats, titreDe } from "@/server/services/contrats";
+import { listEditeurs } from "@/server/services/editeurs";
+import { filtresContratsDepuisParams } from "./shared";
 
 export const metadata: Metadata = { title: "Contrats/Marchés" };
 
@@ -25,10 +29,20 @@ function periodeDe(debut: Date | null, fin: Date | null): string {
  * répond à « quels engagements avons-nous ? », que l'onglet d'un logiciel ne
  * peut pas donner puisqu'il n'en montre qu'une part.
  */
-export default async function ContratsPage() {
+export default async function ContratsPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | undefined>>;
+}) {
   const session = await requireUser();
   const isAdmin = (session.user as { role?: Role }).role === "admin";
-  const [contrats, { contrat: seuilJours }] = await Promise.all([listContrats(), seuilsRappel()]);
+  const params = await searchParams;
+  const [tous, fournisseurs, { contrat: seuilJours }] = await Promise.all([
+    listContrats(filtresContratsDepuisParams(params)),
+    listEditeurs(),
+    seuilsRappel(),
+  ]);
+  const { page, pages, total, elements: contrats } = paginer(tous, pageDepuisParams(params));
 
   // Même horizon que les rappels par e-mail et le tableau de bord : la pastille
   // « À renouveler » paraît quand le cron s'apprête à écrire.
@@ -39,7 +53,7 @@ export default async function ContratsPage() {
     <>
       <PageHeader
         title="Contrats/Marchés"
-        subtitle="Les engagements de la collectivité, et les logiciels qu'ils couvrent"
+        subtitle={`${total} contrat${total > 1 ? "s" : ""} ou marché${total > 1 ? "s" : ""}`}
         actions={
           isAdmin ? (
             <Link href="/contrats/nouveau" className="btn-primary">
@@ -49,10 +63,22 @@ export default async function ContratsPage() {
           ) : undefined
         }
       />
-      {contrats.length === 0 ? (
+      <BarreListe
+        rechercheLabel="Rechercher un contrat ou marché"
+        exportHref="/contrats/export"
+        selects={[
+          {
+            key: "fournisseur",
+            label: "Fournisseur",
+            options: fournisseurs.map((f) => ({ value: String(f.id), label: f.nom })),
+          },
+        ]}
+      />
+      {total === 0 ? (
         <EmptyState>
-          Aucun contrat ni marché pour l'instant.
-          {isAdmin ? " Créez le premier avec le bouton « Nouveau marché »." : ""}
+          {params.q || params.fournisseur
+            ? "Aucun contrat ni marché ne correspond."
+            : `Aucun contrat ni marché pour l'instant.${isAdmin ? " Créez le premier avec le bouton « Nouveau marché »." : ""}`}
         </EmptyState>
       ) : (
         <div className="card px-5 py-4">
@@ -123,6 +149,7 @@ export default async function ContratsPage() {
           </div>
         </div>
       )}
+      <Pagination page={page} pages={pages} total={total} params={params} />
     </>
   );
 }

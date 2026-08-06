@@ -1,14 +1,15 @@
 "use client";
 
-import { Pencil, Plus, Trash2, X } from "lucide-react";
+import { Pencil, Plus, Trash2, Unlink, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
+import { attacherLogicielAction, detacherLogicielAction } from "@/app/(app)/contrats/actions";
 import { type CategorieOption, LigneDocument } from "@/components/documents-panel";
 import { ChampsMarche } from "@/components/marche-champs";
 import { FormulairePiece, type PieceContratRow, usePieceContrat } from "@/components/piece-contrat";
 import { Card, EmptyState } from "@/components/ui";
 import { DATE_FMT_FR_UTC, formatEuros } from "@/lib/format";
-import { createContratAction, deleteContratAction, updateContratAction } from "../actions";
+import { createContratAction, updateContratAction } from "../actions";
 
 export type { PieceContratRow };
 
@@ -108,6 +109,7 @@ export function ContratsPanel({
   categories,
   editeurs,
   editeurDuLogiciel,
+  marchesDisponibles,
   nbUtilisateurs,
   nbMaxUtilisateurs,
   aujourdhui,
@@ -122,6 +124,13 @@ export function ContratsPanel({
   editeurs: Array<{ id: number; nom: string }>;
   /** Éditeur du logiciel : fournisseur par défaut quand le marché n'en nomme pas. */
   editeurDuLogiciel: string | null;
+  /**
+   * Marchés qu'aucun logiciel ne couvre : saisis d'avance, ou détachés. On les
+   * RÉCUPÈRE d'ici plutôt que de les ressaisir. Étendre un marché déjà en
+   * service à un logiciel de plus se fait depuis SA fiche, qui montre tout ce
+   * qu'il couvre déjà.
+   */
+  marchesDisponibles: Array<{ id: number; nom: string }>;
   nbUtilisateurs: number | null;
   nbMaxUtilisateurs: number | null;
   /** Jour courant en AAAA-MM-JJ, fourni par le serveur — voir son appel. */
@@ -147,6 +156,8 @@ export function ContratsPanel({
     row: PieceContratRow | null;
   } | null>(null);
   const piece = usePieceContrat(setError);
+  // Marché choisi dans la liste de rattachement, tant qu'on n'a pas validé.
+  const [choixMarche, setChoixMarche] = useState("");
 
   const nomDe = (c: ContratRow) => c.libelle || c.referenceMarche || "sans libellé";
 
@@ -170,17 +181,38 @@ export function ContratsPanel({
     });
   }
 
-  function supprimerMarche(c: ContratRow) {
-    const nbFichiers = c.pieces.filter((l) => l.document).length;
-    const details = [
-      c.pieces.length > 0 ? `${c.pieces.length} pièce(s)` : null,
-      nbFichiers > 0 ? `${nbFichiers} fichier(s) joint(s)` : null,
-    ].filter(Boolean);
-    const avert = details.length > 0 ? `\n\nSes ${details.join(" et ses ")} aussi.` : "";
-    if (!window.confirm(`Supprimer le contrat « ${nomDe(c)} » ?${avert}`)) return;
+  /**
+   * DÉTACHE le marché de ce logiciel — il n'est pas supprimé. Un marché couvre
+   * souvent plusieurs logiciels (UGAP, marchés « communs ») : l'effacer depuis
+   * la fiche de l'un le retirerait à tous les autres, sans que cet écran montre
+   * lesquels. La suppression pure reste sur la fiche du marché, seul endroit
+   * d'où l'on voit ce que l'on détruit.
+   */
+  /** Rattache un marché EXISTANT, aussitôt — le pendant de la corbeille. */
+  function rattacherMarche(contratId: number) {
     setError(null);
     startTransition(async () => {
-      const res = await deleteContratAction(c.id);
+      const res = await attacherLogicielAction(contratId, logicielId);
+      if (!res.ok) {
+        setError(res.error);
+        return;
+      }
+      setChoixMarche("");
+      router.refresh();
+    });
+  }
+
+  function detacherMarche(c: ContratRow) {
+    if (
+      !window.confirm(
+        `Retirer le marché « ${nomDe(c)} » de ce logiciel ?\n\nLe marché n'est pas supprimé : ses pièces et ses fichiers restent, et il se retrouve dans Contrats/Marchés.`,
+      )
+    ) {
+      return;
+    }
+    setError(null);
+    startTransition(async () => {
+      const res = await detacherLogicielAction(c.id, logicielId);
       if (!res.ok) setError(res.error);
       else router.refresh();
     });
@@ -414,16 +446,18 @@ export function ContratsPanel({
                         >
                           <Pencil className="h-4 w-4" />
                         </button>
-                        {/* Jamais grisée : elle emporte le contrat, ses pièces et
-                          leurs fichiers — voir deleteContrat. */}
+                        {/* Un maillon coupé, PAS une corbeille : ce geste retire
+                          le marché de cette fiche, il ne l'efface pas. La
+                          corbeille est restée sur la fiche du marché, qui seule
+                          montre tous les logiciels qu'on détruirait avec. */}
                         <button
                           type="button"
                           className="btn-ghost !p-2 hover:!text-danger"
-                          title="Supprimer le contrat, ses pièces et leurs fichiers"
+                          title="Retirer ce marché du logiciel (le marché n'est pas supprimé)"
                           disabled={pending}
-                          onClick={() => supprimerMarche(c)}
+                          onClick={() => detacherMarche(c)}
                         >
-                          <Trash2 className="h-4 w-4" />
+                          <Unlink className="h-4 w-4" />
                         </button>
                       </span>
                     )}
@@ -549,6 +583,42 @@ export function ContratsPanel({
                 </div>
               </section>
             ))}
+          </div>
+        )}
+
+        {/* Récupérer un marché ORPHELIN, en pendant de la corbeille qui détache :
+            un marché saisi d'avance, ou détaché d'une autre fiche, retrouve sa
+            place sans qu'on le ressaisisse. La liste disparaît quand il n'y en a
+            aucun — le cas courant d'un inventaire à jour. */}
+        {readOnly || marchesDisponibles.length === 0 ? null : (
+          <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-line pt-4">
+            {/* `max-w` indispensable : sans elle, le select prend la largeur de
+                sa plus longue option — « C208365 / CT00000800 / CT00001843 /
+                CT00004208 — … » débordait de la carte. Le navigateur tronque
+                l'affichage, la liste déroulée reste entière. */}
+            <select
+              className="input !w-auto max-w-full sm:max-w-md"
+              value={choixMarche}
+              onChange={(e) => setChoixMarche(e.target.value)}
+              disabled={pending}
+              aria-label="Marché à rattacher"
+            >
+              <option value="">Rattacher un marché existant…</option>
+              {marchesDisponibles.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.nom}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              className="btn-secondary"
+              disabled={pending || !choixMarche}
+              onClick={() => rattacherMarche(Number(choixMarche))}
+            >
+              <Plus className="h-4 w-4" />
+              Rattacher
+            </button>
           </div>
         )}
       </Card>

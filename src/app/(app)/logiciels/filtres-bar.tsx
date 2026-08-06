@@ -31,6 +31,9 @@ export function FiltresBar({
     const next = new URLSearchParams(params);
     if (value) next.set(key, value);
     else next.delete(key);
+    // Retour à la première page : après un filtre, la page 4 n'existe souvent
+    // plus, et l'utilisateur attend le début des résultats, pas leur milieu.
+    next.delete("page");
     router.replace(`${pathname}?${next.toString()}`);
   }
 

@@ -1,6 +1,8 @@
 import { Plus } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
+import { BarreListe } from "@/components/barre-liste";
+import { Pagination, pageDepuisParams, paginer } from "@/components/pagination";
 import { EmptyState, PageHeader } from "@/components/ui";
 import type { Role } from "@/generated/prisma/client";
 import { requireUser } from "@/server/guards";
@@ -8,16 +10,22 @@ import { listEditeurs } from "@/server/services/editeurs";
 
 export const metadata: Metadata = { title: "Éditeurs" };
 
-export default async function EditeursPage() {
+export default async function EditeursPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | undefined>>;
+}) {
   const session = await requireUser();
   const isAdmin = (session.user as { role?: Role }).role === "admin";
-  const editeurs = await listEditeurs();
+  const params = await searchParams;
+  const tous = await listEditeurs({ q: params.q });
+  const { page, pages, total, elements } = paginer(tous, pageDepuisParams(params));
 
   return (
     <>
       <PageHeader
         title="Éditeurs"
-        subtitle="Les fournisseurs de logiciels et leurs canaux de support"
+        subtitle={`${total} éditeur${total > 1 ? "s" : ""} dans l'annuaire`}
         actions={
           isAdmin ? (
             <Link href="/editeurs/nouveau" className="btn-primary">
@@ -27,10 +35,12 @@ export default async function EditeursPage() {
           ) : undefined
         }
       />
-      {editeurs.length === 0 ? (
+      <BarreListe rechercheLabel="Rechercher un éditeur" exportHref="/editeurs/export" />
+      {total === 0 ? (
         <EmptyState>
-          Aucun éditeur pour l'instant.
-          {isAdmin ? " Créez le premier avec le bouton « Nouvel éditeur »." : ""}
+          {params.q
+            ? "Aucun éditeur ne correspond à cette recherche."
+            : `Aucun éditeur pour l'instant.${isAdmin ? " Créez le premier avec le bouton « Nouvel éditeur »." : ""}`}
         </EmptyState>
       ) : (
         <div className="card px-5 py-4">
@@ -45,7 +55,7 @@ export default async function EditeursPage() {
                 </tr>
               </thead>
               <tbody>
-                {editeurs.map((e) => (
+                {elements.map((e) => (
                   <tr key={e.id}>
                     <td>
                       <Link
@@ -78,6 +88,7 @@ export default async function EditeursPage() {
           </div>
         </div>
       )}
+      <Pagination page={page} pages={pages} total={total} params={params} />
     </>
   );
 }

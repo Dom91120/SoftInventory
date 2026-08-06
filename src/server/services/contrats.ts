@@ -11,9 +11,30 @@ import { prisma } from "@/server/db";
  * la suppression des logiciels qu'il couvrait.
  */
 
-/** Les marchés du plus récent au plus ancien — voir `ordonner`. */
-export async function listContrats() {
+/** Filtres de la liste des marchés, tous facultatifs et cumulatifs. */
+export type FiltresContrats = { q?: string; fournisseurId?: number };
+
+/**
+ * Les marchés du plus récent au plus ancien — voir `ordonner`.
+ *
+ * `q` porte sur la référence ET le libellé : dans cette liste on cherche
+ * indifféremment « CT2406 » ou « urbanisme ». Les logiciels couverts n'y sont
+ * pas cherchés — c'est le rôle de la fiche du logiciel, où l'on part de lui.
+ */
+export async function listContrats(filtres: FiltresContrats = {}) {
+  const q = filtres.q?.trim();
   const contrats = await prisma.contrat.findMany({
+    where: {
+      ...(q
+        ? {
+            OR: [
+              { referenceMarche: { contains: q, mode: "insensitive" } },
+              { libelle: { contains: q, mode: "insensitive" } },
+            ],
+          }
+        : {}),
+      ...(filtres.fournisseurId ? { fournisseurId: filtres.fournisseurId } : {}),
+    },
     include: {
       fournisseur: { select: { id: true, nom: true } },
       logiciels: { select: { logiciel: { select: { id: true, nom: true } } } },
@@ -156,6 +177,31 @@ export async function cheminsDuContrat(contratId: number): Promise<string[]> {
     select: { logicielId: true },
   });
   return ["/contrats", `/contrats/${contratId}`, ...liens.map((l) => `/logiciels/${l.logicielId}`)];
+}
+
+/**
+ * Marchés ORPHELINS — ceux qu'aucun logiciel ne couvre —, pour la liste de
+ * rattachement de l'onglet d'un logiciel.
+ *
+ * Restreinte à eux volontairement : depuis la fiche d'un logiciel on RÉCUPÈRE
+ * un marché qui n'a pas trouvé sa place (saisi d'avance, ou détaché). Étendre
+ * un marché déjà en service à un logiciel de plus est une décision qui se prend
+ * en voyant tout ce qu'il couvre — donc sur SA fiche, où la liste des logiciels
+ * est sous les yeux.
+ *
+ * Étiquetés « référence — libellé » : dans un menu déroulant c'est la référence
+ * qui identifie ; plusieurs marchés partagent le même libellé (« Marché UGAP »),
+ * aucun ne partage sa référence.
+ */
+export async function listMarchesPourRattachement(): Promise<Array<{ id: number; nom: string }>> {
+  const contrats = await prisma.contrat.findMany({
+    where: { logiciels: { none: {} } },
+    select: { id: true, libelle: true, referenceMarche: true, dateDebut: true, dateFin: true },
+  });
+  return ordonner(contrats).map((c) => ({
+    id: c.id,
+    nom: [c.referenceMarche, c.libelle].filter(Boolean).join(" — ") || "sans référence",
+  }));
 }
 
 /** Logiciels de l'inventaire, pour la liste de rattachement de la fiche. */

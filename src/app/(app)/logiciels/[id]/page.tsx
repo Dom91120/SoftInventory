@@ -11,6 +11,7 @@ import { dateCalendaire } from "@/lib/taches-core";
 import { seuilsRappel } from "@/server/config";
 import { prisma } from "@/server/db";
 import { requireUser } from "@/server/guards";
+import { listMarchesPourRattachement } from "@/server/services/contrats";
 import { listEditeurs } from "@/server/services/editeurs";
 import { getLogiciel, listAutresLogiciels, voisinsLogiciel } from "@/server/services/logiciels";
 import {
@@ -305,10 +306,13 @@ async function OngletContrats({
   // Les catégories servent aux pièces jointes déposées sous une ligne de
   // contrat (décision municipale, contrat signé…) ; les éditeurs servent à
   // désigner le fournisseur, souvent l'éditeur mais parfois un revendeur.
-  const [categories, editeurs, seuils] = await Promise.all([
+  // `listMarchesPourRattachement` ne rend que les marchés ORPHELINS : aucun
+  // filtrage à faire ici, un marché déjà rattaché ailleurs n'y figure pas.
+  const [categories, editeurs, seuils, marchesDisponibles] = await Promise.all([
     listCategoriesDocuments(),
     listEditeurs(),
     seuilsRappel(),
+    listMarchesPourRattachement(),
   ]);
   const fmt = new Intl.DateTimeFormat("fr-FR", { dateStyle: "short", timeZone: "Europe/Paris" });
   const jour = dateCalendaire(new Date());
@@ -325,6 +329,7 @@ async function OngletContrats({
       categories={categories.map((c) => ({ id: c.id, label: c.label }))}
       editeurs={editeurs.map((e) => ({ id: e.id, nom: e.nom }))}
       editeurDuLogiciel={logiciel.editeur?.nom ?? null}
+      marchesDisponibles={marchesDisponibles}
       // Calculé ICI et non dans le composant client : le jour courant lu des
       // deux côtés donnerait deux valeurs à cheval sur minuit, et React
       // signalerait une divergence d'hydratation.

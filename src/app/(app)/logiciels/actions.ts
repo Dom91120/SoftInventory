@@ -313,23 +313,10 @@ export async function updateContratAction(id: number, formData: FormData): Promi
   }
 }
 
-export async function deleteContratAction(id: number): Promise<Result> {
-  await requireRole("admin");
-  if (!idValide(id)) return { ok: false, error: "Identifiant invalide." };
-  const contrat = await svc.getContrat(id);
-  if (!contrat) return { ok: false, error: "Contrat introuvable." };
-  try {
-    // Les chemins AVANT la suppression : après, les rattachements ont disparu
-    // et les fiches logiciel resteraient sur leur ancien affichage.
-    const chemins = await cheminsDuContrat(id);
-    // Non bloquée par ses pièces : elle emporte lignes et fichiers compris.
-    await svc.deleteContrat(id);
-    await revalideContrat(id, chemins);
-    return { ok: true };
-  } catch (e) {
-    return inattendu(e);
-  }
-}
+// Supprimer un marché ne se fait plus d'ici : depuis la fiche d'un logiciel, la
+// corbeille DÉTACHE (voir detacherLogicielAction). L'unique point d'entrée de la
+// suppression est la fiche du marché, seul écran qui montre tous les logiciels
+// qu'elle emporterait — d'où l'absence de `deleteContratAction` ici.
 
 export async function createPieceContratAction(
   contratId: number,

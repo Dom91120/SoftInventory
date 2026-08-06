@@ -2,8 +2,28 @@ import { compareAlpha } from "@/lib/format";
 import type { EditeurInput } from "@/schemas/editeur";
 import { prisma } from "@/server/db";
 
-export async function listEditeurs() {
-  const editeurs = await prisma.editeur.findMany({ orderBy: [{ nom: "asc" }, { id: "asc" }] });
+/**
+ * L'annuaire, éventuellement filtré par une recherche libre. `q` porte sur ce
+ * que la liste MONTRE — nom, site web, ville — plutôt que sur le nom seul :
+ * on cherche aussi bien « Rennes » qu'« Arpège ».
+ *
+ * Sans filtre (le cas de tous les autres appelants : listes déroulantes de
+ * fournisseurs, formulaires), le comportement est inchangé.
+ */
+export async function listEditeurs(filtres: { q?: string } = {}) {
+  const q = filtres.q?.trim();
+  const editeurs = await prisma.editeur.findMany({
+    where: q
+      ? {
+          OR: [
+            { nom: { contains: q, mode: "insensitive" } },
+            { ville: { contains: q, mode: "insensitive" } },
+            { siteWeb: { contains: q, mode: "insensitive" } },
+          ],
+        }
+      : undefined,
+    orderBy: [{ nom: "asc" }, { id: "asc" }],
+  });
   return editeurs.sort((a, b) => compareAlpha(a.nom, b.nom));
 }
 

@@ -1,6 +1,7 @@
 import { ExternalLink, Plus } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Pagination, pageDepuisParams, paginer } from "@/components/pagination";
 import { EmptyState, PageHeader } from "@/components/ui";
 import type { Role } from "@/generated/prisma/client";
 import { LIBELLES } from "@/schemas/logiciel";
@@ -28,7 +29,7 @@ export default async function LogicielsPage({
   const params = await searchParams;
   const filtres = filtresDepuisParams(params);
 
-  const [logiciels, editeurs, services, criticites, technologies, statuts] = await Promise.all([
+  const [tous, editeurs, services, criticites, technologies, statuts] = await Promise.all([
     listLogiciels(filtres),
     listEditeurs(),
     listServicesUtilisateurs(),
@@ -37,6 +38,8 @@ export default async function LogicielsPage({
     listStatutsLogiciels(),
   ]);
 
+  const { page, pages, total, elements: logiciels } = paginer(tous, pageDepuisParams(params));
+
   const opt = (rows: Array<{ id: number; nom?: string; label?: string }>) =>
     rows.map((r) => ({ id: r.id, label: r.nom ?? r.label ?? "" }));
 
@@ -44,7 +47,7 @@ export default async function LogicielsPage({
     <>
       <PageHeader
         title="Logiciels"
-        subtitle={`${logiciels.length} logiciel${logiciels.length > 1 ? "s" : ""} dans l'inventaire`}
+        subtitle={`${total} logiciel${total > 1 ? "s" : ""} dans l'inventaire`}
         actions={
           isAdmin ? (
             <Link href="/logiciels/nouveau" className="btn-primary">
@@ -61,7 +64,7 @@ export default async function LogicielsPage({
         technologies={opt(technologies)}
         statuts={statuts.map((s) => ({ cle: s.cle, label: s.label }))}
       />
-      {logiciels.length === 0 ? (
+      {total === 0 ? (
         <EmptyState>
           Aucun logiciel ne correspond.
           {isAdmin ? " Ajoutez-en un avec « Nouveau logiciel », ou élargissez les filtres." : ""}
@@ -144,6 +147,7 @@ export default async function LogicielsPage({
           </div>
         </div>
       )}
+      <Pagination page={page} pages={pages} total={total} params={params} />
     </>
   );
 }
