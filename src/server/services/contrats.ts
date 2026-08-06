@@ -84,42 +84,61 @@ export function nomDe(c: { libelle: string; referenceMarche: string }): string {
   return c.referenceMarche || c.libelle || "sans référence";
 }
 
-/** Crée le marché et pose ses rattachements. */
-export function createContratAvecLogiciels(data: ContratInput, logicielIds: number[]) {
-  return prisma.contrat.create({
-    data: {
-      ...data,
-      logiciels: { create: logicielIds.map((logicielId) => ({ logicielId })) },
-    },
-  });
+/**
+ * Titre de la FICHE : le libellé, ce que le marché EST — « Maintenance SOPRANO
+ * MOBILITE OPUS ». Sa référence se lit juste en dessous, elle n'a pas à être
+ * répétée en gros. Repli sur elle quand le libellé manque : un en-tête vide ne
+ * dirait rien. C'est l'inverse de `nomDe`, qui identifie en une ligne de liste.
+ */
+export function titreDe(c: { libelle: string; referenceMarche: string }): string {
+  return c.libelle || c.referenceMarche || "sans référence";
 }
 
 /**
- * Met à jour le marché ET la liste des logiciels couverts, en une transaction :
- * un rattachement retiré ne doit pas survivre à l'échec de la mise à jour.
+ * État d'un marché à une date donnée. Trois cas EXCLUSIFS : son terme est
+ * passé, il approche (dans la fenêtre de rappel), ou le marché court.
  *
- * Même règle que sur la fiche logiciel : une nouvelle date de fin rouvre le
- * rappel (`rappelEnvoyeLe` remis à null), mais seulement si elle a changé.
+ * Calculé et non stocké : un état enregistré se désynchroniserait de la date le
+ * lendemain de l'échéance. `limite` vient du délai de rappel administrable, si
+ * bien que la pastille et l'e-mail se déclenchent au même moment.
+ *
+ * Sans date de fin, le marché court : c'est le cas des contrats à tacite
+ * reconduction, qu'aucune échéance ne menace.
  */
-export function updateContratAvecLogiciels(id: number, data: ContratInput, logicielIds: number[]) {
-  return prisma.$transaction(async (tx) => {
-    const avant = await tx.contrat.findUnique({ where: { id }, select: { dateFin: true } });
-    const dateChangee = avant?.dateFin?.getTime() !== data.dateFin?.getTime();
-    await tx.contratLogiciel.deleteMany({
-      where: { contratId: id, logicielId: { notIn: logicielIds } },
-    });
-    for (const logicielId of logicielIds) {
-      await tx.contratLogiciel.upsert({
-        where: { contratId_logicielId: { contratId: id, logicielId } },
-        update: {},
-        create: { contratId: id, logicielId },
-      });
-    }
-    return tx.contrat.update({
-      where: { id },
-      data: { ...data, ...(dateChangee ? { rappelEnvoyeLe: null } : {}) },
-    });
+export function etatMarche(
+  dateFin: Date | null,
+  aujourdhui: Date,
+  limite: Date,
+): "termine" | "a_renouveler" | "en_cours" {
+  if (dateFin === null) return "en_cours";
+  if (dateFin < aujourdhui) return "termine";
+  return dateFin <= limite ? "a_renouveler" : "en_cours";
+}
+
+/** Crée le marché. Ses rattachements se posent ensuite, un par un. */
+export function createContrat(data: ContratInput) {
+  return prisma.contrat.create({ data });
+}
+
+/**
+ * Rattachements : un geste chacun, appliqué aussitôt — comme les serveurs de
+ * l'onglet Liaisons, et non comme un champ qu'il faudrait enregistrer.
+ *
+ * `upsert` plutôt que `create` : rattacher deux fois le même logiciel est sans
+ * effet plutôt qu'une erreur de clé, ce qui rend l'action rejouable (double
+ * clic, retour arrière).
+ */
+export function attacherLogiciel(contratId: number, logicielId: number) {
+  return prisma.contratLogiciel.upsert({
+    where: { contratId_logicielId: { contratId, logicielId } },
+    update: {},
+    create: { contratId, logicielId },
   });
+}
+
+/** Détache SANS rien supprimer d'autre : le marché reste, le logiciel aussi. */
+export function detacherLogiciel(contratId: number, logicielId: number) {
+  return prisma.contratLogiciel.deleteMany({ where: { contratId, logicielId } });
 }
 
 /**

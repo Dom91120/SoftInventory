@@ -4,11 +4,12 @@ import { revalidatePath } from "next/cache";
 import { contratSchema } from "@/schemas/logiciel";
 import { requireRole } from "@/server/guards";
 import {
+  attacherLogiciel,
   cheminsDuContrat,
-  createContratAvecLogiciels,
-  updateContratAvecLogiciels,
+  createContrat,
+  detacherLogiciel,
 } from "@/server/services/contrats";
-import { deleteContrat, getContrat } from "@/server/services/logiciels";
+import { deleteContrat, getContrat, updateContrat } from "@/server/services/logiciels";
 
 type Result = { ok: true; id?: number } | { ok: false; error: string };
 
@@ -18,36 +19,25 @@ function inattendu(e: unknown): Result {
 }
 
 /**
- * Champs du marché + logiciels couverts. Les rattachements arrivent en valeurs
- * MULTIPLES du même champ (cases à cocher) : `getAll`, pas `get`. Les entrées
- * illisibles sont écartées plutôt que de faire échouer la saisie — une case
- * cochée ne peut valoir qu'un id, et un id inconnu serait de toute façon rejeté
- * par la clé étrangère.
+ * Champs du marché, et eux seuls : les rattachements ne passent PAS par ce
+ * formulaire. Ils s'appliquent au clic, un par un (voir attacher/detacher) —
+ * comme les serveurs de l'onglet Liaisons. Les faire transiter ici obligerait
+ * à réconcilier une liste à chaque enregistrement, et un champ oublié dans le
+ * POST effacerait tous les liens.
  */
 function parse(formData: FormData) {
   const get = (k: string) => String(formData.get(k) ?? "");
-  const logicielIds = [
-    ...new Set(
-      formData
-        .getAll("logicielIds")
-        .map((v) => Number(v))
-        .filter((n) => Number.isInteger(n) && n > 0),
-    ),
-  ];
-  return {
-    parsed: contratSchema.safeParse({
-      libelle: get("libelle"),
-      fournisseurId: get("fournisseurId"),
-      referenceMarche: get("referenceMarche"),
-      montantAnnuel: get("montantAnnuel"),
-      montantMaxi: get("montantMaxi"),
-      montantTotal: get("montantTotal"),
-      dateDebut: get("dateDebut"),
-      dateFin: get("dateFin"),
-      notes: get("notes"),
-    }),
-    logicielIds,
-  };
+  return contratSchema.safeParse({
+    libelle: get("libelle"),
+    fournisseurId: get("fournisseurId"),
+    referenceMarche: get("referenceMarche"),
+    montantAnnuel: get("montantAnnuel"),
+    montantMaxi: get("montantMaxi"),
+    montantTotal: get("montantTotal"),
+    dateDebut: get("dateDebut"),
+    dateFin: get("dateFin"),
+    notes: get("notes"),
+  });
 }
 
 async function revalide(contratId: number, chemins?: string[]) {
@@ -56,12 +46,14 @@ async function revalide(contratId: number, chemins?: string[]) {
 
 export async function createContratFicheAction(formData: FormData): Promise<Result> {
   await requireRole("admin");
-  const { parsed, logicielIds } = parse(formData);
+  const parsed = parse(formData);
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Données invalides." };
   }
   try {
-    const created = await createContratAvecLogiciels(parsed.data, logicielIds);
+    // Sans rattachement : le marché n'existe pas encore quand on saisit ses
+    // champs. L'écran redirige vers sa fiche, où les logiciels se cochent.
+    const created = await createContrat(parsed.data);
     await revalide(created.id);
     return { ok: true, id: created.id };
   } catch (e) {
@@ -73,18 +65,59 @@ export async function updateContratFicheAction(id: number, formData: FormData): 
   await requireRole("admin");
   if (!Number.isInteger(id) || id < 1) return { ok: false, error: "Identifiant invalide." };
   if (!(await getContrat(id))) return { ok: false, error: "Marché introuvable." };
-  const { parsed, logicielIds } = parse(formData);
+  const parsed = parse(formData);
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Données invalides." };
   }
   try {
-    // Les chemins d'AVANT aussi : un logiciel qu'on vient de détacher doit voir
-    // le marché disparaître de son onglet.
-    const avant = await cheminsDuContrat(id);
-    await updateContratAvecLogiciels(id, parsed.data, logicielIds);
+    await updateContrat(id, parsed.data);
     await revalide(id);
-    await revalide(id, avant);
     return { ok: true, id };
+  } catch (e) {
+    return inattendu(e);
+  }
+}
+
+/**
+ * Rattache un logiciel au marché, aussitôt — pas de bouton Enregistrer à
+ * cliquer derrière. Revalide AVANT et APRÈS : l'onglet du logiciel concerné
+ * doit voir le marché apparaître, et il ne figure pas encore dans les chemins
+ * calculés avant le lien.
+ */
+export async function attacherLogicielAction(
+  contratId: number,
+  logicielId: number,
+): Promise<Result> {
+  await requireRole("admin");
+  if (!Number.isInteger(contratId) || contratId < 1 || !Number.isInteger(logicielId)) {
+    return { ok: false, error: "Identifiant invalide." };
+  }
+  try {
+    await attacherLogiciel(contratId, logicielId);
+    await revalide(contratId);
+    revalidatePath(`/logiciels/${logicielId}`);
+    return { ok: true };
+  } catch (e) {
+    return inattendu(e);
+  }
+}
+
+/** Détache le logiciel. Ni le marché ni le logiciel ne sont supprimés. */
+export async function detacherLogicielAction(
+  contratId: number,
+  logicielId: number,
+): Promise<Result> {
+  await requireRole("admin");
+  if (!Number.isInteger(contratId) || contratId < 1 || !Number.isInteger(logicielId)) {
+    return { ok: false, error: "Identifiant invalide." };
+  }
+  try {
+    // Chemins d'abord : après le détachement, la fiche du logiciel ne fait plus
+    // partie de ceux du marché et resterait sur son ancien affichage.
+    const chemins = await cheminsDuContrat(contratId);
+    await detacherLogiciel(contratId, logicielId);
+    await revalide(contratId, chemins);
+    return { ok: true };
   } catch (e) {
     return inattendu(e);
   }

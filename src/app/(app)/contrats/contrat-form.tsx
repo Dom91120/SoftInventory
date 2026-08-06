@@ -19,8 +19,6 @@ export type ContratValues = {
   dateDebut: string;
   dateFin: string;
   notes: string;
-  /** Ids des logiciels couverts, en chaînes — ce que rend une case cochée. */
-  logicielIds: string[];
 };
 
 const VIDE: ContratValues = {
@@ -33,23 +31,24 @@ const VIDE: ContratValues = {
   dateDebut: "",
   dateFin: "",
   notes: "",
-  logicielIds: [],
 };
 
 /** Cible du bouton d'enregistrement, qui vit hors du <form> — voir `children`. */
 const FORM_ID = "contrat-form";
 
 /**
- * Fiche d'un marché : ses données propres, puis les logiciels qu'il couvre.
- * `id` absent = création (redirige vers la fiche créée). Le lecteur reçoit
- * `readOnly` : champs désactivés, aucun bouton — la protection réelle reste
- * dans les server actions (requireRole admin).
+ * Fiche d'un marché : ses données propres, et elles seules. Les logiciels
+ * couverts se rattachent au clic, dans leur propre carte (`children`), hors de
+ * ce formulaire — un lien n'est pas un champ.
+ *
+ * `id` absent = création (redirige vers la fiche créée, où l'on rattache). Le
+ * lecteur reçoit `readOnly` : champs désactivés, aucun bouton — la protection
+ * réelle reste dans les server actions (requireRole admin).
  */
 export function ContratForm({
   id,
   values = VIDE,
   editeurs,
-  logiciels,
   readOnly = false,
   children,
 }: {
@@ -57,10 +56,8 @@ export function ContratForm({
   values?: ContratValues;
   /** Annuaire des sociétés, pour désigner le fournisseur. */
   editeurs: Array<{ id: number; nom: string }>;
-  /** Inventaire complet : le marché se rattache à autant de fiches qu'il couvre. */
-  logiciels: Array<{ id: number; nom: string }>;
   readOnly?: boolean;
-  /** Pièces du marché, posées entre le formulaire et la ligne d'actions. */
+  /** Logiciels couverts et pièces, entre le formulaire et la ligne d'actions. */
   children?: ReactNode;
 }) {
   const router = useRouter();
@@ -224,39 +221,6 @@ export function ContratForm({
               </Field>
             </div>
           </div>
-        </Card>
-
-        {/* Un marché en couvre souvent plusieurs (UGAP, marchés « communs ») :
-            d'où des cases plutôt qu'une liste à choix unique. Aucun logiciel
-            coché reste permis — un marché peut précéder l'inventaire de ce
-            qu'il couvre. */}
-        <Card title="Logiciels couverts">
-          {logiciels.length === 0 ? (
-            <p className="text-sm text-faint">L'inventaire ne contient encore aucun logiciel.</p>
-          ) : (
-            <div className="grid gap-x-3 gap-y-1 sm:grid-cols-3">
-              {logiciels.map((l) => (
-                <label
-                  key={l.id}
-                  className="flex items-center gap-2 text-sm text-body"
-                  htmlFor={`logiciel-${l.id}`}
-                >
-                  <input
-                    id={`logiciel-${l.id}`}
-                    type="checkbox"
-                    name="logicielIds"
-                    value={String(l.id)}
-                    defaultChecked={values.logicielIds.includes(String(l.id))}
-                    disabled={dis}
-                    className="h-4 w-4 shrink-0 accent-(--color-accent)"
-                  />
-                  <span className="truncate" title={l.nom}>
-                    {l.nom}
-                  </span>
-                </label>
-              ))}
-            </div>
-          )}
         </Card>
       </form>
 

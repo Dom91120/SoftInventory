@@ -6,16 +6,20 @@ import { FlecheVoisin } from "@/components/fleche-voisin";
 import { Card, EmptyState, PageHeader } from "@/components/ui";
 import type { Role } from "@/generated/prisma/client";
 import { DATE_FMT_FR_UTC } from "@/lib/format";
+import { dateCalendaire } from "@/lib/taches-core";
+import { seuilsRappel } from "@/server/config";
 import { requireUser } from "@/server/guards";
 import {
+  etatMarche,
   getContratComplet,
   listLogicielsPourRattachement,
-  nomDe,
+  titreDe,
   voisinsContrat,
 } from "@/server/services/contrats";
 import { listEditeurs } from "@/server/services/editeurs";
 import { listCategoriesDocuments } from "@/server/services/referentiels";
 import { ContratForm } from "../contrat-form";
+import { LogicielsCouverts } from "../logiciels-couverts";
 
 export const metadata: Metadata = { title: "Contrat / marché" };
 
@@ -28,17 +32,33 @@ export default async function ContratPage({ params }: { params: Promise<{ id: st
   const { id: idStr } = await params;
   const id = Number(idStr);
   if (!Number.isInteger(id) || id < 1) notFound();
-  const [contrat, editeurs, logiciels, categories, voisins] = await Promise.all([
-    getContratComplet(id),
-    listEditeurs(),
-    listLogicielsPourRattachement(),
-    listCategoriesDocuments(),
-    voisinsContrat(id),
-  ]);
+  const [contrat, editeurs, logiciels, categories, voisins, { contrat: seuilJours }] =
+    await Promise.all([
+      getContratComplet(id),
+      listEditeurs(),
+      listLogicielsPourRattachement(),
+      listCategoriesDocuments(),
+      voisinsContrat(id),
+      seuilsRappel(),
+    ]);
   if (!contrat) notFound();
 
   const fmt = new Intl.DateTimeFormat("fr-FR", { dateStyle: "short", timeZone: "Europe/Paris" });
   const optionsCategories = categories.map((c) => ({ id: c.id, label: c.label }));
+
+  // Même fenêtre que les rappels par e-mail et la liste : « À renouveler »
+  // paraît quand le cron s'apprête à écrire.
+  const jour = dateCalendaire(new Date());
+  const etat = etatMarche(
+    contrat.dateFin,
+    jour,
+    new Date(jour.getTime() + seuilJours * 86_400_000),
+  );
+  const PASTILLE = {
+    termine: { classe: "badge-muted", texte: "Terminé" },
+    a_renouveler: { classe: "badge-warn", texte: "À renouveler" },
+    en_cours: { classe: "badge-ok", texte: "En cours" },
+  }[etat];
 
   return (
     <>
@@ -50,15 +70,29 @@ export default async function ContratPage({ params }: { params: Promise<{ id: st
           entite="Marché"
         />
         <div className="min-w-0 flex-1">
+          {/* Le sous-titre est rendu ICI plutôt que par `PageHeader` : il
+              partage sa ligne avec le raccourci vers le fournisseur, à la
+              place qu'occupe « Fiche éditeur » sur la fiche logiciel. Le nom du
+              fournisseur n'est pas répété — le champ de la carte, juste
+              dessous, le porte déjà. */}
+          {/* Disposition de la fiche logiciel : la pastille d'état sur la ligne
+              du TITRE (slot `actions`), le raccourci sur celle du sous-titre. */}
           <PageHeader
             className=""
-            title={nomDe(contrat)}
-            subtitle={
-              isAdmin
-                ? "Fiche contrat / marché — modifiable"
-                : "Fiche contrat / marché (lecture seule)"
-            }
+            title={titreDe(contrat)}
+            actions={<span className={PASTILLE.classe}>{PASTILLE.texte}</span>}
           />
+          <div className="mt-0.5 flex flex-wrap items-center justify-between gap-4">
+            <p className="text-sm text-muted">{contrat.referenceMarche}</p>
+            {contrat.fournisseur ? (
+              <Link
+                href={`/editeurs/${contrat.fournisseur.id}`}
+                className="text-sm font-medium text-muted hover:text-accent"
+              >
+                Fiche fournisseur
+              </Link>
+            ) : null}
+          </div>
         </div>
         <FlecheVoisin
           voisin={voisins.suivant}
@@ -72,7 +106,6 @@ export default async function ContratPage({ params }: { params: Promise<{ id: st
         id={contrat.id}
         readOnly={!isAdmin}
         editeurs={editeurs.map((e) => ({ id: e.id, nom: e.nom }))}
-        logiciels={logiciels}
         values={{
           referenceMarche: contrat.referenceMarche,
           libelle: contrat.libelle,
@@ -83,9 +116,18 @@ export default async function ContratPage({ params }: { params: Promise<{ id: st
           dateDebut: dateStr(contrat.dateDebut),
           dateFin: dateStr(contrat.dateFin),
           notes: contrat.notes,
-          logicielIds: contrat.logiciels.map((l) => String(l.logiciel.id)),
         }}
       >
+        <LogicielsCouverts
+          contratId={contrat.id}
+          readOnly={!isAdmin}
+          rattaches={contrat.logiciels.map((l) => ({ id: l.logiciel.id, nom: l.logiciel.nom }))}
+          // Le reste de l'inventaire : la liste de rattachement ne propose que
+          // ce qui n'est pas déjà couvert.
+          disponibles={logiciels.filter(
+            (l) => !contrat.logiciels.some((r) => r.logiciel.id === l.id),
+          )}
+        />
         {/* Les pièces se LISENT ici et se saisissent depuis l'onglet
             Contrats/Marchés d'un logiciel couvert : c'est là que vit le
             formulaire de dépôt, avec son enchaînement « créer la pièce puis
@@ -132,27 +174,6 @@ export default async function ContratPage({ params }: { params: Promise<{ id: st
             </ul>
           )}
         </Card>
-
-        {/* Les cases du dessus DÉSIGNENT les logiciels ; cette carte y MÈNE.
-            Deux gestes distincts, d'où deux cartes — un lien dans un label de
-            case se déclencherait en cochant. Rien à afficher quand le marché
-            ne couvre encore rien : la carte de saisie le dit déjà. */}
-        {contrat.logiciels.length === 0 ? null : (
-          <Card title="Ouvrir un logiciel couvert">
-            <ul className="divide-y divide-line text-sm">
-              {contrat.logiciels.map((l) => (
-                <li key={l.logiciel.id} className="py-2">
-                  <Link
-                    href={`/logiciels/${l.logiciel.id}?onglet=contrats`}
-                    className="font-medium text-strong hover:text-accent"
-                  >
-                    {l.logiciel.nom}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </Card>
-        )}
       </ContratForm>
     </>
   );

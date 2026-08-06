@@ -7,7 +7,7 @@ import { DATE_FMT_FR_UTC, formatEuros } from "@/lib/format";
 import { dateCalendaire } from "@/lib/taches-core";
 import { seuilsRappel } from "@/server/config";
 import { requireUser } from "@/server/guards";
-import { listContrats, nomDe } from "@/server/services/contrats";
+import { etatMarche, listContrats, titreDe } from "@/server/services/contrats";
 
 export const metadata: Metadata = { title: "Contrats/Marchés" };
 
@@ -60,7 +60,7 @@ export default async function ContratsPage() {
             <table className="data-table">
               <thead>
                 <tr>
-                  <th>Référence</th>
+                  <th>Marché</th>
                   <th>Fournisseur</th>
                   <th>Logiciels couverts</th>
                   <th>Période</th>
@@ -70,24 +70,27 @@ export default async function ContratsPage() {
               </thead>
               <tbody>
                 {contrats.map((c) => {
-                  const termine = c.dateFin !== null && c.dateFin < aujourdhui;
-                  const aRenouveler =
-                    c.dateFin !== null && c.dateFin >= aujourdhui && c.dateFin <= limite;
+                  const etat = etatMarche(c.dateFin, aujourdhui, limite);
                   const montant = formatEuros(
                     c.montantAnnuel === null ? null : String(c.montantAnnuel),
                   );
                   return (
                     <tr key={c.id}>
+                      {/* Le libellé d'abord — il dit de quoi il s'agit —, la
+                          référence en dessous : même hiérarchie que l'en-tête
+                          de la fiche. `titreDe` retombe sur la référence quand
+                          le libellé manque, auquel cas la seconde ligne n'a
+                          plus rien à ajouter. */}
                       <td>
                         <Link
                           href={`/contrats/${c.id}`}
                           className="font-medium text-strong hover:text-accent"
                         >
-                          {nomDe(c)}
+                          {titreDe(c)}
                         </Link>
                         {c.libelle && c.referenceMarche ? (
-                          <span className="block truncate text-xs text-faint" title={c.libelle}>
-                            {c.libelle}
+                          <span className="block truncate text-xs text-faint">
+                            {c.referenceMarche}
                           </span>
                         ) : null}
                       </td>
@@ -104,12 +107,12 @@ export default async function ContratsPage() {
                       <td className="text-xs text-muted">{periodeDe(c.dateDebut, c.dateFin)}</td>
                       <td className="text-right tabular-nums">{montant ?? "—"}</td>
                       <td className="text-center">
-                        {termine ? (
+                        {etat === "termine" ? (
                           <span className="badge-muted">Terminé</span>
-                        ) : aRenouveler ? (
+                        ) : etat === "a_renouveler" ? (
                           <span className="badge-warn">À renouveler</span>
                         ) : (
-                          <span className="text-faint">—</span>
+                          <span className="badge-ok">En cours</span>
                         )}
                       </td>
                     </tr>
