@@ -72,8 +72,10 @@ export default async function LogicielsPage({
             <table className="data-table">
               <thead>
                 <tr>
-                  <th>Logiciel</th>
-                  <th>Éditeur</th>
+                  {/* Le nom du logiciel est la clé de lecture de la ligne : on
+                      lui laisse la place, quitte à serrer l'éditeur. */}
+                  <th className="w-[30%]">Logiciel</th>
+                  <th className="w-[14%]">Éditeur</th>
                   <th>Hébergement</th>
                   <th>Services</th>
                   <th className="text-center">Criticité</th>

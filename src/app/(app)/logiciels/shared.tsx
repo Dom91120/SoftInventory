@@ -29,7 +29,7 @@ export function CriticiteBadge({
 }: {
   criticite: { label: string; couleur: string } | null;
 }) {
-  if (!criticite) return <span className="badge-muted">non évaluée</span>;
+  if (!criticite) return <span className="badge-muted">Non évaluée</span>;
   const c = criticite.couleur || "#94a3b8";
   return (
     <span

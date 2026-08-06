@@ -49,7 +49,7 @@ export const LIBELLES = {
   hebergement: { saas: "SaaS", on_premise: "On premise", hybride: "Hybride" },
   statut: {
     evaluation: "En évaluation",
-    production: "En production",
+    production: "Production",
     fin_de_vie: "Fin de vie",
     abandonne: "Abandonné",
   },
