@@ -426,7 +426,7 @@ model Logiciel {
 
   services              LogicielService[]
   serveurs              LogicielServeur[]
-  contrats              Contrat[]
+  contrats              ContratLogiciel[]
   consultations         Consultation[]
   documents             Document[]
   taches                TacheRecurrente[]
@@ -496,7 +496,6 @@ model Interconnexion {
 /// échéance la plus lointaine valent engagement.
 model Contrat {
   id              Int       @id @default(autoincrement())
-  logicielId      Int       @map("logiciel_id")
   /// Société avec qui la collectivité contractualise. null = l'éditeur du
   /// logiciel, cas le plus fréquent ; renseigné quand c'est un revendeur.
   fournisseurId   Int?      @map("fournisseur_id")
@@ -505,10 +504,15 @@ model Contrat {
   /// Montant annuel du marché entier. null = non renseigné, à distinguer de
   /// zéro (un marché à titre gratuit se saisit, lui, à 0).
   montantAnnuel   Decimal?  @map("montant_annuel") @db.Decimal(12, 2)
-  /// Plafond du marché : ce qu'il ne peut pas dépasser, quand l'acte en fixe
-  /// un. Indépendant du montant annuel — un maximum porte souvent sur la durée
-  /// entière — et sans contrainte entre les deux : c'est l'acte qui fait foi.
+  /// Maximum ANNUEL : le plafond que le marché ne peut pas dépasser sur une
+  /// année, quand l'acte en fixe un. Aucune contrainte avec `montantAnnuel`,
+  /// qui dit ce qu'on paie : c'est l'acte qui fait foi, et un montant au-delà
+  /// du plafond se saisit — le signaler est un autre sujet que le stocker.
   montantMaxi     Decimal?  @map("montant_maxi") @db.Decimal(12, 2)
+  /// Ce que pèse le marché sur sa DURÉE ENTIÈRE, quand l'acte le chiffre.
+  /// N'entre pas dans le coût du parc, qui se compte à l'année — l'y ajouter
+  /// gonflerait le total d'un marché pluriannuel autant de fois qu'il dure.
+  montantTotal    Decimal?  @map("montant_total") @db.Decimal(12, 2)
   /// Début du marché : la date à laquelle il prend effet. Se lit avec dateFin,
   /// dont elle forme la période affichée (« du … au … »). Indépendante d'elle :
   /// un marché en cours a souvent un début connu et un terme qui ne l'est pas.
@@ -524,16 +528,40 @@ model Contrat {
   notes           String    @default("")
   createdAt       DateTime  @default(now()) @db.Timestamptz
 
-  logiciel Logiciel @relation(fields: [logicielId], references: [id], onDelete: Cascade)
   // Le fournisseur n'est pas propriétaire du contrat : supprimer sa fiche ne
   // doit pas emporter le contrat, seulement le laisser sans fournisseur.
-  fournisseur Editeur?       @relation("ContratFournisseur", fields: [fournisseurId], references: [id], onDelete: SetNull)
+  fournisseur Editeur?          @relation("ContratFournisseur", fields: [fournisseurId], references: [id], onDelete: SetNull)
   pieces      PieceContrat[]
+  /// Logiciels couverts. Un marché en couvre souvent PLUSIEURS (UGAP, marchés
+  /// « communs ») : il vit donc pour lui-même, avec sa propre fiche, et n'est
+  /// plus une dépendance du logiciel.
+  logiciels   ContratLogiciel[]
 
-  @@index([logicielId])
   @@index([fournisseurId])
   @@index([dateFin])
   @@map("contrats")
+}
+
+/// Rattachement d'un marché aux logiciels qu'il couvre. Table de liaison nue :
+/// le lien ne porte rien de son côté — ni montant ni date, tout appartient au
+/// marché.
+///
+/// Les deux cascades sont volontaires et asymétriques dans leur EFFET : elles
+/// n'effacent que le LIEN. Supprimer un logiciel ne supprime donc plus les
+/// marchés qui le couvraient (ils en couvrent peut-être d'autres) ; un marché
+/// qui perd son dernier logiciel survit, sans rattachement, et se voit dans la
+/// liste des marchés — à l'utilisateur de le supprimer s'il n'a plus lieu
+/// d'être. Effacer un acte contractuel par ricochet serait pire.
+model ContratLogiciel {
+  contratId  Int @map("contrat_id")
+  logicielId Int @map("logiciel_id")
+
+  contrat  Contrat  @relation(fields: [contratId], references: [id], onDelete: Cascade)
+  logiciel Logiciel @relation(fields: [logicielId], references: [id], onDelete: Cascade)
+
+  @@id([contratId, logicielId])
+  @@index([logicielId])
+  @@map("contrats_logiciels")
 }
 
 /// Une pièce d'un contrat ou marché : un poste, son coût et la date de son

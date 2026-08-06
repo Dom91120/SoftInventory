@@ -53,7 +53,31 @@ export async function listLogiciels(filtres: FiltresLogiciels = {}) {
   return logiciels.sort((a, b) => compareAlpha(a.nom, b.nom));
 }
 
-export function getLogiciel(id: number) {
+/**
+ * Fiche complète. Les marchés sont APLATIS puis triés en mémoire : la table de
+ * liaison n'intéresse personne en aval, et l'onglet Contrats/Marchés continue
+ * de lire `logiciel.contrats[i].libelle` comme avant la bascule vers le marché
+ * autonome.
+ *
+ * Les plus RÉCENTS en tête, comme les consultations. Le rang se lit sur la date
+ * de début — celle à laquelle le marché a pris effet — puis sur la date de fin
+ * pour ceux qui n'ont que celle-là ; sans date, le marché passe en dernier
+ * plutôt qu'en tête (l'ordre décroissant de PostgreSQL remonte les NULL).
+ */
+export async function getLogiciel(id: number) {
+  const logiciel = await getLogicielBrut(id);
+  if (!logiciel) return null;
+  const rang = (d: Date | null) => (d === null ? Number.NEGATIVE_INFINITY : d.getTime());
+  const contrats = logiciel.contrats
+    .map((l) => l.contrat)
+    .sort(
+      (a, b) =>
+        rang(b.dateDebut) - rang(a.dateDebut) || rang(b.dateFin) - rang(a.dateFin) || b.id - a.id,
+    );
+  return { ...logiciel, contrats };
+}
+
+function getLogicielBrut(id: number) {
   return prisma.logiciel.findUnique({
     where: { id },
     include: {
@@ -69,18 +93,22 @@ export function getLogiciel(id: number) {
       // `nulls: "last"` est indispensable : en tri décroissant, PostgreSQL
       // remonte les NULL en PREMIER, si bien qu'un marché sans date saisie
       // coifferait tous les autres.
+      //
+      // Le marché ne dépend plus du logiciel : on passe par la table de
+      // liaison, et le tri se fait en mémoire (voir getLogiciel) — trier sur
+      // une relation traversée coûterait une jointure pour dix lignes.
       contrats: {
-        orderBy: [
-          { dateDebut: { sort: "desc", nulls: "last" } },
-          { dateFin: { sort: "desc", nulls: "last" } },
-          { id: "desc" },
-        ],
-        include: {
-          fournisseur: { select: { id: true, nom: true } },
-          pieces: {
-            orderBy: [{ datePiece: "asc" }, { id: "asc" }],
+        select: {
+          contrat: {
             include: {
-              documents: { include: { categorie: true }, orderBy: { createdAt: "desc" } },
+              fournisseur: { select: { id: true, nom: true } },
+              logiciels: { select: { logiciel: { select: { id: true, nom: true } } } },
+              pieces: {
+                orderBy: [{ datePiece: "asc" }, { id: "asc" }],
+                include: {
+                  documents: { include: { categorie: true }, orderBy: { createdAt: "desc" } },
+                },
+              },
             },
           },
         },
@@ -221,9 +249,15 @@ export async function listAutresLogiciels(saufId: number) {
 }
 
 // ── Contrats et marchés ──
+//
+// Le marché a son propre écran (services/contrats.ts) ; ce qui reste ici sert
+// l'onglet du logiciel, où l'on crée un marché DÉJÀ rattaché à la fiche ouverte.
 
+/** Crée le marché et le rattache au logiciel depuis lequel on l'a saisi. */
 export function createContrat(logicielId: number, data: ContratInput) {
-  return prisma.contrat.create({ data: { logicielId, ...data } });
+  return prisma.contrat.create({
+    data: { ...data, logiciels: { create: { logicielId } } },
+  });
 }
 
 export function updateContrat(id: number, data: ContratInput) {
@@ -281,23 +315,27 @@ export async function deletePieceContrat(id: number) {
 export function getPieceContrat(id: number) {
   return prisma.pieceContrat.findUnique({
     where: { id },
-    include: { contrat: { select: { id: true, logicielId: true } } },
+    include: {
+      contrat: {
+        select: { id: true, logiciels: { select: { logicielId: true } } },
+      },
+    },
   });
 }
 
 /**
- * Pièces qu'emporterait la suppression d'un logiciel. TROIS chemins de cascade
- * mènent à `documents` : la fiche elle-même, les lignes de ses contrats, et les
- * devis de ses consultations. Les oublier laisserait le garde-fou passoire.
+ * Pièces qu'emporterait la suppression d'un logiciel. DEUX chemins de cascade
+ * mènent à `documents` : la fiche elle-même et les devis de ses consultations.
+ *
+ * Les pièces de marché n'en font plus partie : le marché survit à la
+ * suppression du logiciel (il en couvre peut-être d'autres), seul le
+ * rattachement disparaît. Les compter ici bloquerait une suppression sans
+ * raison — rien ne serait effacé de leur côté.
  */
 export function compterPiecesLogiciel(id: number) {
   return prisma.document.count({
     where: {
-      OR: [
-        { logicielId: id },
-        { pieceContrat: { contrat: { logicielId: id } } },
-        { devis: { consultation: { logicielId: id } } },
-      ],
+      OR: [{ logicielId: id }, { devis: { consultation: { logicielId: id } } }],
     },
   });
 }

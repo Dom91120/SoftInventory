@@ -13,6 +13,7 @@ import {
 } from "@/schemas/logiciel";
 import { AUDIT, recordAudit } from "@/server/audit";
 import { requireRole } from "@/server/guards";
+import { cheminsDuContrat } from "@/server/services/contrats";
 import * as svc from "@/server/services/logiciels";
 
 type Result = { ok: true; id?: number } | { ok: false; error: string };
@@ -20,6 +21,14 @@ type Result = { ok: true; id?: number } | { ok: false; error: string };
 function inattendu(e: unknown): Result {
   console.error("[logiciels] erreur inattendue:", e);
   return { ok: false, error: "Une erreur est survenue. Réessayez." };
+}
+
+/**
+ * Rafraîchit tout ce qu'un marché touche : sa fiche, la liste, et l'onglet de
+ * chaque logiciel couvert. Un marché commun se lit depuis plusieurs fiches.
+ */
+async function revalideContrat(contratId: number, chemins?: string[]) {
+  for (const p of chemins ?? (await cheminsDuContrat(contratId))) revalidatePath(p);
 }
 
 function idValide(id: unknown): id is number {
@@ -256,6 +265,7 @@ function parseContrat(formData: FormData) {
     referenceMarche: get("referenceMarche"),
     montantAnnuel: get("montantAnnuel"),
     montantMaxi: get("montantMaxi"),
+    montantTotal: get("montantTotal"),
     dateDebut: get("dateDebut"),
     dateFin: get("dateFin"),
     notes: get("notes"),
@@ -278,7 +288,7 @@ export async function createContratAction(logicielId: number, formData: FormData
   }
   try {
     const created = await svc.createContrat(logicielId, parsed.data);
-    revalidatePath(`/logiciels/${logicielId}`);
+    await revalideContrat(created.id);
     return { ok: true, id: created.id };
   } catch (e) {
     return inattendu(e);
@@ -296,7 +306,7 @@ export async function updateContratAction(id: number, formData: FormData): Promi
   }
   try {
     await svc.updateContrat(id, parsed.data);
-    revalidatePath(`/logiciels/${contrat.logicielId}`);
+    await revalideContrat(id);
     return { ok: true };
   } catch (e) {
     return inattendu(e);
@@ -309,9 +319,12 @@ export async function deleteContratAction(id: number): Promise<Result> {
   const contrat = await svc.getContrat(id);
   if (!contrat) return { ok: false, error: "Contrat introuvable." };
   try {
+    // Les chemins AVANT la suppression : après, les rattachements ont disparu
+    // et les fiches logiciel resteraient sur leur ancien affichage.
+    const chemins = await cheminsDuContrat(id);
     // Non bloquée par ses pièces : elle emporte lignes et fichiers compris.
     await svc.deleteContrat(id);
-    revalidatePath(`/logiciels/${contrat.logicielId}`);
+    await revalideContrat(id, chemins);
     return { ok: true };
   } catch (e) {
     return inattendu(e);
@@ -334,7 +347,7 @@ export async function createPieceContratAction(
     // L'id est RENVOYÉ : l'écran enchaîne aussitôt le dépôt de la pièce, qui a
     // besoin d'une pièce existante à laquelle se rattacher.
     const created = await svc.createPieceContrat(contratId, parsed.data);
-    revalidatePath(`/logiciels/${contrat.logicielId}`);
+    await revalideContrat(contratId);
     return { ok: true, id: created.id };
   } catch (e) {
     return inattendu(e);
@@ -352,7 +365,7 @@ export async function updatePieceContratAction(id: number, formData: FormData): 
   }
   try {
     await svc.updatePieceContrat(id, parsed.data);
-    revalidatePath(`/logiciels/${piece.contrat.logicielId}`);
+    await revalideContrat(piece.contrat.id);
     return { ok: true };
   } catch (e) {
     return inattendu(e);
@@ -367,7 +380,7 @@ export async function deletePieceContratAction(id: number): Promise<Result> {
   if (!piece) return { ok: false, error: "Pièce introuvable." };
   try {
     await svc.deletePieceContrat(id);
-    revalidatePath(`/logiciels/${piece.contrat.logicielId}`);
+    await revalideContrat(piece.contrat.id);
     return { ok: true };
   } catch (e) {
     return inattendu(e);

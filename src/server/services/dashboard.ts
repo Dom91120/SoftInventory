@@ -24,10 +24,15 @@ export type DonneesDashboard = {
   tachesSous30j: number;
   /** Horizon des renouvellements, en jours — le titre de la carte l'annonce. */
   seuilRenouvellementJours: number;
+  /**
+   * Deux origines, une seule forme : un marché (qui renvoie vers sa fiche et
+   * cite les logiciels couverts) ou la date de fin portée par une fiche
+   * logiciel (qui renvoie vers son onglet Contrats).
+   */
   renouvellements: Array<{
-    logicielId: number;
-    logiciel: string;
-    objet: string;
+    href: string;
+    titre: string;
+    detail: string;
     echeance: Date;
   }>;
   parHebergement: Repartition;
@@ -52,59 +57,68 @@ export async function chargerDashboard(): Promise<DonneesDashboard> {
   const { contrat: seuilJours } = await seuilsRappel();
   const fenetre = new Date(aujourdhui.getTime() + seuilJours * 86_400_000);
 
-  const [logiciels, nbEditeurs, nbServeurs, criticites, taches, contratsARenouveler] =
-    await Promise.all([
-      prisma.logiciel.findMany({
-        select: {
-          id: true,
-          nom: true,
-          statut: true,
-          hebergement: true,
-          criticiteId: true,
-          coutAnnuel: true,
-          nbUtilisateurs: true,
-          nbMaxUtilisateurs: true,
-          finContratLe: true,
-          // Le coût vit sur le MARCHÉ. Il vivait sur ses pièces, dont la
-          // colonne `cout_annuel` garde les valeurs historiques : elles ne sont
-          // plus comptées, sans quoi un marché dont le montant a été ressaisi
-          // le serait deux fois.
-          contrats: { select: { montantAnnuel: true } },
-        },
-      }),
-      prisma.editeur.count(),
-      prisma.serveur.count(),
-      prisma.criticite.findMany({ orderBy: { rank: "asc" } }),
-      prisma.tacheRecurrente.findMany({
-        where: { statut: "active" },
-        select: {
-          id: true,
-          titre: true,
-          prochaineEcheance: true,
-          logiciel: { select: { id: true, nom: true } },
-        },
-      }),
-      // Le MARCHÉ porte l'échéance ; ses pièces n'ont qu'une date de document.
-      // Borne basse comme pour les rappels : un marché terminé n'est pas à
-      // renouveler dans la fenêtre, il est de l'historique.
-      prisma.contrat.findMany({
-        where: { dateFin: { gte: aujourdhui, lte: fenetre } },
-        select: {
-          libelle: true,
-          referenceMarche: true,
-          dateFin: true,
-          logiciel: { select: { id: true, nom: true } },
-        },
-      }),
-    ]);
+  const [
+    logiciels,
+    coutDesMarches,
+    nbEditeurs,
+    nbServeurs,
+    criticites,
+    taches,
+    contratsARenouveler,
+  ] = await Promise.all([
+    prisma.logiciel.findMany({
+      select: {
+        id: true,
+        nom: true,
+        statut: true,
+        hebergement: true,
+        criticiteId: true,
+        coutAnnuel: true,
+        nbUtilisateurs: true,
+        nbMaxUtilisateurs: true,
+        finContratLe: true,
+      },
+    }),
+    // Le coût vit sur le MARCHÉ, et se somme GLOBALEMENT, pas fiche par
+    // fiche : un marché commun couvre plusieurs logiciels, le compter chez
+    // chacun le compterait autant de fois. (Il vivait auparavant sur les
+    // pièces, dont la colonne `cout_annuel` garde les valeurs historiques :
+    // elles ne sont plus comptées, sans quoi un marché dont le montant a été
+    // ressaisi le serait deux fois.)
+    prisma.contrat.aggregate({ _sum: { montantAnnuel: true } }),
+    prisma.editeur.count(),
+    prisma.serveur.count(),
+    prisma.criticite.findMany({ orderBy: { rank: "asc" } }),
+    prisma.tacheRecurrente.findMany({
+      where: { statut: "active" },
+      select: {
+        id: true,
+        titre: true,
+        prochaineEcheance: true,
+        logiciel: { select: { id: true, nom: true } },
+      },
+    }),
+    // Le MARCHÉ porte l'échéance ; ses pièces n'ont qu'une date de document.
+    // Borne basse comme pour les rappels : un marché terminé n'est pas à
+    // renouveler dans la fenêtre, il est de l'historique.
+    prisma.contrat.findMany({
+      where: { dateFin: { gte: aujourdhui, lte: fenetre } },
+      select: {
+        id: true,
+        libelle: true,
+        referenceMarche: true,
+        dateFin: true,
+        logiciels: { select: { logiciel: { select: { nom: true } } } },
+      },
+    }),
+  ]);
 
-  // Coût annuel total : coût de la fiche + montant annuel de ses marchés.
-  let coutAnnuelTotal = 0;
+  // Coût annuel total : coût des fiches + montant annuel des marchés, ces
+  // derniers comptés une seule fois quel que soit le nombre de logiciels
+  // couverts.
+  let coutAnnuelTotal = Number(coutDesMarches._sum.montantAnnuel ?? 0);
   for (const l of logiciels) {
     if (l.coutAnnuel) coutAnnuelTotal += Number(l.coutAnnuel);
-    for (const c of l.contrats) {
-      if (c.montantAnnuel) coutAnnuelTotal += Number(c.montantAnnuel);
-    }
   }
 
   // Contrats dépassés (même règle que la liste/l'export).
@@ -134,14 +148,16 @@ export async function chargerDashboard(): Promise<DonneesDashboard> {
       joursAvantEcheance(t.prochaineEcheance, aujourdhui) <= 30,
   ).length;
 
-  // Renouvellements à venir : marchés + fins de contrat des fiches.
+  // Renouvellements à venir : marchés + fins de contrat des fiches. Le marché
+  // renvoie vers SA fiche — il couvre parfois plusieurs logiciels, aucun ne
+  // pouvant prétendre le représenter — et cite dessous ce qu'il couvre.
   const renouvellements = [
     ...contratsARenouveler.map((c) => ({
-      logicielId: c.logiciel.id,
-      logiciel: c.logiciel.nom,
+      href: `/contrats/${c.id}`,
       // Le libellé suffit quand il est là ; le préfixer donnerait « Contrat
       // Contrat VIP Adobe » pour les libellés qui disent déjà « contrat ».
-      objet: c.libelle || (c.referenceMarche ? `Contrat ${c.referenceMarche}` : "Contrat"),
+      titre: c.libelle || (c.referenceMarche ? `Contrat ${c.referenceMarche}` : "Contrat"),
+      detail: c.logiciels.map((l) => l.logiciel.nom).join(", ") || "Aucun logiciel rattaché",
       echeance: c.dateFin as Date,
     })),
     ...logiciels
@@ -154,9 +170,9 @@ export async function chargerDashboard(): Promise<DonneesDashboard> {
           l.finContratLe.getTime() <= fenetre.getTime(),
       )
       .map((l) => ({
-        logicielId: l.id,
-        logiciel: l.nom,
-        objet: "Fin de contrat / marché",
+        href: `/logiciels/${l.id}?onglet=contrats`,
+        titre: l.nom,
+        detail: "Fin de contrat / marché",
         echeance: l.finContratLe as Date,
       })),
   ].sort((a, b) => a.echeance.getTime() - b.echeance.getTime());

@@ -31,10 +31,17 @@ fiche garantirait des numéros divergents.
 **C'est le marché qui engage.** Il porte sa référence, son fournisseur
 (l'éditeur du logiciel par défaut, une société nommée quand c'est un
 revendeur), sa période — affichée « du 01/01/2023 au 31/12/2026 » —, son
-montant annuel et, quand l'acte en fixe un, son montant maximum. Ce plafond
-ne contraint pas le montant annuel : il porte souvent sur la durée entière.
+montant annuel et, quand l'acte en fixe un, son maximum annuel. Ce plafond ne
+contraint pas le montant annuel : c'est l'acte qui fait foi, pas l'outil.
 Seul le montant annuel entre dans le coût du parc — un plafond n'est pas une
-dépense.
+dépense, et un marché commun n'y compte qu'une fois.
+
+**Un marché vit pour lui-même** : il a son écran (Inventaire › Contrats/Marchés)
+et sa fiche, et il couvre AUTANT DE LOGICIELS qu'il en couvre réellement — UGAP,
+marchés « communs » à deux applications. On le crée indifféremment depuis cet
+écran ou depuis l'onglet Contrats/Marchés d'un logiciel, qui le rattache alors à
+la fiche ouverte. Supprimer un logiciel ne supprime plus ses marchés : seul le
+rattachement disparaît, l'acte contractuel reste.
 
 Ses **pièces** ne décrivent qu'elles-mêmes : un fichier, la catégorie de ce
 fichier, et la date du document (signature, notification). Elles ne chiffrent

@@ -123,7 +123,14 @@ export function LigneDocument({
    * notification — pas le moment où quelqu'un l'a téléversé dans l'outil.
    */
   dateLigne?: string | null;
-  onErreur: (message: string | null) => void;
+  /**
+   * Remontée d'erreur du changement de catégorie. FACULTATIVE : la ligne se
+   * rend aussi depuis un composant serveur (fiche d'un marché), qui ne peut pas
+   * passer de fonction. Sans elle, la catégorie n'est pas modifiable — et de
+   * fait, les deux appels qui s'en servent vivent dans le select, qui n'est
+   * rendu ni en lecture seule ni quand `categorieModifiable` est faux.
+   */
+  onErreur?: (message: string | null) => void;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -134,13 +141,13 @@ export function LigneDocument({
   const categorieFigee = readOnly || !categorieModifiable;
 
   function changerCategorie(valeur: string) {
-    onErreur(null);
+    onErreur?.(null);
     startTransition(async () => {
       const res = await updateDocumentCategorieAction(
         document.id,
         valeur === "" ? null : Number(valeur),
       );
-      if (!res.ok) onErreur(res.error);
+      if (!res.ok) onErreur?.(res.error);
       // Rafraîchi dans tous les cas : en cas d'échec, la liste revient sur la
       // valeur réellement enregistrée plutôt que d'afficher un changement qui
       // n'a pas eu lieu.

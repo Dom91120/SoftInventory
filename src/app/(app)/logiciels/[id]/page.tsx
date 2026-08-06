@@ -338,6 +338,7 @@ async function OngletContrats({
           fournisseurNom: c.fournisseur?.nom ?? null,
           referenceMarche: c.referenceMarche,
           montantAnnuel: c.montantAnnuel === null ? "" : String(c.montantAnnuel),
+          montantTotal: c.montantTotal === null ? "" : String(c.montantTotal),
           montantMaxi: c.montantMaxi === null ? "" : String(c.montantMaxi),
           dateDebut: dateStr(c.dateDebut),
           dateFin: dateStr(c.dateFin),

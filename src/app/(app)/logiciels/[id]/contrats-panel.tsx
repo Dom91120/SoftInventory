@@ -37,8 +37,10 @@ export type ContratRow = {
   referenceMarche: string;
   /** Montant annuel du marché entier (Decimal sérialisé ; "" si null). */
   montantAnnuel: string;
-  /** Plafond du marché, quand l'acte en fixe un (Decimal sérialisé ; "" si null). */
+  /** Maximum annuel, quand l'acte en fixe un (Decimal sérialisé ; "" si null). */
   montantMaxi: string;
+  /** Le marché sur sa durée entière (Decimal sérialisé ; "" si null). */
+  montantTotal: string;
   /** Prise d'effet du marché, AAAA-MM-JJ ou "". */
   dateDebut: string;
   /** Terme du marché, AAAA-MM-JJ ou "". Aucun rappel ne s'y accroche. */
@@ -435,8 +437,9 @@ export function ContratsPanel({
                             c.montantAnnuel
                               ? `Montant annuel : ${formatEuros(c.montantAnnuel)}`
                               : null,
-                            c.montantMaxi
-                              ? `Montant maximum : ${formatEuros(c.montantMaxi)}`
+                            c.montantMaxi ? `Maximum annuel : ${formatEuros(c.montantMaxi)}` : null,
+                            c.montantTotal
+                              ? `Montant total du marché : ${formatEuros(c.montantTotal)}`
                               : null,
                           ]
                             .filter(Boolean)
@@ -446,6 +449,7 @@ export function ContratsPanel({
                         {[
                           c.montantAnnuel ? `Mnt annuel : ${formatEuros(c.montantAnnuel)}` : null,
                           c.montantMaxi ? `Maxi : ${formatEuros(c.montantMaxi)}` : null,
+                          c.montantTotal ? `Total : ${formatEuros(c.montantTotal)}` : null,
                         ]
                           .filter(Boolean)
                           .join(" · ")}
@@ -705,11 +709,7 @@ function FormulaireMarche({
             className="input"
           />
         </Field>
-        <Field
-          label="Montant annuel (€)"
-          htmlFor="montantAnnuel"
-          hint="Ce que pèse le marché entier — pas la somme de ses pièces, qui se chiffrent une à une."
-        >
+        <Field label="Montant annuel (€)" htmlFor="montantAnnuel">
           <input
             id="montantAnnuel"
             name="montantAnnuel"
@@ -719,16 +719,22 @@ function FormulaireMarche({
             className="input"
           />
         </Field>
-        <Field
-          label="Montant maximum (€)"
-          htmlFor="montantMaxi"
-          hint="Le plafond fixé par l'acte, s'il y en a un. Souvent sur la durée entière du marché, pas sur l'année."
-        >
+        <Field label="Maximum annuel (€)" htmlFor="montantMaxi">
           <input
             id="montantMaxi"
             name="montantMaxi"
             inputMode="decimal"
             defaultValue={row?.montantMaxi ?? ""}
+            disabled={pending}
+            className="input"
+          />
+        </Field>
+        <Field label="Montant total du marché (€)" htmlFor="montantTotal">
+          <input
+            id="montantTotal"
+            name="montantTotal"
+            inputMode="decimal"
+            defaultValue={row?.montantTotal ?? ""}
             disabled={pending}
             className="input"
           />

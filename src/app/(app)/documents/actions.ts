@@ -5,6 +5,7 @@ import { assainirNomOriginal, extensionDe } from "@/lib/documents-regles";
 import { AUDIT, recordAudit } from "@/server/audit";
 import { prisma } from "@/server/db";
 import { requireRole } from "@/server/guards";
+import { cheminsDuContrat } from "@/server/services/contrats";
 import { deleteDocument } from "@/server/services/documents";
 
 type Result = { ok: true; nom?: string } | { ok: false; error: string };
@@ -29,9 +30,10 @@ async function revalider(doc: {
   if (doc.pieceContratId) {
     const piece = await prisma.pieceContrat.findUnique({
       where: { id: doc.pieceContratId },
-      select: { contrat: { select: { logicielId: true } } },
+      select: { contratId: true },
     });
-    if (piece) revalidatePath(`/logiciels/${piece.contrat.logicielId}`);
+    // Fiche du marché, liste, et l'onglet de chaque logiciel qu'il couvre.
+    if (piece) for (const p of await cheminsDuContrat(piece.contratId)) revalidatePath(p);
   }
   if (doc.devisId) {
     const devis = await prisma.devis.findUnique({

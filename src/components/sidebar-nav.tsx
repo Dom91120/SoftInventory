@@ -4,6 +4,7 @@ import {
   Building2,
   CalendarClock,
   ClipboardList,
+  FileSignature,
   KeyRound,
   LayoutDashboard,
   ListChecks,
@@ -29,6 +30,7 @@ const INVENTAIRE: Item[] = [
   },
   { href: "/logiciels", label: "Logiciels", icon: <Package className={ICON} /> },
   { href: "/editeurs", label: "Éditeurs", icon: <Building2 className={ICON} /> },
+  { href: "/contrats", label: "Contrats/Marchés", icon: <FileSignature className={ICON} /> },
   { href: "/serveurs", label: "Serveurs", icon: <Server className={ICON} /> },
   { href: "/taches", label: "Tâches", icon: <ClipboardList className={ICON} /> },
 ];

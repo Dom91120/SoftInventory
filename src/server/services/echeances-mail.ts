@@ -120,14 +120,17 @@ export async function envoyerRappelsEcheances(): Promise<{
         referenceMarche: true,
         dateFin: true,
         rappelEnvoyeLe: true,
-        logiciel: { select: { id: true, nom: true } },
+        logiciels: { select: { logiciel: { select: { nom: true } } } },
       },
     });
     for (const m of marches) {
       if (!m.dateFin) continue;
       if (m.rappelEnvoyeLe?.getTime() === m.dateFin.getTime()) continue;
-      const url = appUrl ? `${appUrl}/logiciels/${m.logiciel.id}?onglet=contrats` : "";
+      // Le lien mène à la FICHE DU MARCHÉ : il en couvre parfois plusieurs, et
+      // aucun logiciel ne peut prétendre le représenter.
+      const url = appUrl ? `${appUrl}/contrats/${m.id}` : "";
       const nomMarche = m.libelle || m.referenceMarche || "sans libellé";
+      const couverts = m.logiciels.map((l) => l.logiciel.nom).join(", ");
       const objet = `Le contrat « ${nomMarche} »`;
       let auMoinsUnEnvoi = false;
       for (const to of fallback) {
@@ -137,12 +140,12 @@ export async function envoyerRappelsEcheances(): Promise<{
           vars: {
             salutation: greeting(""),
             objet,
-            logiciel: m.logiciel.nom,
+            logiciel: couverts || "aucun logiciel rattaché",
             echeance: fmtDate.format(m.dateFin),
             details: m.referenceMarche ? `Référence marché/contrat : ${m.referenceMarche}.` : "",
             url,
           },
-          rawVars: url ? { bouton: emailButton(url, "Ouvrir les contrats") } : {},
+          rawVars: url ? { bouton: emailButton(url, "Ouvrir le marché") } : {},
           mode: "queue",
         });
         if (res.ok || res.queued) auMoinsUnEnvoi = true;

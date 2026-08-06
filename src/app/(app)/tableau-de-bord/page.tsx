@@ -151,17 +151,14 @@ export default async function TableauDeBordPage() {
             <ul className="divide-y divide-line text-sm">
               {d.renouvellements.map((r) => (
                 <li
-                  key={`${r.logicielId}-${r.objet}-${r.echeance.toISOString()}`}
+                  key={`${r.href}-${r.echeance.toISOString()}`}
                   className="flex items-center justify-between gap-3 py-2.5"
                 >
                   <span className="min-w-0">
-                    <Link
-                      href={`/logiciels/${r.logicielId}?onglet=contrats`}
-                      className="font-medium text-strong hover:text-accent"
-                    >
-                      {r.logiciel}
+                    <Link href={r.href} className="font-medium text-strong hover:text-accent">
+                      {r.titre}
                     </Link>
-                    <span className="block text-xs text-muted">{r.objet}</span>
+                    <span className="block truncate text-xs text-muted">{r.detail}</span>
                   </span>
                   <span className="badge-warn shrink-0">
                     <CalendarClock className="h-3.5 w-3.5" />
