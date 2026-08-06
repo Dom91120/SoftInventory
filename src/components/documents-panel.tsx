@@ -24,6 +24,7 @@ import {
   renameDocumentAction,
   updateDocumentCategorieAction,
 } from "@/app/(app)/documents/actions";
+import { useConfirmation } from "@/components/confirmation";
 import { Card, EmptyState } from "@/components/ui";
 import { extensionDe } from "@/lib/documents-regles";
 
@@ -265,6 +266,7 @@ export function DocumentsPanel({
   categorieParDefaut?: string;
 }) {
   const router = useRouter();
+  const confirmer = useConfirmation();
   const [pending, startTransition] = useTransition();
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -305,8 +307,8 @@ export function DocumentsPanel({
     }
   }
 
-  function supprimer(doc: DocumentRow) {
-    if (!window.confirm(`Supprimer « ${doc.nomOriginal} » ?`)) return;
+  async function supprimer(doc: DocumentRow) {
+    if (!(await confirmer({ question: `Supprimer « ${doc.nomOriginal} » ?` }))) return;
     setError(null);
     startTransition(async () => {
       const res = await deleteDocumentAction(doc.id);

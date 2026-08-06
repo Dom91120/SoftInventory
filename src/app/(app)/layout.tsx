@@ -1,4 +1,5 @@
 import { AppShell, type ShellUser } from "@/components/app-shell";
+import { ConfirmationProvider } from "@/components/confirmation";
 import { SessionWatchdog } from "@/components/session-watchdog";
 import type { Role } from "@/generated/prisma/client";
 import { requireUser, sessionDeadline } from "@/server/guards";
@@ -24,9 +25,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   };
   const deadline = await sessionDeadline();
   return (
+    // Le dialogue de confirmation est monté une fois pour tous les écrans
+    // connectés — chaque corbeille l'appelle par `useConfirmation()`.
     <AppShell user={user}>
-      {deadline ? <SessionWatchdog expiresAt={deadline} /> : null}
-      {children}
+      <ConfirmationProvider>
+        {deadline ? <SessionWatchdog expiresAt={deadline} /> : null}
+        {children}
+      </ConfirmationProvider>
     </AppShell>
   );
 }

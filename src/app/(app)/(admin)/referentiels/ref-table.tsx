@@ -2,6 +2,7 @@
 
 import { Check, Plus, Trash2 } from "lucide-react";
 import { useState, useTransition } from "react";
+import { useConfirmation } from "@/components/confirmation";
 import { createRefAction, deleteRefAction, type RefEntity, updateRefAction } from "./actions";
 
 export type RefColumn = {
@@ -35,6 +36,7 @@ export function RefTable({
   /** Liste figée : lignes éditables, mais ni ajout ni suppression. */
   fige?: boolean;
 }) {
+  const confirmer = useConfirmation();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [draft, setDraft] = useState<Record<string, string>>({});
@@ -78,9 +80,9 @@ export function RefTable({
     );
   }
 
-  function supprimer(row: Row) {
+  async function supprimer(row: Row) {
     const libelle = asStr(row[columns[0]?.key ?? "label"]);
-    if (!window.confirm(`Supprimer « ${libelle} » de ce référentiel ?`)) return;
+    if (!(await confirmer({ question: `Supprimer « ${libelle} » de ce référentiel ?` }))) return;
     run(() => deleteRefAction(entity, row.id));
   }
 

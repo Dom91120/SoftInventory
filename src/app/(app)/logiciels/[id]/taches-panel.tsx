@@ -10,6 +10,7 @@ import {
   deleteTacheAction,
   updateTacheAction,
 } from "@/app/(app)/taches/actions";
+import { useConfirmation } from "@/components/confirmation";
 import { Card, EmptyState, Field } from "@/components/ui";
 import { LIBELLES_TACHE } from "@/schemas/tache";
 
@@ -58,6 +59,7 @@ export function TachesPanel({
   readOnly: boolean;
 }) {
   const router = useRouter();
+  const confirmer = useConfirmation();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [enEdition, setEnEdition] = useState<TacheRow | null>(null);
@@ -99,9 +101,12 @@ export function TachesPanel({
     );
   }
 
-  function supprimer(t: TacheRow) {
-    if (!window.confirm(`Supprimer la tâche « ${t.titre} » et son historique ?`)) return;
-    run(() => deleteTacheAction(t.id));
+  async function supprimer(t: TacheRow) {
+    const ok = await confirmer({
+      question: `Supprimer la tâche « ${t.titre} » ?`,
+      detail: "Son historique d'exécutions part avec elle.",
+    });
+    if (ok) run(() => deleteTacheAction(t.id));
   }
 
   return (

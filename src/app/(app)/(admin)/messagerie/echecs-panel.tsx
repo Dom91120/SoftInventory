@@ -3,6 +3,7 @@
 import { RefreshCw, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
+import { useConfirmation } from "@/components/confirmation";
 import { Card, EmptyState } from "@/components/ui";
 import { deleteFailedMailAction, retryFailedMailAction } from "./actions";
 
@@ -19,6 +20,7 @@ export type EchecRow = {
 /** File des e-mails en échec : renvoyer (supprime si succès) ou abandonner. */
 export function EchecsPanel({ echecs }: { echecs: EchecRow[] }) {
   const router = useRouter();
+  const confirmer = useConfirmation();
   const [pending, startTransition] = useTransition();
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
@@ -70,9 +72,13 @@ export function EchecsPanel({ echecs }: { echecs: EchecRow[] }) {
                   className="btn-ghost !p-2 hover:!text-danger"
                   title="Abandonner"
                   disabled={pending}
-                  onClick={() => {
-                    if (window.confirm("Abandonner définitivement cet e-mail ?"))
-                      run(() => deleteFailedMailAction(m.id), "E-mail abandonné.");
+                  onClick={async () => {
+                    const ok = await confirmer({
+                      question: "Abandonner définitivement cet e-mail ?",
+                      detail: "Il ne sera plus renvoyé, et quitte cette liste.",
+                      action: "Abandonner",
+                    });
+                    if (ok) run(() => deleteFailedMailAction(m.id), "E-mail abandonné.");
                   }}
                 >
                   <Trash2 className="h-4 w-4" />

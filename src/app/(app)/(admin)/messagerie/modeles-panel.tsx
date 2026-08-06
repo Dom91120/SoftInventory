@@ -3,6 +3,7 @@
 import { RotateCcw } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
+import { useConfirmation } from "@/components/confirmation";
 import { Card, Field } from "@/components/ui";
 import { resetTemplateAction, saveTemplateAction } from "./actions";
 
@@ -23,6 +24,7 @@ export type ModeleRow = {
  */
 export function ModelesPanel({ modeles }: { modeles: ModeleRow[] }) {
   const router = useRouter();
+  const confirmer = useConfirmation();
   const [pending, startTransition] = useTransition();
   const [ouvert, setOuvert] = useState<string | null>(null);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
@@ -100,13 +102,13 @@ export function ModelesPanel({ modeles }: { modeles: ModeleRow[] }) {
                     type="button"
                     className="btn-danger ml-auto"
                     disabled={pending}
-                    onClick={() => {
-                      if (
-                        window.confirm(
-                          "Abandonner la personnalisation et revenir au modèle d'origine ?",
-                        )
-                      )
-                        run(() => resetTemplateAction(m.key), "Modèle d'origine restauré.");
+                    onClick={async () => {
+                      const ok = await confirmer({
+                        question: "Revenir au modèle d'origine ?",
+                        detail: "Le texte personnalisé de ce modèle sera perdu.",
+                        action: "Abandonner la personnalisation",
+                      });
+                      if (ok) run(() => resetTemplateAction(m.key), "Modèle d'origine restauré.");
                     }}
                   >
                     <RotateCcw className="h-4 w-4" />

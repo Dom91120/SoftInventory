@@ -3,6 +3,7 @@
 import { KeyRound, Mail, Pencil, Plus, Trash2, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
+import { useConfirmation } from "@/components/confirmation";
 import { Card, Field } from "@/components/ui";
 import {
   createUserAction,
@@ -26,6 +27,7 @@ export type UserRow = {
 
 export function UsersPanel({ users }: { users: UserRow[] }) {
   const router = useRouter();
+  const confirmer = useConfirmation();
   const [pending, startTransition] = useTransition();
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [formVisible, setFormVisible] = useState(false);
@@ -141,8 +143,14 @@ export function UsersPanel({ users }: { users: UserRow[] }) {
                           className="btn-ghost !p-2"
                           title="Réinitialiser la double authentification"
                           disabled={pending}
-                          onClick={() => {
-                            if (window.confirm(`Retirer le second facteur de ${u.email} ?`))
+                          onClick={async () => {
+                            const ok = await confirmer({
+                              question: `Retirer le second facteur de ${u.email} ?`,
+                              detail:
+                                "Le compte se reconnectera avec son seul mot de passe, jusqu'à ce qu'il reconfigure la double authentification.",
+                              action: "Retirer",
+                            });
+                            if (ok)
                               run(() => reset2faAction(u.id), "Double authentification retirée.");
                           }}
                         >
@@ -155,9 +163,11 @@ export function UsersPanel({ users }: { users: UserRow[] }) {
                           className="btn-ghost !p-2 hover:!text-danger"
                           title="Supprimer le compte"
                           disabled={pending}
-                          onClick={() => {
-                            if (window.confirm(`Supprimer le compte de ${u.email} ?`))
-                              run(() => deleteUserAction(u.id), "Compte supprimé.");
+                          onClick={async () => {
+                            const ok = await confirmer({
+                              question: `Supprimer le compte de ${u.email} ?`,
+                            });
+                            if (ok) run(() => deleteUserAction(u.id), "Compte supprimé.");
                           }}
                         >
                           <Trash2 className="h-4 w-4" />

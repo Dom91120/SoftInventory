@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useRef, useState, useTransition } from "react";
 import { deleteDocumentAction } from "@/app/(app)/documents/actions";
 import { createEditeurAction } from "@/app/(app)/editeurs/actions";
+import { useConfirmation } from "@/components/confirmation";
 import {
   type CategorieOption,
   type DocumentRow,
@@ -70,6 +71,7 @@ export function DevisPanel({
   readOnly: boolean;
 }) {
   const router = useRouter();
+  const confirmer = useConfirmation();
 
   /**
    * Type posé d'office sur les pièces déposées ici. null si la ligne a été
@@ -158,9 +160,12 @@ export function DevisPanel({
     });
   }
 
-  function supprimerConsultation(c: ConsultationRow) {
-    const avert = c.devis.length > 0 ? `\n\nSes ${c.devis.length} devis seront supprimés.` : "";
-    if (!window.confirm(`Supprimer la consultation « ${c.objet} » ?${avert}`)) return;
+  async function supprimerConsultation(c: ConsultationRow) {
+    const ok = await confirmer({
+      question: `Supprimer la consultation « ${c.objet} » ?`,
+      detail: c.devis.length > 0 ? `Ses ${c.devis.length} devis seront supprimés.` : undefined,
+    });
+    if (!ok) return;
     setError(null);
     startTransition(async () => {
       const res = await deleteConsultationAction(c.id);
@@ -169,11 +174,14 @@ export function DevisPanel({
     });
   }
 
-  function supprimerDevis(d: DevisRow) {
-    // La pièce part avec la ligne : on le dit, c'est la seule corbeille de
-    // l'application qui emporte un fichier.
-    const avert = d.document ? `\n\nSa pièce jointe « ${d.document.nomOriginal} » aussi.` : "";
-    if (!window.confirm(`Supprimer le devis de « ${nomDe(d)} » ?${avert}`)) return;
+  async function supprimerDevis(d: DevisRow) {
+    const ok = await confirmer({
+      question: `Supprimer le devis de « ${nomDe(d)} » ?`,
+      // La pièce part avec la ligne : on le dit, c'est la seule corbeille de
+      // l'application qui emporte un fichier.
+      detail: d.document ? `Sa pièce jointe « ${d.document.nomOriginal} » aussi.` : undefined,
+    });
+    if (!ok) return;
     setError(null);
     startTransition(async () => {
       const res = await deleteDevisAction(d.id);

@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { type ReactNode, useState, useTransition } from "react";
+import { useConfirmation } from "@/components/confirmation";
 import { Card, Field } from "@/components/ui";
 import { createEditeurAction, deleteEditeurAction, updateEditeurAction } from "./actions";
 
@@ -86,6 +87,7 @@ export function EditeurForm({
   children?: ReactNode;
 }) {
   const router = useRouter();
+  const confirmer = useConfirmation();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
@@ -113,9 +115,9 @@ export function EditeurForm({
     });
   }
 
-  function supprimer() {
+  async function supprimer() {
     if (id === undefined) return;
-    if (!window.confirm(`Supprimer l'éditeur « ${values.nom} » ?`)) return;
+    if (!(await confirmer({ question: `Supprimer l'éditeur « ${values.nom} » ?` }))) return;
     setError(null);
     startTransition(async () => {
       const res = await deleteEditeurAction(id);

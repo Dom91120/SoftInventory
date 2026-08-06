@@ -9,6 +9,7 @@ import {
   deletePieceContratAction,
   updatePieceContratAction,
 } from "@/app/(app)/logiciels/actions";
+import { useConfirmation } from "@/components/confirmation";
 import type { CategorieOption, DocumentRow } from "@/components/documents-panel";
 import { Field } from "@/components/ui";
 
@@ -66,6 +67,7 @@ async function deposerPiece(
  */
 export function usePieceContrat(onErreur: (message: string | null) => void) {
   const router = useRouter();
+  const confirmer = useConfirmation();
   const [pending, startTransition] = useTransition();
 
   /**
@@ -137,13 +139,16 @@ export function usePieceContrat(onErreur: (message: string | null) => void) {
   }
 
   /** Supprime la pièce ET son fichier, après confirmation. */
-  function supprimer(l: PieceContratRow, enDateFr: (iso: string) => string) {
-    const avert = l.document ? `\n\nSon fichier « ${l.document.nomOriginal} » aussi.` : "";
+  async function supprimer(l: PieceContratRow, enDateFr: (iso: string) => string) {
     // Le type nommait la pièce dans cette question ; à sa place, ce qui la
     // distingue encore de ses voisines — son fichier, sinon sa date.
     const nom = l.document?.nomOriginal ?? (l.datePiece ? enDateFr(l.datePiece) : "");
     const quoi = nom ? `la pièce « ${nom} »` : "cette pièce";
-    if (!window.confirm(`Supprimer ${quoi} ?${avert}`)) return;
+    const ok = await confirmer({
+      question: `Supprimer ${quoi} ?`,
+      detail: l.document ? `Son fichier « ${l.document.nomOriginal} » aussi.` : undefined,
+    });
+    if (!ok) return;
     onErreur(null);
     startTransition(async () => {
       const res = await deletePieceContratAction(l.id);

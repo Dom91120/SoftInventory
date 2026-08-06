@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { type ReactNode, useState, useTransition } from "react";
+import { useConfirmation } from "@/components/confirmation";
 import { ChampsMarche, MARCHE_VIDE, type ValeursMarche } from "@/components/marche-champs";
 import { Card } from "@/components/ui";
 import {
@@ -41,6 +42,7 @@ export function ContratForm({
   children?: ReactNode;
 }) {
   const router = useRouter();
+  const confirmer = useConfirmation();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
@@ -70,15 +72,14 @@ export function ContratForm({
     });
   }
 
-  function supprimer() {
+  async function supprimer() {
     if (id === undefined) return;
-    if (
-      !window.confirm(
-        "Supprimer ce marché ?\n\nSes pièces et leurs fichiers seront supprimés aussi. Les logiciels couverts, eux, ne sont pas touchés.",
-      )
-    ) {
-      return;
-    }
+    const ok = await confirmer({
+      question: "Supprimer ce marché ?",
+      detail:
+        "Ses pièces et leurs fichiers seront supprimés aussi. Les logiciels couverts, eux, ne sont pas touchés.",
+    });
+    if (!ok) return;
     setError(null);
     startTransition(async () => {
       const res = await deleteContratFicheAction(id);

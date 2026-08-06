@@ -4,6 +4,7 @@ import { Pencil, Plus, Trash2, Unlink, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { attacherLogicielAction, detacherLogicielAction } from "@/app/(app)/contrats/actions";
+import { useConfirmation } from "@/components/confirmation";
 import { type CategorieOption, LigneDocument } from "@/components/documents-panel";
 import { ChampsMarche } from "@/components/marche-champs";
 import { FormulairePiece, type PieceContratRow, usePieceContrat } from "@/components/piece-contrat";
@@ -139,6 +140,7 @@ export function ContratsPanel({
   readOnly: boolean;
 }) {
   const router = useRouter();
+  const confirmer = useConfirmation();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
@@ -199,14 +201,16 @@ export function ContratsPanel({
     });
   }
 
-  function detacherMarche(c: ContratRow) {
-    if (
-      !window.confirm(
-        `Retirer le marché « ${nomDe(c)} » de ce logiciel ?\n\nLe marché n'est pas supprimé : ses pièces et ses fichiers restent, et il se retrouve dans Contrats/Marchés.`,
-      )
-    ) {
-      return;
-    }
+  async function detacherMarche(c: ContratRow) {
+    const ok = await confirmer({
+      question: `Retirer le marché « ${nomDe(c)} » de ce logiciel ?`,
+      detail:
+        "Le marché n'est pas supprimé : ses pièces et ses fichiers restent, et il se retrouve dans Contrats/Marchés.",
+      action: "Retirer",
+      // Rien ne se détruit, et le menu du haut permet de le rerattacher aussitôt.
+      danger: false,
+    });
+    if (!ok) return;
     setError(null);
     startTransition(async () => {
       const res = await detacherLogicielAction(c.id, logicielId);
