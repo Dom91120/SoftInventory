@@ -4,8 +4,9 @@ import { Pencil, Plus, Trash2, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { type CategorieOption, LigneDocument } from "@/components/documents-panel";
+import { ChampsMarche } from "@/components/marche-champs";
 import { FormulairePiece, type PieceContratRow, usePieceContrat } from "@/components/piece-contrat";
-import { Card, EmptyState, Field } from "@/components/ui";
+import { Card, EmptyState } from "@/components/ui";
 import { DATE_FMT_FR_UTC, formatEuros } from "@/lib/format";
 import { createContratAction, deleteContratAction, updateContratAction } from "../actions";
 
@@ -224,10 +225,14 @@ export function ContratsPanel({
           )
         }
       >
-        {marcheForm ? (
+        {/* Création seulement : il n'y a pas encore de ligne où se poser. La
+            MODIFICATION, elle, prend la place du marché concerné, plus bas —
+            sans quoi le formulaire s'ouvrait en tête de panneau, loin de la
+            ligne sur laquelle on venait de cliquer. */}
+        {marcheForm?.mode === "creation" ? (
           <FormulaireMarche
-            key={marcheForm.mode === "edition" ? `m-${marcheForm.row.id}` : "m-new"}
-            row={marcheForm.mode === "edition" ? marcheForm.row : null}
+            key="m-new"
+            row={null}
             editeurs={editeurs}
             editeurDuLogiciel={editeurDuLogiciel}
             pending={pending}
@@ -248,12 +253,28 @@ export function ContratsPanel({
               // la carte blanche qui les contient. Chaque marché se détache
               // ainsi comme un bloc, sans ajouter de bordure ni d'ombre.
               <section key={c.id} className="rounded-xl border border-line bg-page">
-                {/* `gap-4` et non `gap-2` : la colonne du fournisseur touchait
+                {/* En modification, le formulaire prend la place de la seule
+                    LIGNE DE TITRE, à l'intérieur du bloc du marché : on le
+                    retrouve là où on a cliqué, et ses pièces restent lisibles
+                    en dessous — on modifie souvent un montant en les regardant. */}
+                {marcheForm?.mode === "edition" && marcheForm.row.id === c.id ? (
+                  <FormulaireMarche
+                    key={`m-${c.id}`}
+                    row={marcheForm.row}
+                    editeurs={editeurs}
+                    editeurDuLogiciel={editeurDuLogiciel}
+                    pending={pending}
+                    onSubmit={soumettreMarche}
+                    onCancel={() => setMarcheForm(null)}
+                    className="border-b border-line bg-inset p-4"
+                  />
+                ) : (
+                  /* `gap-4` et non `gap-2` : la colonne du fournisseur touchait
                     presque le bouton « + Pièce », faute d'air entre le bloc de
-                    titre et celui des actions. */}
-                <header className="flex flex-wrap items-center justify-between gap-4 border-b border-line px-4 py-3">
-                  <span className="min-w-0 flex-1">
-                    {/* Trois colonnes de largeur fixe plutôt qu'un flux : d'un
+                    titre et celui des actions. */
+                  <header className="flex flex-wrap items-center justify-between gap-4 border-b border-line px-4 py-3">
+                    <span className="min-w-0 flex-1">
+                      {/* Trois colonnes de largeur fixe plutôt qu'un flux : d'un
                         marché à l'autre, référence, libellé et fournisseur
                         tombent ainsi au même endroit. Chacune tronque son
                         contenu — le libellé, seul à s'étirer, absorbe la place
@@ -272,18 +293,18 @@ export function ContratsPanel({
                         999 999,99 € », mesuré à 258,14 px). Tout ce qui n'est
                         pas pris par ces deux-là revient au libellé, seul à
                         s'étirer — les élargir le raccourcit d'autant. */}
-                    <span className="grid grid-cols-[minmax(3rem,6.25rem)_minmax(8rem,1fr)_minmax(6rem,16.25rem)] items-baseline gap-2 font-semibold text-strong">
-                      <span className="truncate" title={c.referenceMarche || undefined}>
-                        {c.referenceMarche}
-                      </span>
-                      {/* Le badge accompagne le LIBELLÉ, pas la période : c'est
+                      <span className="grid grid-cols-[minmax(3rem,6.25rem)_minmax(8rem,1fr)_minmax(6rem,16.25rem)] items-baseline gap-2 font-semibold text-strong">
+                        <span className="truncate" title={c.referenceMarche || undefined}>
+                          {c.referenceMarche}
+                        </span>
+                        {/* Le badge accompagne le LIBELLÉ, pas la période : c'est
                           le marché qui est terminé, pas ses dates. `shrink-0`
                           le préserve — le libellé se coupe avant lui. */}
-                      <span className="flex min-w-0 items-baseline gap-2">
-                        <span className="truncate" title={c.libelle || undefined}>
-                          {c.libelle || (c.referenceMarche ? "" : "sans libellé")}
-                        </span>
-                        {/* Gris, mais un cran plus soutenu que `badge-muted`,
+                        <span className="flex min-w-0 items-baseline gap-2">
+                          <span className="truncate" title={c.libelle || undefined}>
+                            {c.libelle || (c.referenceMarche ? "" : "sans libellé")}
+                          </span>
+                          {/* Gris, mais un cran plus soutenu que `badge-muted`,
                             dont le fond `inset` (#f1f5f9) se confondait avec le
                             texte secondaire alentour. `sub` (#cbd5e1) se
                             détache sans crier — ni l'ambre ni le rouge, qui
@@ -291,120 +312,123 @@ export function ContratsPanel({
                             retard : un marché arrivé à son terme est un fait,
                             pas une anomalie. `line` aurait été trop proche de
                             l'ancien pour que la différence se voie. */}
-                        {estTermine(c.dateFin, aujourdhui) ? (
-                          <span
-                            className="badge shrink-0 bg-sub text-body"
-                            title={`Terminé depuis le ${enDateFr(c.dateFin)}`}
-                          >
-                            Terminé
-                          </span>
-                        ) : estARenouveler(c.dateFin, aujourdhui, limiteRenouvellement) ? (
-                          // Ambre, cette fois à bon droit : la charte lui donne
-                          // le sens d'« échéance proche », et il y a ici quelque
-                          // chose à FAIRE avant une date — au contraire d'un
-                          // marché terminé, qui ne se constate que.
-                          <span
-                            className="badge-warn shrink-0"
-                            title={`À renouveler avant le ${enDateFr(c.dateFin)}`}
-                          >
-                            À renouveler
-                          </span>
-                        ) : null}
-                      </span>
-                      {/* Le fournisseur rejoint l'en-tête du marché : c'est lui
+                          {estTermine(c.dateFin, aujourdhui) ? (
+                            <span
+                              className="badge shrink-0 bg-sub text-body"
+                              title={`Terminé depuis le ${enDateFr(c.dateFin)}`}
+                            >
+                              Terminé
+                            </span>
+                          ) : estARenouveler(c.dateFin, aujourdhui, limiteRenouvellement) ? (
+                            // Ambre, cette fois à bon droit : la charte lui donne
+                            // le sens d'« échéance proche », et il y a ici quelque
+                            // chose à FAIRE avant une date — au contraire d'un
+                            // marché terminé, qui ne se constate que.
+                            <span
+                              className="badge-warn shrink-0"
+                              title={`À renouveler avant le ${enDateFr(c.dateFin)}`}
+                            >
+                              À renouveler
+                            </span>
+                          ) : null}
+                        </span>
+                        {/* Le fournisseur rejoint l'en-tête du marché : c'est lui
                           qu'on engage, au même titre que la référence.
                           Sans société nommée, c'est l'éditeur du logiciel qui
                           s'applique — on l'affiche plutôt qu'un vide. */}
-                      <span
-                        className="truncate text-muted"
-                        title={c.fournisseurNom ?? editeurDuLogiciel ?? undefined}
-                      >
-                        {c.fournisseurNom ?? editeurDuLogiciel}
+                        <span
+                          className="truncate text-muted"
+                          title={c.fournisseurNom ?? editeurDuLogiciel ?? undefined}
+                        >
+                          {c.fournisseurNom ?? editeurDuLogiciel}
+                        </span>
                       </span>
-                    </span>
-                    {/* Deuxième rangée, MÊME gabarit de colonnes que le titre :
+                      {/* Deuxième rangée, MÊME gabarit de colonnes que le titre :
                         la date de fin tombe ainsi sous le libellé et le montant
                         sous le fournisseur, ce qu'ils qualifient chacun. Les
                         deux se taisent quand ils ne sont pas renseignés — un
                         marché sans terme saisi n'a pas à afficher un tiret. */}
-                    <span className="grid grid-cols-[minmax(3rem,6.25rem)_minmax(8rem,1fr)_minmax(6rem,16.25rem)] items-baseline gap-2 text-xs text-faint">
-                      <span>{`${c.pieces.length} pièce${c.pieces.length > 1 ? "s" : ""}`}</span>
-                      <span className="truncate">{periodeDe(c.dateDebut, c.dateFin)}</span>
-                      {/* « Mnt annuel » abrégé : les deux montants partagent
+                      <span className="grid grid-cols-[minmax(3rem,6.25rem)_minmax(8rem,1fr)_minmax(6rem,16.25rem)] items-baseline gap-2 text-xs text-faint">
+                        <span>{`${c.pieces.length} pièce${c.pieces.length > 1 ? "s" : ""}`}</span>
+                        <span className="truncate">{periodeDe(c.dateDebut, c.dateFin)}</span>
+                        {/* « Mnt annuel » abrégé : les deux montants partagent
                           une colonne qui contenait déjà tout juste le premier.
                           Le plafond ne s'affiche que s'il est saisi — tous les
                           actes n'en fixent pas. `title` porte les libellés
                           entiers, la colonne tronquant au besoin. */}
-                      <span
-                        className="truncate tabular-nums"
-                        title={
-                          [
-                            c.montantAnnuel
-                              ? `Montant annuel : ${formatEuros(c.montantAnnuel)}`
-                              : null,
-                            c.montantMaxi ? `Maximum annuel : ${formatEuros(c.montantMaxi)}` : null,
-                            c.montantTotal
-                              ? `Montant total du marché : ${formatEuros(c.montantTotal)}`
-                              : null,
+                        <span
+                          className="truncate tabular-nums"
+                          title={
+                            [
+                              c.montantAnnuel
+                                ? `Montant annuel : ${formatEuros(c.montantAnnuel)}`
+                                : null,
+                              c.montantMaxi
+                                ? `Maximum annuel : ${formatEuros(c.montantMaxi)}`
+                                : null,
+                              c.montantTotal
+                                ? `Montant total du marché : ${formatEuros(c.montantTotal)}`
+                                : null,
+                            ]
+                              .filter(Boolean)
+                              .join(" — ") || undefined
+                          }
+                        >
+                          {[
+                            c.montantAnnuel ? `Mnt annuel : ${formatEuros(c.montantAnnuel)}` : null,
+                            c.montantMaxi ? `Maxi : ${formatEuros(c.montantMaxi)}` : null,
+                            c.montantTotal ? `Total : ${formatEuros(c.montantTotal)}` : null,
                           ]
                             .filter(Boolean)
-                            .join(" — ") || undefined
-                        }
-                      >
-                        {[
-                          c.montantAnnuel ? `Mnt annuel : ${formatEuros(c.montantAnnuel)}` : null,
-                          c.montantMaxi ? `Maxi : ${formatEuros(c.montantMaxi)}` : null,
-                          c.montantTotal ? `Total : ${formatEuros(c.montantTotal)}` : null,
-                        ]
-                          .filter(Boolean)
-                          .join(" · ")}
+                            .join(" · ")}
+                        </span>
                       </span>
                     </span>
-                  </span>
-                  {readOnly ? null : (
-                    <span className="flex shrink-0 items-center gap-1">
-                      {/* `!px-3` : plus resserré que le `px-4` de .btn — l'icône
+                    {readOnly ? null : (
+                      <span className="flex shrink-0 items-center gap-1">
+                        {/* `!px-3` : plus resserré que le `px-4` de .btn — l'icône
                           et un mot de cinq lettres n'ont pas besoin d'autant de
                           marge, et la place gagnée revient à l'en-tête du
                           marché, qui est à l'étroit. */}
-                      <button
-                        type="button"
-                        className="btn-secondary !px-3 !py-1.5"
-                        disabled={pending}
-                        onClick={() =>
-                          setPieceForm((f) =>
-                            f?.contratId === c.id && f.row === null
-                              ? null
-                              : { contratId: c.id, row: null },
-                          )
-                        }
-                      >
-                        <Plus className="h-4 w-4" />
-                        Pièce
-                      </button>
-                      <button
-                        type="button"
-                        className="btn-ghost !p-2"
-                        title="Modifier le contrat"
-                        disabled={pending}
-                        onClick={() => setMarcheForm({ mode: "edition", row: c })}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </button>
-                      {/* Jamais grisée : elle emporte le contrat, ses pièces et
+                        <button
+                          type="button"
+                          className="btn-secondary !px-3 !py-1.5"
+                          disabled={pending}
+                          onClick={() =>
+                            setPieceForm((f) =>
+                              f?.contratId === c.id && f.row === null
+                                ? null
+                                : { contratId: c.id, row: null },
+                            )
+                          }
+                        >
+                          <Plus className="h-4 w-4" />
+                          Pièce
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-ghost !p-2"
+                          title="Modifier le contrat"
+                          disabled={pending}
+                          onClick={() => setMarcheForm({ mode: "edition", row: c })}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </button>
+                        {/* Jamais grisée : elle emporte le contrat, ses pièces et
                           leurs fichiers — voir deleteContrat. */}
-                      <button
-                        type="button"
-                        className="btn-ghost !p-2 hover:!text-danger"
-                        title="Supprimer le contrat, ses pièces et leurs fichiers"
-                        disabled={pending}
-                        onClick={() => supprimerMarche(c)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </span>
-                  )}
-                </header>
+                        <button
+                          type="button"
+                          className="btn-ghost !p-2 hover:!text-danger"
+                          title="Supprimer le contrat, ses pièces et leurs fichiers"
+                          disabled={pending}
+                          onClick={() => supprimerMarche(c)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </span>
+                    )}
+                  </header>
+                )}
 
                 <div className="p-4">
                   {/* Ajout : le formulaire se pose au-dessus du tableau, il n'y
@@ -543,6 +567,7 @@ function FormulaireMarche({
   pending,
   onSubmit,
   onCancel,
+  className = "mb-5 rounded-xl border border-sub bg-inset p-4",
 }: {
   row: ContratRow | null;
   editeurs: Array<{ id: number; nom: string }>;
@@ -550,127 +575,33 @@ function FormulaireMarche({
   pending: boolean;
   onSubmit: (e: React.FormEvent<HTMLFormElement>) => void;
   onCancel: () => void;
+  /**
+   * Habillage : la marge basse sert au formulaire de CRÉATION, posé au-dessus
+   * de la liste. En modification, le formulaire prend la place d'un marché dans
+   * une liste déjà espacée (`space-y-5`) — la marge y ferait double emploi.
+   */
+  className?: string;
 }) {
   return (
-    <form onSubmit={onSubmit} className="mb-5 rounded-xl border border-sub bg-inset p-4">
-      <div className="grid gap-x-3 gap-y-2 sm:grid-cols-2">
-        <Field label="Référence marché/contrat" htmlFor="referenceMarche">
-          <input
-            id="referenceMarche"
-            name="referenceMarche"
-            defaultValue={row?.referenceMarche ?? ""}
-            disabled={pending}
-            className="input"
-          />
-        </Field>
-        <Field
-          label="Fournisseur"
-          htmlFor="fournisseurId"
-          hint="La société avec qui on contractualise. Vide = l'éditeur du logiciel ; à renseigner quand c'est un revendeur."
-        >
-          <select
-            id="fournisseurId"
-            name="fournisseurId"
-            defaultValue={row?.fournisseurId ?? ""}
-            disabled={pending}
-            className="input"
-          >
-            <option value="">
-              {editeurDuLogiciel
-                ? `— l'éditeur du logiciel (${editeurDuLogiciel}) —`
-                : "— non précisé —"}
-            </option>
-            {editeurs.map((e) => (
-              <option key={e.id} value={String(e.id)}>
-                {e.nom}
-              </option>
-            ))}
-          </select>
-        </Field>
-        <Field label="Libellé" htmlFor="libelle">
-          <input
-            id="libelle"
-            name="libelle"
-            placeholder="Ex. marché 2024-12, pack 50 postes"
-            defaultValue={row?.libelle ?? ""}
-            disabled={pending}
-            className="input"
-          />
-        </Field>
-        <Field label="Montant annuel (€)" htmlFor="montantAnnuel">
-          <input
-            id="montantAnnuel"
-            name="montantAnnuel"
-            inputMode="decimal"
-            defaultValue={row?.montantAnnuel ?? ""}
-            disabled={pending}
-            className="input"
-          />
-        </Field>
-        <Field label="Maximum annuel (€)" htmlFor="montantMaxi">
-          <input
-            id="montantMaxi"
-            name="montantMaxi"
-            inputMode="decimal"
-            defaultValue={row?.montantMaxi ?? ""}
-            disabled={pending}
-            className="input"
-          />
-        </Field>
-        <Field label="Montant total du marché (€)" htmlFor="montantTotal">
-          <input
-            id="montantTotal"
-            name="montantTotal"
-            inputMode="decimal"
-            defaultValue={row?.montantTotal ?? ""}
-            disabled={pending}
-            className="input"
-          />
-        </Field>
-        <Field label="Date de début" htmlFor="dateDebut" hint="Prise d'effet du marché.">
-          <input
-            id="dateDebut"
-            name="dateDebut"
-            type="date"
-            defaultValue={row?.dateDebut ?? ""}
-            disabled={pending}
-            className="input"
-          />
-        </Field>
-        <Field
-          label="Date de fin"
-          htmlFor="dateFin"
-          hint="Terme du marché. Ne déclenche pas de rappel : celui-ci suit le renouvellement de chaque pièce."
-        >
-          <input
-            id="dateFin"
-            name="dateFin"
-            type="date"
-            defaultValue={row?.dateFin ?? ""}
-            disabled={pending}
-            className="input"
-          />
-        </Field>
-        <div className="sm:col-span-2">
-          <Field label="Notes" htmlFor="notes">
-            <textarea
-              id="notes"
-              name="notes"
-              rows={2}
-              defaultValue={row?.notes ?? ""}
-              disabled={pending}
-              className="input"
-            />
-          </Field>
-        </div>
-        <div className="flex gap-3 sm:col-span-2">
-          <button type="submit" disabled={pending} className="btn-primary">
-            {pending ? "Enregistrement…" : row ? "Enregistrer" : "Ajouter le contrat"}
-          </button>
-          <button type="button" className="btn-ghost" disabled={pending} onClick={onCancel}>
-            Annuler
-          </button>
-        </div>
+    <form onSubmit={onSubmit} className={className}>
+      {/* Les champs viennent du module partagé avec la fiche du marché : mêmes
+          libellés, mêmes aides, même grille. Seul le sens d'un fournisseur vide
+          change ici — c'est l'éditeur du logiciel. */}
+      <ChampsMarche
+        values={row ?? undefined}
+        editeurs={editeurs}
+        disabled={pending}
+        optionFournisseurVide={
+          editeurDuLogiciel ? `— l'éditeur du logiciel (${editeurDuLogiciel}) —` : "— non précisé —"
+        }
+      />
+      <div className="mt-3 flex gap-3">
+        <button type="submit" disabled={pending} className="btn-primary">
+          {pending ? "Enregistrement…" : row ? "Enregistrer" : "Ajouter le contrat"}
+        </button>
+        <button type="button" className="btn-ghost" disabled={pending} onClick={onCancel}>
+          Annuler
+        </button>
       </div>
     </form>
   );

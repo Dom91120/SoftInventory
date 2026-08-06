@@ -2,36 +2,16 @@
 
 import { useRouter } from "next/navigation";
 import { type ReactNode, useState, useTransition } from "react";
-import { Card, Field } from "@/components/ui";
+import { ChampsMarche, MARCHE_VIDE, type ValeursMarche } from "@/components/marche-champs";
+import { Card } from "@/components/ui";
 import {
   createContratFicheAction,
   deleteContratFicheAction,
   updateContratFicheAction,
 } from "./actions";
 
-export type ContratValues = {
-  referenceMarche: string;
-  libelle: string;
-  fournisseurId: string;
-  montantAnnuel: string;
-  montantMaxi: string;
-  montantTotal: string;
-  dateDebut: string;
-  dateFin: string;
-  notes: string;
-};
-
-const VIDE: ContratValues = {
-  referenceMarche: "",
-  libelle: "",
-  fournisseurId: "",
-  montantAnnuel: "",
-  montantMaxi: "",
-  montantTotal: "",
-  dateDebut: "",
-  dateFin: "",
-  notes: "",
-};
+/** Les champs eux-mêmes vivent dans `ChampsMarche`, partagé avec l'onglet du logiciel. */
+export type ContratValues = ValeursMarche;
 
 /** Cible du bouton d'enregistrement, qui vit hors du <form> — voir `children`. */
 const FORM_ID = "contrat-form";
@@ -47,7 +27,7 @@ const FORM_ID = "contrat-form";
  */
 export function ContratForm({
   id,
-  values = VIDE,
+  values = MARCHE_VIDE,
   editeurs,
   readOnly = false,
   children,
@@ -117,110 +97,7 @@ export function ContratForm({
     <div className="space-y-3">
       <form id={FORM_ID} onSubmit={submit} className="space-y-3">
         <Card title="Marché">
-          <div className="grid items-end gap-x-3 gap-y-2 sm:grid-cols-3">
-            <Field label="Référence marché/contrat" htmlFor="referenceMarche">
-              <input
-                id="referenceMarche"
-                name="referenceMarche"
-                defaultValue={values.referenceMarche}
-                disabled={dis}
-                className="input"
-              />
-            </Field>
-            <Field label="Libellé" htmlFor="libelle">
-              <input
-                id="libelle"
-                name="libelle"
-                placeholder="Ex. marché 2024-12, pack 50 postes"
-                defaultValue={values.libelle}
-                disabled={dis}
-                className="input"
-              />
-            </Field>
-            <Field label="Fournisseur" htmlFor="fournisseurId">
-              <select
-                id="fournisseurId"
-                name="fournisseurId"
-                defaultValue={values.fournisseurId}
-                disabled={dis}
-                className="input"
-              >
-                <option value="">— non précisé —</option>
-                {editeurs.map((e) => (
-                  <option key={e.id} value={String(e.id)}>
-                    {e.nom}
-                  </option>
-                ))}
-              </select>
-            </Field>
-            <Field label="Montant annuel (€)" htmlFor="montantAnnuel">
-              <input
-                id="montantAnnuel"
-                name="montantAnnuel"
-                inputMode="decimal"
-                defaultValue={values.montantAnnuel}
-                disabled={dis}
-                className="input"
-              />
-            </Field>
-            <Field label="Maximum annuel (€)" htmlFor="montantMaxi">
-              <input
-                id="montantMaxi"
-                name="montantMaxi"
-                inputMode="decimal"
-                defaultValue={values.montantMaxi}
-                disabled={dis}
-                className="input"
-              />
-            </Field>
-            <Field label="Montant total du marché (€)" htmlFor="montantTotal">
-              <input
-                id="montantTotal"
-                name="montantTotal"
-                inputMode="decimal"
-                defaultValue={values.montantTotal}
-                disabled={dis}
-                className="input"
-              />
-            </Field>
-            <Field label="Date de début" htmlFor="dateDebut" hint="Prise d'effet du marché.">
-              <input
-                id="dateDebut"
-                name="dateDebut"
-                type="date"
-                defaultValue={values.dateDebut}
-                disabled={dis}
-                className="input"
-              />
-            </Field>
-            <Field
-              label="Date de fin"
-              htmlFor="dateFin"
-              hint="Terme du marché : CETTE date déclenche le rappel."
-            >
-              <input
-                id="dateFin"
-                name="dateFin"
-                type="date"
-                defaultValue={values.dateFin}
-                disabled={dis}
-                className="input"
-              />
-            </Field>
-            <div />
-            <div className="sm:col-span-3">
-              <Field label="Notes" htmlFor="notes">
-                <textarea
-                  id="notes"
-                  name="notes"
-                  defaultValue={values.notes}
-                  disabled={dis}
-                  rows={2}
-                  className="input"
-                />
-              </Field>
-            </div>
-          </div>
+          <ChampsMarche values={values} editeurs={editeurs} disabled={dis} />
         </Card>
       </form>
 
