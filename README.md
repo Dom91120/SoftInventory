@@ -113,6 +113,15 @@ n'en garde une ligne que si l'admin les personnalise.
 Une base neuve démarre donc avec des listes déroulantes vides — c'est voulu :
 aucun contenu n'est poussé dans une base qui contient déjà du travail.
 
+**Les libellés affichés des référentiels sont des données, pas du code.** Le
+texte d'une pastille de statut (« Production », « Fin de vie »…) ou de criticité
+est lu dans la base, pas dans les sources : le renommer sur un environnement ne
+le renomme pas sur les autres, et un déploiement ne l'emporte pas avec lui. Un
+renommage se refait donc sur chaque base, depuis Administration › Référentiels.
+Pour les statuts, seul l'habillage — libellé, couleur, ordre — se modifie : les
+quatre clés du cycle de vie sont figées par l'enum `CycleDeVie` et référencées
+par les fiches.
+
 > Si des routes d'API répondent 404 en dev après un `pnpm build`, supprimer le
 > cache `.next` puis relancer `pnpm dev` : le manifeste du build de production
 > et celui du serveur de dev cohabitent mal dans le même dossier.
