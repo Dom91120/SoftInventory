@@ -1,5 +1,6 @@
 import { csvResponse } from "@/lib/csv";
 import { dateCalendaire } from "@/lib/taches-core";
+import { LIBELLES } from "@/schemas/logiciel";
 import { seuilsRappel } from "@/server/config";
 import { reponseApi, requireRoleApi } from "@/server/guards-api";
 import { etatMarche, listContrats } from "@/server/services/contrats";
@@ -35,14 +36,23 @@ export function GET(request: Request): Promise<Response> {
     const date = (d: Date | null) => (d ? d.toISOString().slice(0, 10) : "");
     const montant = (m: unknown) => (m === null || m === undefined ? "" : String(m));
 
+    // Ce que l'écran affiche pour une nature non renseignée : « Marché ». Le
+    // fichier ne peut pas dire autre chose que la liste dont il est l'extrait.
+    const nature = (n: string | null) =>
+      LIBELLES.natureMarche[n === "contrat" ? "contrat" : "marche"];
+    const entier = (n: number | null) => (n === null ? "" : String(n));
+
     const rows: (string | number)[][] = [
       [
+        "Nature",
         "Référence",
         "Libellé",
         "Fournisseur",
         "Logiciels couverts",
         "Début",
         "Fin",
+        "Durée (ans)",
+        "Renouvelable (fois)",
         "État",
         "Montant annuel (€)",
         "Maximum annuel (€)",
@@ -51,12 +61,17 @@ export function GET(request: Request): Promise<Response> {
         "Notes",
       ],
       ...contrats.map((c) => [
+        nature(c.nature),
         c.referenceMarche,
         c.libelle,
         c.fournisseur?.nom ?? "",
         c.logiciels.map((l) => l.logiciel.nom).join(", "),
         date(c.dateDebut),
         date(c.dateFin),
+        entier(c.dureeAnnees),
+        // Zéro EXPORTÉ, là où l'écran le tait : le tableur compte et filtre,
+        // et une case vide n'y vaut pas « non reconductible ».
+        entier(c.renouvellements),
         LIBELLE_ETAT[etatMarche(c.dateFin, jour, limite)],
         montant(c.montantAnnuel),
         montant(c.montantMaxi),

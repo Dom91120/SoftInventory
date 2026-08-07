@@ -1,6 +1,7 @@
 "use client";
 
 import { Pencil, Plus, Trash2, Unlink, X } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { attacherLogicielAction, detacherLogicielAction } from "@/app/(app)/contrats/actions";
@@ -160,6 +161,7 @@ export function ContratsPanel({
   categories,
   editeurs,
   editeurDuLogiciel,
+  editeurDuLogicielId,
   marchesDisponibles,
   nbUtilisateurs,
   nbMaxUtilisateurs,
@@ -175,6 +177,8 @@ export function ContratsPanel({
   editeurs: Array<{ id: number; nom: string }>;
   /** Éditeur du logiciel : fournisseur par défaut quand le marché n'en nomme pas. */
   editeurDuLogiciel: string | null;
+  /** Son id, pour que ce fournisseur par défaut mène à sa fiche comme les autres. */
+  editeurDuLogicielId: number | null;
   /**
    * Marchés rattachables : les orphelins et ceux du même éditeur, déjà filtrés
    * par le serveur (voir `listMarchesPourRattachement`). Vide = rien à
@@ -422,17 +426,31 @@ export function ContratsPanel({
                         {/* Sans référence, la nature MONTE ici : la colonne
                           resterait vide, et un marché non numéroté se désigne
                           alors par ce qu'il est. Elle ne se dit qu'une fois —
-                          la rangée du dessous se tait dans ce cas. */}
-                        <span className="truncate" title={c.referenceMarche || natureDe(c)}>
+                          la rangée du dessous se tait dans ce cas.
+
+                          Ce qui NOMME le marché mène à sa fiche : la référence
+                          ici, le libellé à côté. Le crayon voisin ouvre le
+                          formulaire sur place, pour une correction rapide ;
+                          suivre le nom, c'est vouloir le marché entier — ses
+                          logiciels couverts, ses pièces, sa corbeille. */}
+                        <Link
+                          href={`/contrats/${c.id}`}
+                          className="truncate hover:text-accent"
+                          title={c.referenceMarche || natureDe(c)}
+                        >
                           {c.referenceMarche || natureDe(c)}
-                        </span>
+                        </Link>
                         {/* Le badge accompagne le LIBELLÉ, pas la période : c'est
                           le marché qui est terminé, pas ses dates. `shrink-0`
                           le préserve — le libellé se coupe avant lui. */}
                         <span className="flex min-w-0 items-baseline gap-2">
-                          <span className="truncate" title={c.libelle || undefined}>
+                          <Link
+                            href={`/contrats/${c.id}`}
+                            className="truncate hover:text-accent"
+                            title={c.libelle || undefined}
+                          >
                             {c.libelle || (c.referenceMarche ? "" : "sans libellé")}
-                          </span>
+                          </Link>
                           {/* Gris, mais un cran plus soutenu que `badge-muted`,
                             dont le fond `inset` (#f1f5f9) se confondait avec le
                             texte secondaire alentour. `sub` (#cbd5e1) se
@@ -464,13 +482,23 @@ export function ContratsPanel({
                         {/* Le fournisseur rejoint l'en-tête du marché : c'est lui
                           qu'on engage, au même titre que la référence.
                           Sans société nommée, c'est l'éditeur du logiciel qui
-                          s'applique — on l'affiche plutôt qu'un vide. */}
-                        <span
-                          className="truncate text-muted"
-                          title={c.fournisseurNom ?? editeurDuLogiciel ?? undefined}
-                        >
-                          {c.fournisseurNom ?? editeurDuLogiciel}
-                        </span>
+                          s'applique — on l'affiche plutôt qu'un vide, et il mène
+                          à sa fiche comme les autres : un nom affiché ici a
+                          toujours un id derrière, qu'il vienne du marché ou du
+                          logiciel. */}
+                        {c.fournisseurId || editeurDuLogicielId ? (
+                          <Link
+                            href={`/editeurs/${c.fournisseurId || editeurDuLogicielId}`}
+                            className="truncate text-muted hover:text-accent"
+                            title={c.fournisseurNom ?? editeurDuLogiciel ?? undefined}
+                          >
+                            {c.fournisseurNom ?? editeurDuLogiciel}
+                          </Link>
+                        ) : (
+                          // Ni l'un ni l'autre : la colonne reste, vide, pour que
+                          // les deux rangées gardent le même gabarit.
+                          <span />
+                        )}
                       </span>
                       {/* Deuxième rangée, MÊME gabarit de colonnes que le titre :
                         la date de fin tombe ainsi sous le libellé et le montant

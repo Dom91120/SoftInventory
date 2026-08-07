@@ -15,7 +15,7 @@ import {
   listTechnologies,
 } from "@/server/services/referentiels";
 import { FiltresBar } from "./filtres-bar";
-import { CriticiteBadge, filtresDepuisParams, LicencesBadge, StatutBadge } from "./shared";
+import { CriticiteBadge, filtresDepuisParams, StatutBadge } from "./shared";
 
 export const metadata: Metadata = { title: "Logiciels" };
 
@@ -75,15 +75,18 @@ export default async function LogicielsPage({
             <table className="data-table">
               <thead>
                 <tr>
-                  {/* Le nom du logiciel est la clé de lecture de la ligne : on
-                      lui laisse la place, quitte à serrer l'éditeur. */}
-                  <th className="w-[30%]">Logiciel</th>
-                  <th className="w-[14%]">Éditeur</th>
+                  <th className="w-[24%]">Logiciel</th>
+                  {/* L'éditeur cesse d'être serré au profit du nom : « Avanti
+                      Technologies (Agorabox) » se repliait sur trois lignes et
+                      étirait toute la rangée. */}
+                  <th className="w-[20%]">Éditeur</th>
                   <th>Hébergement</th>
-                  <th>Services</th>
+                  {/* La largeur libérée par « Utilisation » revient ici : les
+                      services tenaient sur 80 px, ce qui repliait deux noms en
+                      autant de lignes. */}
+                  <th className="w-[22%]">Services</th>
                   <th className="text-center">Criticité</th>
                   <th className="text-center">Statut</th>
-                  <th className="text-center">Utilisation</th>
                 </tr>
               </thead>
               <tbody>
@@ -123,22 +126,26 @@ export default async function LogicielsPage({
                       )}
                     </td>
                     <td>{LIBELLES.hebergement[l.hebergement]}</td>
-                    <td className="max-w-48">
+                    <td className="max-w-64">
                       <span className="text-xs text-muted">
                         {l.services.map((s) => s.service.nom).join(" · ") || "—"}
                       </span>
                     </td>
+                    {/* Un tiret, pas la pastille « Non évaluée » : la plupart
+                        des fiches n'ont pas de criticité, et la colonne
+                        alignait des dizaines de pastilles grises qui ne
+                        disaient rien et couvraient les quelques-unes qui
+                        disent quelque chose. La fiche du logiciel, elle, garde
+                        le libellé — le badge y est seul et doit se nommer. */}
                     <td className="text-center">
-                      <CriticiteBadge criticite={l.criticite} />
+                      {l.criticite ? (
+                        <CriticiteBadge criticite={l.criticite} />
+                      ) : (
+                        <span className="text-faint">—</span>
+                      )}
                     </td>
                     <td className="text-center">
                       <StatutBadge statut={l.statut} statuts={statuts} />
-                    </td>
-                    <td className="text-center">
-                      <LicencesBadge
-                        nbUtilisateurs={l.nbUtilisateurs}
-                        nbMaxUtilisateurs={l.nbMaxUtilisateurs}
-                      />
                     </td>
                   </tr>
                 ))}

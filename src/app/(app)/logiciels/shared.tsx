@@ -85,38 +85,8 @@ export function depassementContrat(
   );
 }
 
-/**
- * Pastille « Utilisation » de la liste : « utilisateurs / licences », colorée
- * par le verdict. Utilisateurs non comptés (null) → on ne montre que les
- * licences, sans couleur : il n'y a rien à comparer. Un logiciel réellement à
- * zéro utilisateur affiche « 0 / n » en vert, et se distingue donc bien d'une
- * fiche non renseignée.
- */
-export function LicencesBadge({
-  nbUtilisateurs,
-  nbMaxUtilisateurs,
-}: {
-  nbUtilisateurs: number | null;
-  nbMaxUtilisateurs: number | null;
-}) {
-  if (nbMaxUtilisateurs === null) return <span className="text-faint">—</span>;
-
-  const licences = `${nbMaxUtilisateurs} licence${nbMaxUtilisateurs > 1 ? "s" : ""} au contrat`;
-  if (nbUtilisateurs === null) {
-    return (
-      <span className="badge-muted tabular-nums" title={`${licences} ; utilisateurs non comptés`}>
-        {nbMaxUtilisateurs}
-      </span>
-    );
-  }
-
-  const titre = `${nbUtilisateurs} utilisateur${nbUtilisateurs > 1 ? "s" : ""} pour ${licences}`;
-  const classe = depassementContrat(nbUtilisateurs, nbMaxUtilisateurs)
-    ? "badge-danger"
-    : "badge-ok";
-  return (
-    <span className={`${classe} tabular-nums`} title={titre}>
-      {nbUtilisateurs} / {nbMaxUtilisateurs}
-    </span>
-  );
-}
+// La pastille « Utilisation » — « utilisateurs / licences », colorée par le
+// verdict — a disparu des deux écrans qui la portaient : la colonne de la liste,
+// puis l'en-tête de la fiche. Les deux nombres se lisent dans la carte « Usage
+// et coûts » de la fiche, où ils se saisissent. `depassementContrat` reste : il
+// alimente la colonne de dépassement de l'export CSV.

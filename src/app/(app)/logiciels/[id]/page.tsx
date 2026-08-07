@@ -25,7 +25,7 @@ import {
 } from "@/server/services/referentiels";
 import { listTachesDuLogiciel } from "@/server/services/taches";
 import { FicheForm } from "../fiche-form";
-import { CriticiteBadge, LicencesBadge, StatutBadge } from "../shared";
+import { CriticiteBadge, StatutBadge } from "../shared";
 import { type ContratRow, ContratsPanel } from "./contrats-panel";
 import { type ConsultationRow, DevisPanel } from "./devis-panel";
 import { LiaisonsPanel } from "./liaisons-panel";
@@ -141,14 +141,6 @@ export default async function LogicielPage({
               <span className="flex items-center gap-2">
                 <StatutBadge statut={logiciel.statut} statuts={statuts} />
                 <CriticiteBadge criticite={logiciel.criticite} />
-                {/* Utilisation : seulement quand il y a un plafond à comparer,
-                    sinon l'en-tête afficherait un « — » qui n'apprend rien. */}
-                {logiciel.nbMaxUtilisateurs !== null ? (
-                  <LicencesBadge
-                    nbUtilisateurs={logiciel.nbUtilisateurs}
-                    nbMaxUtilisateurs={logiciel.nbMaxUtilisateurs}
-                  />
-                ) : null}
               </span>
             }
           />
@@ -330,6 +322,7 @@ async function OngletContrats({
       categories={categories.map((c) => ({ id: c.id, label: c.label }))}
       editeurs={editeurs.map((e) => ({ id: e.id, nom: e.nom }))}
       editeurDuLogiciel={logiciel.editeur?.nom ?? null}
+      editeurDuLogicielId={logiciel.editeur?.id ?? null}
       marchesDisponibles={marchesDisponibles}
       // Calculé ICI et non dans le composant client : le jour courant lu des
       // deux côtés donnerait deux valeurs à cheval sur minuit, et React

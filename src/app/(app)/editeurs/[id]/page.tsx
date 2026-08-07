@@ -37,10 +37,13 @@ export default async function EditeurPage({ params }: { params: Promise<{ id: st
           entite="Éditeur"
         />
         <div className="min-w-0 flex-1">
+          {/* « — modifiable » disait à l'admin ce que les champs actifs et le
+              bouton d'enregistrement lui montrent déjà. La mention de lecture
+              seule reste : elle, apprend quelque chose. */}
           <PageHeader
             className=""
             title={editeur.nom}
-            subtitle={isAdmin ? "Fiche éditeur — modifiable" : "Fiche éditeur (lecture seule)"}
+            subtitle={isAdmin ? "Fiche éditeur" : "Fiche éditeur (lecture seule)"}
           />
         </div>
         <FlecheVoisin
