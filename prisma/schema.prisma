@@ -93,6 +93,14 @@ enum TypeContrat {
   autre
 }
 
+/// Ce qu'est l'acte : un marché public passé après publicité et mise en
+/// concurrence, ou un contrat de gré à gré. Distinct de `TypeContrat`, qui
+/// qualifiait le mode de licence d'une PIÈCE.
+enum NatureMarche {
+  marche
+  contrat
+}
+
 /// Environnement d'une installation sur un serveur.
 enum Environnement {
   production
@@ -499,6 +507,10 @@ model Contrat {
   /// Société avec qui la collectivité contractualise. null = l'éditeur du
   /// logiciel, cas le plus fréquent ; renseigné quand c'est un revendeur.
   fournisseurId   Int?      @map("fournisseur_id")
+  /// Marché ou contrat. null = non renseigné : les lignes reprises de
+  /// l'historique n'ont pas été dépouillées sur ce point, et rien ne permet
+  /// de trancher à leur place — l'écran dit « — » plutôt qu'une supposition.
+  nature          NatureMarche?
   libelle         String    @default("") // ex. « marché 2024-12 », « pack 50 postes »
   referenceMarche String    @default("") @map("reference_marche")
   /// Montant annuel du marché entier. null = non renseigné, à distinguer de
@@ -522,6 +534,15 @@ model Contrat {
   /// suivi vivait sur la pièce ; il est remonté ici, une pièce ne portant plus
   /// qu'une date de document.
   dateFin         DateTime? @map("date_fin") @db.Date
+  /// Durée FERME du marché, en années (1 à 4), telle que l'acte la fixe. Ne se
+  /// déduit pas des dates et n'en découle pas : la période court du début à la
+  /// fin reconductions comprises, la durée ferme est l'engagement initial.
+  /// null = non renseigné.
+  dureeAnnees     Int?      @map("duree_annees")
+  /// Nombre de reconductions prévues (0 à 3) : « renouvelable n fois ». Zéro
+  /// est une VALEUR — un marché sec, non reconductible — distinct de null, qui
+  /// dit que l'acte n'a pas été dépouillé sur ce point.
+  renouvellements Int?
   /// Date de fin pour laquelle le rappel a déjà été envoyé (anti-doublon du
   /// cron ; remise à null quand la date change).
   rappelEnvoyeLe  DateTime? @map("rappel_envoye_le") @db.Date

@@ -10,12 +10,15 @@ import { ChampsMarche } from "@/components/marche-champs";
 import { FormulairePiece, type PieceContratRow, usePieceContrat } from "@/components/piece-contrat";
 import { Card, EmptyState } from "@/components/ui";
 import { DATE_FMT_FR_UTC, formatEuros } from "@/lib/format";
+import { LIBELLES } from "@/schemas/logiciel";
 import { createContratAction, updateContratAction } from "../actions";
 
 export type { PieceContratRow };
 
 export type ContratRow = {
   id: number;
+  /** Marché ou contrat ; "" tant que l'acte n'a pas été dépouillé. */
+  nature: string;
   libelle: string;
   /** Société avec qui on contractualise ; "" = l'éditeur du logiciel. */
   fournisseurId: string;
@@ -31,6 +34,10 @@ export type ContratRow = {
   dateDebut: string;
   /** Terme du marché, AAAA-MM-JJ ou "". Aucun rappel ne s'y accroche. */
   dateFin: string;
+  /** Durée ferme en années, "1" à "4" ; "" si non renseignée. */
+  dureeAnnees: string;
+  /** Reconductions prévues, "0" à "3" ; "" si non renseignées. */
+  renouvellements: string;
   notes: string;
   pieces: PieceContratRow[];
 };
@@ -44,16 +51,59 @@ function enDateFr(iso: string): string {
 }
 
 /**
- * Période d'un marché : « du 01/01/2024 au 31/12/2028 ». Une seule borne se dit
+ * Période d'un marché : « Du 01/01/2024 au 31/12/2028 ». Une seule borne se dit
  * autrement — un marché en cours a souvent un début connu et un terme qui ne
  * l'est pas, et l'inverse se rencontre sur les reprises d'historique. Renvoie
  * null quand aucune date n'est saisie : l'appelant n'affiche alors rien.
+ *
+ * Capitale initiale : la période OUVRE sa cellule, elle n'y prolonge aucune
+ * phrase. Les deux colonnes voisines commencent de même par une majuscule.
  */
 function periodeDe(debut: string, fin: string): string | null {
-  if (debut && fin) return `du ${enDateFr(debut)} au ${enDateFr(fin)}`;
-  if (debut) return `à partir du ${enDateFr(debut)}`;
-  if (fin) return `jusqu'au ${enDateFr(fin)}`;
+  if (debut && fin) return `Du ${enDateFr(debut)} au ${enDateFr(fin)}`;
+  if (debut) return `À partir du ${enDateFr(debut)}`;
+  if (fin) return `Jusqu'au ${enDateFr(fin)}`;
   return null;
+}
+
+/**
+ * Ce que l'acte ENGAGE, quand il le dit : « (3 ans renouvelable 2 fois) ». Se
+ * lit après la période, qu'il complète sans la répéter — les dates disent
+ * jusqu'à quand le marché court, ceci dit pour combien de temps il a été passé
+ * et combien de reconductions il prévoit.
+ *
+ * Chaque moitié se dit seule : tous les actes ne fixent pas les deux. « fois »
+ * est invariable, seul le nombre d'années s'accorde. Zéro reconduction ne se
+ * dit PAS : un marché sec est le cas ordinaire, et l'annoncer sur chaque ligne
+ * ferait du bruit là où le silence dit déjà la même chose.
+ *
+ * Renvoie null quand rien n'est à dire : l'appelant n'affiche alors pas de
+ * parenthèses vides.
+ */
+function engagementDe(dureeAnnees: string, renouvellements: string): string | null {
+  const duree = dureeAnnees ? `${dureeAnnees} an${Number(dureeAnnees) > 1 ? "s" : ""}` : null;
+  const reconductions =
+    renouvellements === "" || renouvellements === "0"
+      ? null
+      : `renouvelable ${renouvellements} fois`;
+  const dit = [duree, reconductions].filter(Boolean).join(" ");
+  return dit ? `(${dit})` : null;
+}
+
+/**
+ * « Marché » ou « Contrat ». Repli sur Marché quand la base ne dit rien, comme
+ * le fait la liste du formulaire : les deux écrans ne doivent pas se contredire
+ * sur la même ligne.
+ */
+function natureDe(c: ContratRow): string {
+  return LIBELLES.natureMarche[c.nature === "contrat" ? "contrat" : "marche"];
+}
+
+/** Période et engagement d'un marché en une ligne, chacun se taisant s'il est vide. */
+function periodeEtEngagement(c: ContratRow): string {
+  return [periodeDe(c.dateDebut, c.dateFin), engagementDe(c.dureeAnnees, c.renouvellements)]
+    .filter(Boolean)
+    .join(" ");
 }
 
 /**
@@ -275,9 +325,13 @@ export function ContratsPanel({
                   l'objet étant dit par le titre de la carte. Un libellé entier
                   — « Ajouter un contrat ou marché » — poussait le menu hors de
                   l'en-tête sur un écran ordinaire. */}
+              {/* Aucun `!py` : la hauteur revient à celle de `.btn`, 30 px comme
+                  les champs. `!px-2.5` et `!gap-1.5` resserrent ce qu'une icône
+                  et un mot n'ont pas besoin d'étaler — même gabarit que le
+                  bouton « + Pièce » des marchés, plus bas. */}
               <button
                 type="button"
-                className="btn-secondary !py-1.5"
+                className="btn-secondary !gap-1.5 !px-2.5"
                 onClick={() =>
                   setMarcheForm((f) => (f?.mode === "creation" ? null : { mode: "creation" }))
                 }
@@ -356,14 +410,21 @@ export function ContratsPanel({
                         endroit. Le gabarit doit rester strictement identique
                         entre les deux rangées.
 
-                        Référence 6.25rem (100 px) et montants 16.25rem (260 px,
-                        le minimum pour « Mnt annuel : 999 999,99 € · Maxi :
-                        999 999,99 € », mesuré à 258,14 px). Tout ce qui n'est
-                        pas pris par ces deux-là revient au libellé, seul à
-                        s'étirer — les élargir le raccourcit d'autant. */}
-                      <span className="grid grid-cols-[minmax(3rem,6.25rem)_minmax(8rem,1fr)_minmax(6rem,16.25rem)] items-baseline gap-2 font-semibold text-strong">
-                        <span className="truncate" title={c.referenceMarche || undefined}>
-                          {c.referenceMarche}
+                        Référence 6.25rem (100 px) et fournisseur 15.625rem
+                        (250 px). Cette dernière portait 260 px, largeur mesurée
+                        du plus long couple de montants — « Mnt annuel :
+                        999 999,99 € · Maxi : 999 999,99 € », 258,14 px — qui se
+                        tronque donc désormais dans ce cas extrême, son `title`
+                        le donnant au survol. Tout ce qui n'est pas pris par ces
+                        deux colonnes revient au libellé, seul à s'étirer — les
+                        élargir le raccourcit d'autant. */}
+                      <span className="grid grid-cols-[minmax(3rem,6.25rem)_minmax(8rem,1fr)_minmax(6rem,15.625rem)] items-baseline gap-2 font-semibold text-strong">
+                        {/* Sans référence, la nature MONTE ici : la colonne
+                          resterait vide, et un marché non numéroté se désigne
+                          alors par ce qu'il est. Elle ne se dit qu'une fois —
+                          la rangée du dessous se tait dans ce cas. */}
+                        <span className="truncate" title={c.referenceMarche || natureDe(c)}>
+                          {c.referenceMarche || natureDe(c)}
                         </span>
                         {/* Le badge accompagne le LIBELLÉ, pas la période : c'est
                           le marché qui est terminé, pas ses dates. `shrink-0`
@@ -416,9 +477,19 @@ export function ContratsPanel({
                         sous le fournisseur, ce qu'ils qualifient chacun. Les
                         deux se taisent quand ils ne sont pas renseignés — un
                         marché sans terme saisi n'a pas à afficher un tiret. */}
-                      <span className="grid grid-cols-[minmax(3rem,6.25rem)_minmax(8rem,1fr)_minmax(6rem,16.25rem)] items-baseline gap-2 text-xs text-faint">
-                        <span>{`${c.pieces.length} pièce${c.pieces.length > 1 ? "s" : ""}`}</span>
-                        <span className="truncate">{periodeDe(c.dateDebut, c.dateFin)}</span>
+                      <span className="grid grid-cols-[minmax(3rem,6.25rem)_minmax(8rem,1fr)_minmax(6rem,15.625rem)] items-baseline gap-2 text-xs text-faint">
+                        {/* Sous la référence, ce que l'acte EST — le compte des
+                          pièces a rejoint l'en-tête du tableau qui les porte,
+                          où il désigne ce qu'on lit. Vide quand il n'y a pas de
+                          référence : la nature est alors montée à sa place, un
+                          rang plus haut, et se répéterait ici. */}
+                        <span>{c.referenceMarche ? natureDe(c) : ""}</span>
+                        {/* `title` : la colonne est étroite et l'engagement
+                          allonge la ligne — tronquée, elle reste lisible au
+                          survol. */}
+                        <span className="truncate" title={periodeEtEngagement(c) || undefined}>
+                          {periodeEtEngagement(c)}
+                        </span>
                         {/* « Mnt annuel » abrégé : les deux montants partagent
                           une colonne qui contenait déjà tout juste le premier.
                           Le plafond ne s'affiche que s'il est saisi — tous les
@@ -454,25 +525,10 @@ export function ContratsPanel({
                     </span>
                     {readOnly ? null : (
                       <span className="flex shrink-0 items-center gap-1">
-                        {/* `!px-3` : plus resserré que le `px-4` de .btn — l'icône
-                          et un mot de cinq lettres n'ont pas besoin d'autant de
-                          marge, et la place gagnée revient à l'en-tête du
-                          marché, qui est à l'étroit. */}
-                        <button
-                          type="button"
-                          className="btn-secondary !px-3 !py-1.5"
-                          disabled={pending}
-                          onClick={() =>
-                            setPieceForm((f) =>
-                              f?.contratId === c.id && f.row === null
-                                ? null
-                                : { contratId: c.id, row: null },
-                            )
-                          }
-                        >
-                          <Plus className="h-4 w-4" />
-                          Pièce
-                        </button>
+                        {/* Ne restent ici que les gestes qui portent sur le
+                          MARCHÉ lui-même : le modifier, le détacher.
+                          « + Pièce » est descendu au-dessus des pièces, où il
+                          porte. */}
                         <button
                           type="button"
                           className="btn-ghost !p-2"
@@ -500,10 +556,58 @@ export function ContratsPanel({
                   </header>
                 )}
 
-                <div className="p-4">
-                  {/* Ajout : le formulaire se pose au-dessus du tableau, il n'y
-                      a pas encore de pièce. En MODIFICATION il prend la place de
-                      la pièce concernée, plus bas. */}
+                {/* Pas de `pt` ici : l'air au-dessus de la bande « n pièces »
+                    est posé par la bande elle-même (`my-1.5`), au même endroit
+                    que celui du dessous. Les deux ne peuvent donc plus diverger
+                    — c'est ce qui était arrivé, 16 px en haut contre 6 en bas.
+                    Les trois autres côtés gardent la marge du bloc. */}
+                <div className="px-4 pb-4">
+                  {/* En-tête du bloc : ce qu'on va lire à gauche, le geste qui
+                      l'alimente à droite. « + Pièce » vivait dans l'en-tête du
+                      marché, entre des boutons qui portent sur le marché
+                      lui-même — modifier, détacher ; il est descendu au-dessus
+                      des pièces, sur lesquelles il porte vraiment. La ligne
+                      reste quand il n'y en a aucune : c'est le seul endroit
+                      d'où en ajouter une première. */}
+                  {/* `items-end` : le compte des pièces s'aligne par le BAS sur
+                      le bouton, pas par le milieu. C'est ce qui se voit — deux
+                      objets de hauteurs très différentes, 15 px de texte contre
+                      30 px de bouton, dont seul le pied commun fait une ligne.
+                      */}
+                  <div className="my-1.5 flex items-end justify-between gap-3">
+                    {/* « 3 Pièces » : ni les capitales d'un en-tête de colonne,
+                      ni le tout-minuscule d'une phrase — le compte se lit comme
+                      un intitulé, d'où la seule majuscule initiale du mot.
+                      `tracking-wide` est parti avec les capitales, dont il
+                      espaçait les lettres. */}
+                    <span className="text-xs font-semibold text-faint">
+                      {c.pieces.length === 0
+                        ? ""
+                        : `${c.pieces.length} Pièce${c.pieces.length > 1 ? "s" : ""}`}
+                    </span>
+                    {readOnly ? null : (
+                      <button
+                        type="button"
+                        className="btn-secondary !gap-1.5 !px-2.5"
+                        disabled={pending}
+                        onClick={() =>
+                          setPieceForm((f) =>
+                            f?.contratId === c.id && f.row === null
+                              ? null
+                              : { contratId: c.id, row: null },
+                          )
+                        }
+                      >
+                        <Plus className="h-4 w-4" />
+                        Pièce
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Ajout : le formulaire se pose sous l'en-tête, donc sous le
+                      bouton qui vient de l'ouvrir, et au-dessus des pièces
+                      existantes. En MODIFICATION il prend la place de la pièce
+                      concernée, plus bas. */}
                   {pieceForm?.contratId === c.id && pieceForm.row === null ? (
                     <FormulairePiece
                       key={`p-new-${c.id}`}
@@ -525,16 +629,17 @@ export function ContratsPanel({
                   ) : (
                     <div className="table-wrap">
                       <table className="data-table">
-                        <thead>
-                          <tr>
-                            {/* La ligne EST la pièce : l'en-tête la nomme et
-                                s'accorde à leur nombre. Sa catégorie ET sa date
-                                se lisent sous son nom, dans LigneDocument —
-                                d'où l'absence de colonnes dédiées. */}
-                            <th>{c.pieces.length > 1 ? "Pièces" : "Pièce"}</th>
-                            {readOnly ? null : <th className="w-20" aria-label="Actions" />}
-                          </tr>
-                        </thead>
+                        {/* La largeur de la colonne d'actions vivait dans le
+                            `<th className="w-20">` de l'en-tête, disparu avec
+                            lui : la cellule s'étirait alors sur tout ce qui
+                            restait, et les deux icônes flottaient à gauche d'un
+                            vide. Un `colgroup` la porte désormais. */}
+                        {readOnly ? null : (
+                          <colgroup>
+                            <col />
+                            <col className="w-20" />
+                          </colgroup>
+                        )}
                         <tbody>
                           {c.pieces.map((l) =>
                             pieceForm?.row?.id === l.id ? (

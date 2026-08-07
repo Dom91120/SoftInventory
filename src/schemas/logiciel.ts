@@ -26,6 +26,21 @@ const idOptionnel = z
   .transform((v) => (v === "" ? null : Number(v)))
   .refine((v) => v === null || (Number.isInteger(v) && v >= 1), "Choix invalide.");
 
+/**
+ * "" → null, sinon entier d'une plage FERMÉE : les listes et compteurs dont
+ * l'écran ne propose qu'une poignée de valeurs. Le vide dit « non renseigné »,
+ * et une borne basse à zéro laisse zéro être une réponse.
+ */
+const entierBorne = (min: number, max: number, quoi: string) =>
+  z
+    .string()
+    .trim()
+    .transform((v) => (v === "" ? null : Number(v)))
+    .refine(
+      (v) => v === null || (Number.isInteger(v) && v >= min && v <= max),
+      `${quoi} : valeur attendue entre ${min} et ${max}.`,
+    );
+
 /** "" → null, sinon entier positif. Le vide dit « non renseigné », pas zéro. */
 const entierOptionnel = (max: number, quoi: string) =>
   z
@@ -42,6 +57,8 @@ export const CYCLES_DE_VIE = ["evaluation", "production", "fin_de_vie", "abandon
 export const TYPES_SOURCE = ["opensource", "proprietaire", "mixte"] as const;
 export const MODES_AUTH = ["locale", "sso", "ldap", "mixte", "aucune"] as const;
 export const LOCALISATIONS = ["ue", "hors_ue", "mixte", "inconnue"] as const;
+/** Ce qu'est l'acte. Vide = non renseigné, d'où l'absence de valeur par défaut. */
+export const NATURES_MARCHE = ["marche", "contrat"] as const;
 export const ENVIRONNEMENTS = ["production", "test", "recette", "formation"] as const;
 
 // Libellés d'affichage des enums (une seule traduction pour toute l'app).
@@ -67,6 +84,7 @@ export const LIBELLES = {
     mixte: "Mixte",
     inconnue: "Inconnue",
   },
+  natureMarche: { marche: "Marché", contrat: "Contrat" },
   environnement: {
     production: "Production",
     test: "Test",
@@ -151,6 +169,17 @@ export type LogicielRgpdInput = z.infer<typeof logicielRgpdSchema>;
  */
 export const contratSchema = z
   .object({
+    // Marché ou contrat. "" → null : rien n'oblige à trancher, et les lignes
+    // reprises de l'historique n'ont pas été dépouillées sur ce point.
+    nature: z
+      .string()
+      .trim()
+      .transform((v) => (v === "" ? null : v))
+      .refine(
+        (v) => v === null || (NATURES_MARCHE as readonly string[]).includes(v),
+        "Nature invalide.",
+      )
+      .transform((v) => v as (typeof NATURES_MARCHE)[number] | null),
     libelle: z.string().trim().max(150, "Libellé trop long (150 caractères max)."),
     // Vide = l'éditeur du logiciel ; renseigné quand on contractualise avec un revendeur.
     fournisseurId: idOptionnel,
@@ -169,6 +198,11 @@ export const contratSchema = z
     // Terme du marché ET échéance surveillée : c'est elle que lisent le cron
     // et le tableau de bord. La changer relance un rappel (voir updateContrat).
     dateFin: dateOptionnelle,
+    // Durée ferme et reconductions : ce que l'acte fixe, et que la période
+    // affichée ne dit pas. Bornes larges assumées — un marché public court
+    // rarement au-delà de quatre ans, reconductions comprises.
+    dureeAnnees: entierBorne(1, 4, "Durée"),
+    renouvellements: entierBorne(0, 3, "Renouvellements"),
     notes: z.string().trim().max(2000, "Notes trop longues (2000 caractères max)."),
   })
   // Les deux dates forment une période : une fin antérieure au début est une

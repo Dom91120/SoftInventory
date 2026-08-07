@@ -28,6 +28,7 @@ function inattendu(e: unknown): Result {
 function parse(formData: FormData) {
   const get = (k: string) => String(formData.get(k) ?? "");
   return contratSchema.safeParse({
+    nature: get("nature"),
     libelle: get("libelle"),
     fournisseurId: get("fournisseurId"),
     referenceMarche: get("referenceMarche"),
@@ -36,6 +37,8 @@ function parse(formData: FormData) {
     montantTotal: get("montantTotal"),
     dateDebut: get("dateDebut"),
     dateFin: get("dateFin"),
+    dureeAnnees: get("dureeAnnees"),
+    renouvellements: get("renouvellements"),
     notes: get("notes"),
   });
 }

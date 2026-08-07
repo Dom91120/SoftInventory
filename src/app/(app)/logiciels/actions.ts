@@ -260,6 +260,7 @@ export async function removeInterconnexionAction(id: number, logicielId: number)
 function parseContrat(formData: FormData) {
   const get = (k: string) => String(formData.get(k) ?? "");
   return contratSchema.safeParse({
+    nature: get("nature"),
     libelle: get("libelle"),
     fournisseurId: get("fournisseurId"),
     referenceMarche: get("referenceMarche"),
@@ -268,6 +269,8 @@ function parseContrat(formData: FormData) {
     montantTotal: get("montantTotal"),
     dateDebut: get("dateDebut"),
     dateFin: get("dateFin"),
+    dureeAnnees: get("dureeAnnees"),
+    renouvellements: get("renouvellements"),
     notes: get("notes"),
   });
 }

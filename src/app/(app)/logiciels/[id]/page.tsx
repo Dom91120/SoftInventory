@@ -339,6 +339,7 @@ async function OngletContrats({
       contrats={logiciel.contrats.map(
         (c): ContratRow => ({
           id: c.id,
+          nature: c.nature ?? "",
           libelle: c.libelle,
           fournisseurId: c.fournisseurId === null ? "" : String(c.fournisseurId),
           fournisseurNom: c.fournisseur?.nom ?? null,
@@ -348,6 +349,8 @@ async function OngletContrats({
           montantMaxi: c.montantMaxi === null ? "" : String(c.montantMaxi),
           dateDebut: dateStr(c.dateDebut),
           dateFin: dateStr(c.dateFin),
+          dureeAnnees: c.dureeAnnees === null ? "" : String(c.dureeAnnees),
+          renouvellements: c.renouvellements === null ? "" : String(c.renouvellements),
           notes: c.notes,
           pieces: c.pieces.map((l) => {
             // Une seule pièce par ligne : on ne remonte que la première, même

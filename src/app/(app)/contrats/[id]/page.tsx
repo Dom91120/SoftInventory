@@ -113,6 +113,7 @@ export default async function ContratPage({ params }: { params: Promise<{ id: st
         readOnly={!isAdmin}
         editeurs={editeurs.map((e) => ({ id: e.id, nom: e.nom }))}
         values={{
+          nature: contrat.nature ?? "",
           referenceMarche: contrat.referenceMarche,
           libelle: contrat.libelle,
           fournisseurId: contrat.fournisseurId === null ? "" : String(contrat.fournisseurId),
@@ -121,6 +122,8 @@ export default async function ContratPage({ params }: { params: Promise<{ id: st
           montantTotal: contrat.montantTotal === null ? "" : String(contrat.montantTotal),
           dateDebut: dateStr(contrat.dateDebut),
           dateFin: dateStr(contrat.dateFin),
+          dureeAnnees: contrat.dureeAnnees === null ? "" : String(contrat.dureeAnnees),
+          renouvellements: contrat.renouvellements === null ? "" : String(contrat.renouvellements),
           notes: contrat.notes,
         }}
       >
