@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useRef, useState, useTransition } from "react";
 import { deleteDocumentAction } from "@/app/(app)/documents/actions";
 import { createEditeurAction } from "@/app/(app)/editeurs/actions";
-import { useConfirmation } from "@/components/confirmation";
+import { DETAIL_FICHIER_DEFINITIF, useConfirmation } from "@/components/confirmation";
 import {
   type CategorieOption,
   type DocumentRow,
@@ -175,11 +175,15 @@ export function DevisPanel({
   }
 
   async function supprimerDevis(d: DevisRow) {
+    // Le fichier nomme le devis quand il y en a un : deux devis d'un même
+    // fournisseur ne se distinguent que par là. Sinon, le fournisseur.
+    const quoi = d.document
+      ? `le devis « ${d.document.nomOriginal} »`
+      : `le devis de « ${nomDe(d)} »`;
     const ok = await confirmer({
-      question: `Supprimer le devis de « ${nomDe(d)} » ?`,
-      // La pièce part avec la ligne : on le dit, c'est la seule corbeille de
-      // l'application qui emporte un fichier.
-      detail: d.document ? `Sa pièce jointe « ${d.document.nomOriginal} » aussi.` : undefined,
+      question: `Supprimer ${quoi} ?`,
+      // La pièce part avec la ligne, et le disque ne la garde pas.
+      detail: d.document ? DETAIL_FICHIER_DEFINITIF : undefined,
     });
     if (!ok) return;
     setError(null);

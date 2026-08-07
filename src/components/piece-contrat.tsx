@@ -9,7 +9,7 @@ import {
   deletePieceContratAction,
   updatePieceContratAction,
 } from "@/app/(app)/logiciels/actions";
-import { useConfirmation } from "@/components/confirmation";
+import { DETAIL_FICHIER_DEFINITIF, useConfirmation } from "@/components/confirmation";
 import type { CategorieOption, DocumentRow } from "@/components/documents-panel";
 import { Field } from "@/components/ui";
 
@@ -146,7 +146,7 @@ export function usePieceContrat(onErreur: (message: string | null) => void) {
     const quoi = nom ? `la pièce « ${nom} »` : "cette pièce";
     const ok = await confirmer({
       question: `Supprimer ${quoi} ?`,
-      detail: l.document ? `Son fichier « ${l.document.nomOriginal} » aussi.` : undefined,
+      detail: l.document ? DETAIL_FICHIER_DEFINITIF : undefined,
     });
     if (!ok) return;
     onErreur(null);

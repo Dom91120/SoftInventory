@@ -28,9 +28,10 @@ export type DemandeConfirmation = {
   /**
    * Ce que le geste emporte VRAIMENT, quand ce n'est pas évident : les fichiers
    * effacés avec la ligne, les écrans épargnés. Les retours à la ligne sont
-   * conservés à l'affichage.
+   * conservés à l'affichage. Une phrase, le plus souvent ; du JSX quand un mot
+   * doit peser plus lourd que les autres.
    */
-  detail?: string;
+  detail?: React.ReactNode;
   /** Libellé du bouton qui confirme — le VERBE du geste, jamais « OK ». */
   action?: string;
   /**
@@ -39,6 +40,18 @@ export type DemandeConfirmation = {
    */
   danger?: boolean;
 };
+
+/**
+ * Le détail des trois corbeilles qui emportent un fichier — une pièce de
+ * marché, un devis, un document. Le nom du fichier est déjà dans la question ;
+ * ce qu'il reste à dire, c'est qu'aucune corbeille ne le rattrapera, et ce
+ * mot-là pèse plus lourd que les autres.
+ */
+export const DETAIL_FICHIER_DEFINITIF = (
+  <>
+    Le fichier sera <strong className="font-semibold text-strong">définitivement</strong> supprimé.
+  </>
+);
 
 const Contexte = createContext<((d: DemandeConfirmation) => Promise<boolean>) | null>(null);
 

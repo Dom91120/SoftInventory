@@ -24,7 +24,7 @@ import {
   renameDocumentAction,
   updateDocumentCategorieAction,
 } from "@/app/(app)/documents/actions";
-import { useConfirmation } from "@/components/confirmation";
+import { DETAIL_FICHIER_DEFINITIF, useConfirmation } from "@/components/confirmation";
 import { Card, EmptyState } from "@/components/ui";
 import { extensionDe } from "@/lib/documents-regles";
 
@@ -308,7 +308,11 @@ export function DocumentsPanel({
   }
 
   async function supprimer(doc: DocumentRow) {
-    if (!(await confirmer({ question: `Supprimer « ${doc.nomOriginal} » ?` }))) return;
+    const ok = await confirmer({
+      question: `Supprimer le document « ${doc.nomOriginal} » ?`,
+      detail: DETAIL_FICHIER_DEFINITIF,
+    });
+    if (!ok) return;
     setError(null);
     startTransition(async () => {
       const res = await deleteDocumentAction(doc.id);
