@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { type ReactNode, useState, useTransition } from "react";
 import { useConfirmation } from "@/components/confirmation";
+import { useSaisieEnCours } from "@/components/saisie-en-cours";
 import { Card, Field } from "@/components/ui";
 import { createEditeurAction, deleteEditeurAction, updateEditeurAction } from "./actions";
 
@@ -91,6 +92,7 @@ export function EditeurForm({
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const saisie = useSaisieEnCours();
 
   function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -110,6 +112,7 @@ export function EditeurForm({
         router.refresh();
       } else {
         setSaved(true);
+        saisie.enregistre();
         router.refresh();
       }
     });
@@ -157,7 +160,13 @@ export function EditeurForm({
 
   return (
     <div className="space-y-3">
-      <form id={FORM_ID} onSubmit={submit} className="space-y-3">
+      <form
+        id={FORM_ID}
+        ref={saisie.formRef}
+        onSubmit={submit}
+        onChange={saisie.surSaisie}
+        className="space-y-3"
+      >
         <Card title="Coordonnées">
           <div className="grid gap-x-3 gap-y-2 sm:grid-cols-2">
             <Field label="Nom de l'éditeur" htmlFor="nom" required>
@@ -234,10 +243,29 @@ export function EditeurForm({
 
       {readOnly ? null : (
         <div className="flex items-center justify-between gap-3">
-          <button type="submit" form={FORM_ID} disabled={pending} className="btn-primary">
-            {pending ? "Enregistrement…" : id === undefined ? "Créer l'éditeur" : "Enregistrer"}
-          </button>
-          {id !== undefined ? (
+          {/* Les deux gestes qui portent sur la SAISIE, côte à côte : l'un la
+              garde, l'autre la rend. « Annuler » ne paraît que lorsqu'il y a
+              quelque chose à annuler, et sans confirmation — il n'y a que des
+              frappes non enregistrées à perdre. Ambre sur fond blanc : revenir
+              en arrière n'a pas le poids de détruire. */}
+          <div className="flex items-center gap-3">
+            <button type="submit" form={FORM_ID} disabled={pending} className="btn-primary">
+              {pending ? "Enregistrement…" : id === undefined ? "Créer l'éditeur" : "Enregistrer"}
+            </button>
+            {saisie.modifie ? (
+              <button
+                type="button"
+                onClick={saisie.annuler}
+                disabled={pending}
+                className="btn-warn"
+              >
+                Annuler
+              </button>
+            ) : null}
+          </div>
+          {/* La corbeille garde son bout de ligne : elle ne porte pas sur la
+              saisie en cours mais sur la fiche entière. */}
+          {id === undefined ? null : (
             <button
               type="button"
               onClick={supprimer}
@@ -251,7 +279,7 @@ export function EditeurForm({
             >
               Supprimer
             </button>
-          ) : null}
+          )}
         </div>
       )}
     </div>

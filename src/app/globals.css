@@ -66,6 +66,8 @@
   --color-warn-dim: #fef3c7;
   --color-warn-text: #92400e;
   --color-danger: #dc2626;
+  /* Survol du bouton plein, comme -accent-strong l'est pour l'accent. */
+  --color-danger-strong: #b91c1c;
   --color-danger-dim: #fee2e2;
   --color-danger-text: #991b1b;
   --color-info: #2563eb;
@@ -98,6 +100,7 @@ html[data-theme="dark"] {
   --color-warn-dim: #78350f;
   --color-warn-text: #fcd34d;
   --color-danger: #f87171;
+  --color-danger-strong: #ef4444;
   --color-danger-dim: #7f1d1d;
   --color-danger-text: #fca5a5;
   --color-info: #60a5fa;
@@ -122,9 +125,10 @@ body {
   .btn-primary,
   .btn-secondary,
   .btn-danger,
+  .btn-warn,
   .btn-ghost {
     /* Bordure transparente dans la base : les variantes bordées (secondary,
-       danger) mesuraient 2 px de plus que les autres. Toutes font désormais
+       warn) mesuraient 2 px de plus que les autres. Toutes font désormais
        30 px, comme les champs. */
     @apply inline-flex items-center justify-center gap-2 rounded-lg border border-transparent px-4 py-1 text-sm font-medium transition disabled:opacity-50 disabled:pointer-events-none;
   }
@@ -134,8 +138,17 @@ body {
   .btn-secondary {
     @apply border border-sub bg-surface text-body shadow-sm hover:border-accent hover:text-strong;
   }
+  /* Plein, comme .btn-primary : même forme, même poids, le rouge à la place de
+     l'accent. Le geste destructeur a le même rang visuel que l'enregistrement —
+     il ferme la page tout autant. */
   .btn-danger {
-    @apply border border-danger/30 bg-surface text-danger shadow-sm hover:bg-danger-dim;
+    @apply bg-danger font-semibold text-white shadow-sm hover:bg-danger-strong active:translate-y-px;
+  }
+  /* Contour ambre sur fond blanc, pour le geste qui REVIENT en arrière plutôt
+     que de détruire : « Annuler » y remplace la corbeille sans en prendre le
+     poids. L'ambre dit « attention » là où le rouge dit « destruction ». */
+  .btn-warn {
+    @apply border border-warn/30 bg-surface text-warn shadow-sm hover:bg-warn-dim;
   }
   .btn-ghost {
     @apply text-muted hover:bg-inset hover:text-strong;
