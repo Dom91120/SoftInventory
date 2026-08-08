@@ -15,13 +15,19 @@ import { filtresContratsDepuisParams } from "./shared";
 
 export const metadata: Metadata = { title: "Contrats/Marchés" };
 
-/** « du 01/01/2024 au 31/12/2028 », ou la seule borne connue. */
-function periodeDe(debut: Date | null, fin: Date | null): string {
-  const f = (d: Date) => DATE_FMT_FR_UTC.format(d);
-  if (debut && fin) return `du ${f(debut)} au ${f(fin)}`;
-  if (debut) return `à partir du ${f(debut)}`;
-  if (fin) return `jusqu'au ${f(fin)}`;
-  return "—";
+/**
+ * Les deux bornes du marché, destinées à être empilées : début puis fin. Sans
+ * « du » ni « au » — la colonne s'appelle « Période », et deux dates l'une sous
+ * l'autre se lisent dans cet ordre sans qu'on ait à le dire ; les mots coûtaient
+ * une demi-colonne pour cela seul.
+ *
+ * La borne inconnue garde sa ligne, marquée d'un tiret : sans elle, on ne
+ * saurait plus laquelle des deux on lit. Renvoie null quand aucune n'est saisie.
+ */
+function periodeDe(debut: Date | null, fin: Date | null): { debut: string; fin: string } | null {
+  if (!debut && !fin) return null;
+  const f = (d: Date | null) => (d ? DATE_FMT_FR_UTC.format(d) : "—");
+  return { debut: f(debut), fin: f(fin) };
 }
 
 /**
@@ -84,6 +90,24 @@ export default async function ContratsPage({
         <div className="card px-5 py-4">
           <div className="table-wrap">
             <table className="data-table">
+              {/* Deux colonnes déclarées, les autres se partagent le reste.
+
+                  Le FOURNISSEUR reçoit la place rendue par la période, que rien
+                  ne lui réclamait jusqu'ici : « Ressources Consultants Finances »
+                  se repliait sur trois lignes et étirait toute la rangée.
+
+                  Le MONTANT tient sur 6.25rem : « 999 999,99 € » mesure 88 px
+                  dans la fonte de la cellule (12 px, chiffres à chasse fixe), et
+                  la cellule pousse 12 px à sa droite. En dessous, le plus gros
+                  montant possible se couperait en deux lignes. */}
+              <colgroup>
+                <col />
+                <col style={{ width: "25%" }} />
+                <col />
+                <col />
+                <col style={{ width: "6.25rem" }} />
+                <col />
+              </colgroup>
               <thead>
                 <tr>
                   <th>Marché</th>
@@ -100,6 +124,7 @@ export default async function ContratsPage({
                   const montant = formatEuros(
                     c.montantAnnuel === null ? null : String(c.montantAnnuel),
                   );
+                  const periode = periodeDe(c.dateDebut, c.dateFin);
                   return (
                     <tr key={c.id}>
                       {/* Le libellé d'abord — il dit de quoi il s'agit —, la
@@ -121,17 +146,42 @@ export default async function ContratsPage({
                         ) : null}
                       </td>
                       <td>{c.fournisseur?.nom ?? "—"}</td>
-                      <td>
+                      {/* Même interligne que la période d'à côté — 16 px, posé
+                          sur la CELLULE, seul endroit qui fixe la hauteur des
+                          lignes. Sans lui, la police de 14 px de la table
+                          imposait un plancher de 20 px, et deux colonnes au même
+                          texte respiraient différemment. */}
+                      <td className="text-xs leading-4">
                         {c.logiciels.length === 0 ? (
                           <span className="badge-muted">aucun</span>
                         ) : (
-                          <span className="text-xs text-muted">
+                          <span className="text-muted">
                             {c.logiciels.map((l) => l.logiciel.nom).join(" · ")}
                           </span>
                         )}
                       </td>
-                      <td className="text-xs text-muted">{periodeDe(c.dateDebut, c.dateFin)}</td>
-                      <td className="text-right tabular-nums">{montant ?? "—"}</td>
+                      {/* `leading-none` sur la CELLULE : c'est le bloc qui fixe
+                          la hauteur des lignes, et la police de 14 px de la
+                          table imposerait sinon un plancher de 20 px à chacune
+                          des deux dates. */}
+                      <td className="whitespace-nowrap text-xs leading-none text-muted">
+                        {periode ? (
+                          <>
+                            <span className="block">{periode.debut}</span>
+                            <span className="mt-1 block">{periode.fin}</span>
+                          </>
+                        ) : (
+                          "—"
+                        )}
+                      </td>
+                      {/* Alignée sur ses voisines — 12 px, gris — plutôt que sur
+                          la taille de base de la table : c'est une donnée de
+                          plus sur la ligne, pas son sujet. `tabular-nums` reste :
+                          il donne à tous les chiffres la même chasse, et c'est
+                          lui qui aligne les virgules d'une ligne à l'autre. */}
+                      <td className="whitespace-nowrap text-right text-xs tabular-nums text-muted">
+                        {montant ?? "—"}
+                      </td>
                       <td className="text-center">
                         {etat === "termine" ? (
                           <span className="badge-muted">Terminé</span>

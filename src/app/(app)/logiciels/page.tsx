@@ -72,31 +72,51 @@ export default async function LogicielsPage({
       ) : (
         <div className="card px-5 py-4">
           <div className="table-wrap">
-            <table className="data-table">
+            {/* `table-fixed` : en disposition automatique, une cellule que l'on
+                empêche de se couper (`truncate`) élargit sa colonne au lieu de
+                se tronquer, et les pourcentages ci-dessous n'étaient plus que
+                des vœux. En disposition fixe, les largeurs déclarées font loi et
+                la troncature se déclenche. */}
+            <table className="data-table table-fixed">
+              {/* Les largeurs vivent dans le `colgroup`, leur place : elles
+                  décrivent la colonne, pas la cellule d'en-tête. Chacune déclare
+                  sa part et la somme fait 100 — en disposition fixe, une colonne
+                  qui se tait prend ce qui reste, à parts égales avec les autres
+                  muettes, et « On premise » se repliait alors sur deux lignes. */}
+              <colgroup>
+                <col style={{ width: "22%" }} />
+                <col style={{ width: "19%" }} />
+                <col style={{ width: "14%" }} />
+                <col style={{ width: "25%" }} />
+                <col style={{ width: "9%" }} />
+                <col style={{ width: "11%" }} />
+              </colgroup>
               <thead>
                 <tr>
-                  <th className="w-[24%]">Logiciel</th>
-                  {/* L'éditeur cesse d'être serré au profit du nom : « Avanti
-                      Technologies (Agorabox) » se repliait sur trois lignes et
-                      étirait toute la rangée. */}
-                  <th className="w-[20%]">Éditeur</th>
+                  <th>Logiciel</th>
+                  <th>Éditeur</th>
                   <th>Hébergement</th>
-                  {/* La largeur libérée par « Utilisation » revient ici : les
-                      services tenaient sur 80 px, ce qui repliait deux noms en
-                      autant de lignes. */}
-                  <th className="w-[22%]">Services</th>
+                  <th>Services</th>
                   <th className="text-center">Criticité</th>
                   <th className="text-center">Statut</th>
                 </tr>
               </thead>
               <tbody>
                 {logiciels.map((l) => (
-                  <tr key={l.id}>
+                  // Hauteur fixée : d'une ligne à l'autre, le nombre de services
+                  // et le repli des noms faisaient varier la rangée du simple au
+                  // double, et l'œil perdait le pas en descendant la liste. Les
+                  // cellules sont déjà centrées verticalement (`align-middle` de
+                  // .data-table), les contenus courts se posent donc au milieu
+                  // plutôt qu'en haut.
+                  <tr key={l.id} className="h-[49px]">
+                    {/* Le nom entier reste au survol, et la fiche est à un clic. */}
                     <td>
-                      <span className="flex items-center gap-1.5">
+                      <span className="flex min-w-0 items-center gap-1.5">
                         <Link
                           href={`/logiciels/${l.id}`}
-                          className="font-medium text-strong hover:text-accent"
+                          title={l.nom}
+                          className="truncate font-medium text-strong hover:text-accent"
                         >
                           {l.nom}
                         </Link>
@@ -106,28 +126,45 @@ export default async function LogicielsPage({
                             target="_blank"
                             rel="noreferrer noopener"
                             title={`Ouvrir ${l.url}`}
-                            className="text-faint hover:text-accent"
+                            className="shrink-0 text-faint hover:text-accent"
                           >
                             <ExternalLink className="h-3.5 w-3.5" />
                           </a>
                         ) : null}
                       </span>
                       {l.technologie ? (
-                        <span className="block text-xs text-faint">{l.technologie.label}</span>
+                        <span className="block truncate text-xs text-faint">
+                          {l.technologie.label}
+                        </span>
                       ) : null}
                     </td>
                     {/* Fait maison : pas d'éditeur, mais la colonne doit le
                         dire plutôt que d'afficher un tiret trompeur. */}
                     <td>
-                      {l.developpementInterne ? (
-                        <span className="text-muted">Développement interne</span>
-                      ) : (
-                        (l.editeur?.nom ?? "—")
-                      )}
+                      <span
+                        className="block truncate"
+                        title={
+                          l.developpementInterne
+                            ? "Développement interne"
+                            : (l.editeur?.nom ?? undefined)
+                        }
+                      >
+                        {l.developpementInterne ? (
+                          <span className="text-muted">Développement interne</span>
+                        ) : (
+                          (l.editeur?.nom ?? "—")
+                        )}
+                      </span>
                     </td>
                     <td>{LIBELLES.hebergement[l.hebergement]}</td>
-                    <td className="max-w-64">
-                      <span className="text-xs text-muted">
+                    {/* `leading-none` sur la CELLULE, pas sur le span : la
+                        hauteur d'une ligne est celle du bloc qui la contient, et
+                        la cellule impose un plancher de 20 px (sa police de
+                        14 px). Posée sur le span, la consigne était ignorée.
+                        C'est la seule colonne qui se replie souvent sur deux ou
+                        trois lignes, et cet interligne y creusait la rangée. */}
+                    <td className="text-xs leading-none">
+                      <span className="text-muted">
                         {l.services.map((s) => s.service.nom).join(" · ") || "—"}
                       </span>
                     </td>
@@ -137,14 +174,18 @@ export default async function LogicielsPage({
                         disaient rien et couvraient les quelques-unes qui
                         disent quelque chose. La fiche du logiciel, elle, garde
                         le libellé — le badge y est seul et doit se nommer. */}
-                    <td className="text-center">
+                    {/* Pastilles resserrées : sur une LISTE, elles se comptent
+                        par dizaines et deux colonnes entières de pilules pleine
+                        taille pèsent plus que ce qu'elles disent. Les fiches
+                        gardent le gabarit normal, où le badge est seul. */}
+                    <td className="text-center [&>span]:px-2 [&>span]:py-0 [&>span]:text-[11px]">
                       {l.criticite ? (
                         <CriticiteBadge criticite={l.criticite} />
                       ) : (
                         <span className="text-faint">—</span>
                       )}
                     </td>
-                    <td className="text-center">
+                    <td className="text-center [&>span]:px-2 [&>span]:py-0 [&>span]:text-[11px]">
                       <StatutBadge statut={l.statut} statuts={statuts} />
                     </td>
                   </tr>

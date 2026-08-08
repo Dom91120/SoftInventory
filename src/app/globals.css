@@ -179,6 +179,19 @@ body {
     @apply cursor-pointer border-0 bg-transparent p-0 pr-1 text-xs text-faint outline-none transition;
     field-sizing: content;
   }
+
+  /* Liste d'une barre de FILTRES : elle porte l'intitulé du filtre tant que rien
+     n'est choisi, le libellé retenu ensuite. `field-sizing: content` lui donne
+     la largeur de ce qu'elle affiche et non celle de sa plus longue option —
+     l'annuaire des éditeurs, ou les noms de service, étiraient chacun leur liste
+     au point de renvoyer la barre sur deux rangées. Le plafond garde la barre
+     lisible quand un libellé long est retenu ; les navigateurs qui ignorent la
+     propriété retombent sur le comportement natif, plus large mais jamais
+     cassé. */
+  .select-filtre {
+    @apply max-w-44 px-2;
+    field-sizing: content;
+  }
   .select-inline:hover,
   .select-inline:focus {
     @apply text-strong;
