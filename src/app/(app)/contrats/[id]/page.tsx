@@ -104,17 +104,17 @@ export default async function ContratPage({
               place qu'occupe « Fiche éditeur » sur la fiche logiciel. Le nom du
               fournisseur n'est pas répété — le champ de la carte, juste
               dessous, le porte déjà. */}
-          {/* La pastille d'état accompagne la RÉFÉRENCE, pas le titre : elle
-              qualifie le marché qu'elle nomme, et le titre d'un marché est
-              souvent long — la pastille s'en trouvait rejetée à la ligne, seule
-              au-dessus de la référence. Les deux se lisent maintenant
-              ensemble. */}
-          <PageHeader className="" title={titreDe(contrat)} />
+          {/* La pastille d'état tient le bout de la ligne du TITRE, comme les
+              pastilles de statut et de criticité sur la fiche d'un logiciel :
+              l'état se lit d'un coup d'œil, toujours au même endroit, sans
+              dépendre de la longueur du nom qui le précède. */}
+          <PageHeader
+            className=""
+            title={titreDe(contrat)}
+            actions={<span className={PASTILLE.classe}>{PASTILLE.texte}</span>}
+          />
           <div className="mt-0.5 flex flex-wrap items-center justify-between gap-4">
-            <div className="flex items-center gap-2">
-              <p className="text-sm text-muted">{contrat.referenceMarche}</p>
-              <span className={PASTILLE.classe}>{PASTILLE.texte}</span>
-            </div>
+            <p className="text-sm text-muted">{contrat.referenceMarche}</p>
             {contrat.fournisseur ? (
               <Link
                 href={`/editeurs/${contrat.fournisseur.id}`}

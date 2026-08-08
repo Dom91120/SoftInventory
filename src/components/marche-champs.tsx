@@ -174,11 +174,7 @@ export function ChampsMarche({
           className="input"
         />
       </Field>
-      <Field
-        label="Date de fin"
-        htmlFor="dateFin"
-        hint="Terme du marché : CETTE date déclenche le rappel."
-      >
+      <Field label="Date de fin" htmlFor="dateFin" hint="Cette date déclenche le rappel.">
         <input
           id="dateFin"
           name="dateFin"
