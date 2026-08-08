@@ -63,11 +63,11 @@ export function LogicielsCouverts({
         readOnly || disponibles.length === 0 ? undefined : (
           <button
             type="button"
-            className="btn-secondary !py-1.5"
+            className="btn-secondary !px-2.5 !py-1 !text-xs"
             disabled={pending}
             onClick={() => (ouvert ? fermer() : setOuvert(true))}
           >
-            {ouvert ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+            {ouvert ? <X className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
             {ouvert ? "Fermer" : "Rattacher"}
           </button>
         )
@@ -136,7 +136,11 @@ export function LogicielsCouverts({
               {readOnly ? null : (
                 <button
                   type="button"
-                  className="btn-ghost !p-2 shrink-0 hover:!text-danger"
+                  // La corbeille tenait 34 px et c'est ELLE qui fixait la
+                  // hauteur de la ligne, à 50 px contre 37 pour la liste des
+                  // logiciels d'un éditeur, qui dit pourtant la même chose.
+                  // Ramenée à la hauteur du texte, elle ne commande plus rien.
+                  className="btn-ghost !h-5 !w-5 !p-0 shrink-0 hover:!text-danger"
                   title={`Détacher ${l.nom} de ce marché`}
                   disabled={pending}
                   onClick={() => run(() => detacherLogicielAction(contratId, l.id))}

@@ -47,11 +47,15 @@ export function PiecesMarche({
         readOnly ? undefined : (
           <button
             type="button"
-            className="btn-secondary !py-1.5"
+            className="btn-secondary !px-2.5 !py-1 !text-xs"
             disabled={piece.pending}
             onClick={() => setOuvert((o) => (o?.row === null ? null : { row: null }))}
           >
-            {ouvert?.row === null ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+            {ouvert?.row === null ? (
+              <X className="h-3.5 w-3.5" />
+            ) : (
+              <Plus className="h-3.5 w-3.5" />
+            )}
             {ouvert?.row === null ? "Fermer" : "Ajouter une pièce"}
           </button>
         )
