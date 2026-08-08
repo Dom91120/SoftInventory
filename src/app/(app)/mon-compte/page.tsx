@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Card, PageHeader } from "@/components/ui";
 import { requireUser } from "@/server/guards";
+import { BoutonQuitter } from "./bouton-quitter";
 import { PasswordForm } from "./password-form";
 import { ProfileForm } from "./profile-form";
 
@@ -37,6 +38,9 @@ export default async function MonComptePage() {
             <PasswordForm />
           )}
         </Card>
+      </div>
+      <div className="mt-4">
+        <BoutonQuitter />
       </div>
     </>
   );
