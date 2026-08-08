@@ -77,19 +77,155 @@ function ordonner<T extends { dateDebut: Date | null; dateFin: Date | null; id: 
   );
 }
 
+// ── Tri de la liste, au clic sur une colonne ────────────────────────────────
+// Vit ici et non près de l'écran : la liste, l'export CSV et les flèches d'une
+// fiche s'en servent, et un ordre qui diffère entre eux se remarquerait aussitôt.
+
+/** Les six colonnes de la liste, dans leur ordre d'affichage. */
+export const TRIS_CONTRATS = [
+  "marche",
+  "fournisseur",
+  "logiciels",
+  "periode",
+  "montant",
+  "etat",
+] as const;
+export type TriContrat = (typeof TRIS_CONTRATS)[number];
+export type SensTri = "asc" | "desc";
+
+/**
+ * Sens PROPOSÉ au premier clic sur une colonne, celui qui répond à la question
+ * qu'on se pose en la cliquant. Un texte se parcourt de A à Z ; une date ou un
+ * montant, on veut d'abord le plus récent et le plus gros ; un état, ce qui
+ * réclame une action.
+ */
+export const SENS_PAR_DEFAUT: Record<TriContrat, SensTri> = {
+  marche: "asc",
+  fournisseur: "asc",
+  logiciels: "asc",
+  periode: "desc",
+  montant: "desc",
+  etat: "asc",
+};
+
+/** Ce dont on dispose pour trier : ce que la liste affiche, et rien de plus. */
+type LigneTriable = {
+  id: number;
+  libelle: string;
+  referenceMarche: string;
+  dateDebut: Date | null;
+  dateFin: Date | null;
+  montantAnnuel: unknown;
+  fournisseur: { nom: string } | null;
+  logiciels: Array<{ logiciel: { nom: string } }>;
+};
+
+/**
+ * Rang de l'état : ce qui RÉCLAME une action vient en tête. « À renouveler »
+ * est le seul des trois sur lequel on peut agir aujourd'hui.
+ */
+const RANG_ETAT = { a_renouveler: 0, en_cours: 1, termine: 2 } as const;
+
+/**
+ * La valeur sur laquelle une colonne se trie — `null` quand la ligne n'en a
+ * pas. La colonne PÉRIODE se trie toujours sur la date de DÉBUT : c'est celle
+ * à laquelle le marché a pris effet, et la seule des deux que toutes les
+ * lignes portent au même titre.
+ */
+function valeurDeTri(
+  c: LigneTriable,
+  tri: TriContrat,
+  jour: Date,
+  limite: Date,
+): string | number | null {
+  switch (tri) {
+    case "marche":
+      return titreDe(c);
+    case "fournisseur":
+      return c.fournisseur?.nom ?? null;
+    case "logiciels":
+      return c.logiciels.length === 0 ? null : c.logiciels.map((l) => l.logiciel.nom).join(" · ");
+    case "periode":
+      return c.dateDebut?.getTime() ?? null;
+    case "montant":
+      return c.montantAnnuel === null || c.montantAnnuel === undefined
+        ? null
+        : Number(c.montantAnnuel);
+    case "etat":
+      return RANG_ETAT[etatMarche(c.dateFin, jour, limite)];
+  }
+}
+
+/**
+ * Tri de la liste, appliqué en mémoire — les marchés y tiennent, et l'état
+ * comme le titre se calculent plutôt qu'ils ne se lisent en base : PostgreSQL
+ * ne saurait pas les ordonner.
+ *
+ * Les lignes SANS valeur ferment la marche dans les deux sens. Un marché sans
+ * fournisseur n'est ni « avant A » ni « après Z » : il n'a rien à dire sur ce
+ * critère, et le remonter en tête d'un tri décroissant cacherait ce qu'on
+ * cherchait. L'id départage à égalité, pour que deux rangs identiques ne
+ * s'échangent pas d'un affichage à l'autre.
+ */
+export function trierContrats<T extends LigneTriable>(
+  contrats: T[],
+  tri: TriContrat,
+  sens: SensTri,
+  jour: Date,
+  limite: Date,
+): T[] {
+  const signe = sens === "asc" ? 1 : -1;
+  return [...contrats].sort((a, b) => {
+    const va = valeurDeTri(a, tri, jour, limite);
+    const vb = valeurDeTri(b, tri, jour, limite);
+    if (va === null || vb === null) {
+      if (va !== null) return -1;
+      if (vb !== null) return 1;
+      return b.id - a.id;
+    }
+    const ecart = typeof va === "string" ? compareAlpha(va, vb as string) : va - (vb as number);
+    return ecart * signe || b.id - a.id;
+  });
+}
+
 /**
  * Marchés précédent et suivant, dans l'ordre de la liste — mêmes flèches que
- * sur les fiches logiciel et éditeur. C'est la requête de la liste qui sert de
- * référence, les deux ordres ne peuvent donc pas diverger.
+ * sur les fiches logiciel et éditeur. L'ordre lui est TRANSMIS depuis l'écran
+ * dont on vient : les deux ne peuvent donc pas diverger, y compris quand une
+ * colonne a été triée au clic.
+ *
+ * Les filtres de la liste, eux, ne s'appliquent pas : les flèches parcourent
+ * tous les marchés. Une fiche atteinte par un lien collé n'a pas de filtre à
+ * hériter, et s'arrêter au bord d'une recherche surprendrait plus que ça
+ * n'aiderait.
  */
-export async function voisinsContrat(id: number): Promise<{
+export async function voisinsContrat(
+  id: number,
+  tri: TriContrat,
+  sens: SensTri,
+  jour: Date,
+  limite: Date,
+): Promise<{
   precedent: { id: number; nom: string } | null;
   suivant: { id: number; nom: string } | null;
 }> {
-  const tous = ordonner(
+  const tous = trierContrats(
     await prisma.contrat.findMany({
-      select: { id: true, libelle: true, referenceMarche: true, dateDebut: true, dateFin: true },
+      select: {
+        id: true,
+        libelle: true,
+        referenceMarche: true,
+        dateDebut: true,
+        dateFin: true,
+        montantAnnuel: true,
+        fournisseur: { select: { nom: true } },
+        logiciels: { select: { logiciel: { select: { nom: true } } } },
+      },
     }),
+    tri,
+    sens,
+    jour,
+    limite,
   ).map((c) => ({ id: c.id, nom: nomDe(c) }));
   const i = tous.findIndex((c) => c.id === id);
   if (i === -1) return { precedent: null, suivant: null };

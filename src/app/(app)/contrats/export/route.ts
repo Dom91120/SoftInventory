@@ -3,8 +3,8 @@ import { dateCalendaire } from "@/lib/taches-core";
 import { LIBELLES } from "@/schemas/logiciel";
 import { seuilsRappel } from "@/server/config";
 import { reponseApi, requireRoleApi } from "@/server/guards-api";
-import { etatMarche, listContrats } from "@/server/services/contrats";
-import { filtresContratsDepuisParams } from "../shared";
+import { etatMarche, listContrats, trierContrats } from "@/server/services/contrats";
+import { filtresContratsDepuisParams, triContratsDepuisParams } from "../shared";
 
 export const dynamic = "force-dynamic";
 
@@ -25,7 +25,7 @@ export function GET(request: Request): Promise<Response> {
 
     const url = new URL(request.url);
     const params = Object.fromEntries(url.searchParams.entries());
-    const [contrats, { contrat: seuilJours }] = await Promise.all([
+    const [bruts, { contrat: seuilJours }] = await Promise.all([
       listContrats(filtresContratsDepuisParams(params)),
       seuilsRappel(),
     ]);
@@ -33,6 +33,12 @@ export function GET(request: Request): Promise<Response> {
     // Même fenêtre que l'écran : l'état exporté est celui qu'on vient de lire.
     const jour = dateCalendaire(new Date());
     const limite = new Date(jour.getTime() + seuilJours * 86_400_000);
+
+    // Même ORDRE que l'écran, et pas seulement mêmes filtres : la colonne
+    // cliquée voyage dans la query string, et le fichier est l'extrait de la
+    // liste telle qu'elle est triée au moment où on l'emporte.
+    const { tri, sens } = triContratsDepuisParams(params);
+    const contrats = trierContrats(bruts, tri, sens, jour, limite);
     const date = (d: Date | null) => (d ? d.toISOString().slice(0, 10) : "");
     const montant = (m: unknown) => (m === null || m === undefined ? "" : String(m));
 

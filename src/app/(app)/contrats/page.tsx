@@ -1,4 +1,4 @@
-import { Plus } from "lucide-react";
+import { ChevronDown, ChevronUp, Plus } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { BarreListe } from "@/components/barre-liste";
@@ -9,9 +9,16 @@ import { DATE_FMT_FR_UTC, formatEuros } from "@/lib/format";
 import { dateCalendaire } from "@/lib/taches-core";
 import { seuilsRappel } from "@/server/config";
 import { requireUser } from "@/server/guards";
-import { etatMarche, listContrats, titreDe } from "@/server/services/contrats";
+import {
+  etatMarche,
+  listContrats,
+  SENS_PAR_DEFAUT,
+  type TriContrat,
+  titreDe,
+  trierContrats,
+} from "@/server/services/contrats";
 import { listEditeurs } from "@/server/services/editeurs";
-import { filtresContratsDepuisParams } from "./shared";
+import { filtresContratsDepuisParams, queryTri, triContratsDepuisParams } from "./shared";
 
 export const metadata: Metadata = { title: "Contrats/Marchés" };
 
@@ -43,17 +50,60 @@ export default async function ContratsPage({
   const session = await requireUser();
   const isAdmin = (session.user as { role?: Role }).role === "admin";
   const params = await searchParams;
-  const [tous, fournisseurs, { contrat: seuilJours }] = await Promise.all([
+  const [bruts, fournisseurs, { contrat: seuilJours }] = await Promise.all([
     listContrats(filtresContratsDepuisParams(params)),
     listEditeurs(),
     seuilsRappel(),
   ]);
-  const { page, pages, total, elements: contrats } = paginer(tous, pageDepuisParams(params));
 
   // Même horizon que les rappels par e-mail et le tableau de bord : la pastille
-  // « À renouveler » paraît quand le cron s'apprête à écrire.
+  // « À renouveler » paraît quand le cron s'apprête à écrire. Calculé AVANT le
+  // tri, qui en a besoin pour ordonner la colonne État.
   const aujourdhui = dateCalendaire(new Date());
   const limite = new Date(aujourdhui.getTime() + seuilJours * 86_400_000);
+
+  const { tri, sens } = triContratsDepuisParams(params);
+  const tous = trierContrats(bruts, tri, sens, aujourdhui, limite);
+  /** L'ordre voyage avec le lien : les flèches de la fiche suivront celui-ci. */
+  const qTri = queryTri(params);
+  const { page, pages, total, elements: contrats } = paginer(tous, pageDepuisParams(params));
+
+  /**
+   * En-tête cliquable. Le tri vit dans l'URL, donc un simple lien suffit : pas
+   * d'état client, la page est rechargeable et l'ordre se partage avec elle.
+   * Cliquer la colonne DÉJÀ triée inverse le sens ; en cliquer une autre part
+   * du sens qui répond à la question qu'on se pose en la cliquant.
+   *
+   * `page` est retirée au passage : après un changement d'ordre, la page 4 ne
+   * montre plus ce qu'elle montrait, et on attend le début de la liste.
+   */
+  const enTete = (cle: TriContrat, libelle: string, classe?: string) => {
+    const actif = tri === cle;
+    const suivant = actif ? (sens === "asc" ? "desc" : "asc") : SENS_PAR_DEFAUT[cle];
+    const qs = new URLSearchParams(
+      Object.entries(params).filter(([, v]) => v !== undefined) as [string, string][],
+    );
+    qs.set("tri", cle);
+    qs.set("sens", suivant);
+    qs.delete("page");
+    const Fleche = sens === "asc" ? ChevronUp : ChevronDown;
+    return (
+      <th
+        className={classe}
+        aria-sort={actif ? (sens === "asc" ? "ascending" : "descending") : "none"}
+      >
+        <Link
+          href={`/contrats?${qs.toString()}`}
+          scroll={false}
+          className={`inline-flex items-center gap-1 hover:text-strong ${actif ? "text-strong" : ""}`}
+          title={`Trier par ${libelle.toLowerCase()}`}
+        >
+          {libelle}
+          {actif ? <Fleche className="h-3 w-3" /> : null}
+        </Link>
+      </th>
+    );
+  };
 
   return (
     <>
@@ -147,14 +197,15 @@ export default async function ContratsPage({
                 <col style={{ width: "6.25rem" }} />
                 <col style={{ width: "6.5rem" }} />
               </colgroup>
+              {/* Les six colonnes se trient au clic — voir `enTete`. */}
               <thead>
                 <tr>
-                  <th>Marché</th>
-                  <th>Fournisseur</th>
-                  <th>Logiciels couverts</th>
-                  <th>Période</th>
-                  <th className="text-right">Mnt annuel</th>
-                  <th className="text-center">État</th>
+                  {enTete("marche", "Marché")}
+                  {enTete("fournisseur", "Fournisseur")}
+                  {enTete("logiciels", "Logiciels couverts")}
+                  {enTete("periode", "Période", "text-center")}
+                  {enTete("montant", "Mnt annuel", "text-right")}
+                  {enTete("etat", "État", "text-center")}
                 </tr>
               </thead>
               <tbody>
@@ -179,7 +230,7 @@ export default async function ContratsPage({
                           clic — ce que la coupure retire est à portée. */}
                       <td>
                         <Link
-                          href={`/contrats/${c.id}`}
+                          href={`/contrats/${c.id}${qTri}`}
                           title={titreDe(c)}
                           className="block truncate font-medium text-strong hover:text-accent"
                         >
@@ -220,16 +271,12 @@ export default async function ContratsPage({
                           la hauteur des lignes, et la police de 14 px de la
                           table imposerait sinon un plancher de 20 px à chacune
                           des deux dates. */}
-                      {/* Le tiret se centre, les dates non : seul, il ne dit pas
-                          une valeur mais son absence, et calé à gauche il faisait
-                          croire à une colonne mal remplie plutôt qu'à une case
-                          vide. Les dates, elles, s'alignent entre elles d'une
-                          ligne à l'autre — c'est ainsi qu'on les compare. */}
-                      <td
-                        className={`whitespace-nowrap text-xs leading-none text-muted ${
-                          periode ? "" : "text-center"
-                        }`}
-                      >
+                      {/* Colonne centrée de bout en bout, en-tête compris : sa
+                          largeur est fixe et ses dates ont toutes la même, si
+                          bien qu'elles restent alignées entre elles — c'est ainsi
+                          qu'on les compare — tout en tenant au milieu de la
+                          colonne plutôt que collées à son bord gauche. */}
+                      <td className="whitespace-nowrap text-center text-xs leading-none text-muted">
                         {periode ? (
                           <>
                             <span className="block">{periode.debut}</span>

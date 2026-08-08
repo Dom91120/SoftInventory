@@ -42,7 +42,25 @@ export function BarreListe({
     router.replace(`${pathname}?${next.toString()}`);
   }
 
-  const actif = [...params.keys()].length > 0;
+  /**
+   * Ce qui n'est PAS un filtre : la pagination et l'ordre d'affichage. Ils
+   * vivent dans la même query string mais ne restreignent rien — « Effacer »
+   * s'allumerait sur une simple page 2 ou une colonne triée, et proposerait
+   * d'effacer ce que l'on n'a pas posé.
+   */
+  const HORS_FILTRES = new Set(["page", "tri", "sens"]);
+  const actif = [...params.keys()].some((k) => !HORS_FILTRES.has(k));
+
+  /** Efface les filtres SEULS : l'ordre choisi n'en est pas un et lui survit. */
+  function effacerFiltres() {
+    const next = new URLSearchParams();
+    for (const k of ["tri", "sens"]) {
+      const v = params.get(k);
+      if (v) next.set(k, v);
+    }
+    const qs = next.toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname);
+  }
 
   return (
     <div className="mb-3 flex flex-wrap items-center gap-2">
@@ -77,7 +95,7 @@ export function BarreListe({
         <button
           type="button"
           className="btn-ghost !px-2.5"
-          onClick={() => router.replace(pathname)}
+          onClick={effacerFiltres}
           title="Effacer les filtres"
         >
           <X className="h-4 w-4" />

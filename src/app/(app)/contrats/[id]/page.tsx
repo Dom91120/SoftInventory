@@ -19,6 +19,7 @@ import { listCategoriesDocuments } from "@/server/services/referentiels";
 import { ContratForm } from "../contrat-form";
 import { LogicielsCouverts } from "../logiciels-couverts";
 import { PiecesMarche } from "../pieces-marche";
+import { queryTri, triContratsDepuisParams } from "../shared";
 
 export const metadata: Metadata = { title: "Contrat / marché" };
 
@@ -31,30 +32,51 @@ const CATEGORIE_PAR_DEFAUT = "Contrat";
 
 const dateStr = (d: Date | null) => (d ? d.toISOString().slice(0, 10) : "");
 
-export default async function ContratPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function ContratPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<Record<string, string | undefined>>;
+}) {
   const session = await requireUser();
   const isAdmin = (session.user as { role?: Role }).role === "admin";
 
   const { id: idStr } = await params;
   const id = Number(idStr);
   if (!Number.isInteger(id) || id < 1) notFound();
-  const [contrat, editeurs, logiciels, categories, voisins, { contrat: seuilJours }] =
-    await Promise.all([
-      getContratComplet(id),
-      listEditeurs(),
-      listLogicielsPourRattachement(),
-      listCategoriesDocuments(),
-      voisinsContrat(id),
-      seuilsRappel(),
-    ]);
+
+  // L'ordre de la liste d'où l'on vient, porté par l'URL : les flèches
+  // « précédent / suivant » parcourent les marchés dans CET ordre, et le
+  // repassent à la fiche suivante pour que la chaîne ne se rompe pas.
+  const query = await searchParams;
+  const { tri, sens } = triContratsDepuisParams(query);
+  const qTri = queryTri(query);
+  const jour = dateCalendaire(new Date());
+
+  const [contrat, editeurs, logiciels, categories, { contrat: seuilJours }] = await Promise.all([
+    getContratComplet(id),
+    listEditeurs(),
+    listLogicielsPourRattachement(),
+    listCategoriesDocuments(),
+    seuilsRappel(),
+  ]);
   if (!contrat) notFound();
+
+  const voisins = await voisinsContrat(
+    id,
+    tri,
+    sens,
+    jour,
+    new Date(jour.getTime() + seuilJours * 86_400_000),
+  );
 
   const fmt = new Intl.DateTimeFormat("fr-FR", { dateStyle: "short", timeZone: "Europe/Paris" });
   const optionsCategories = categories.map((c) => ({ id: c.id, label: c.label }));
 
   // Même fenêtre que les rappels par e-mail et la liste : « À renouveler »
-  // paraît quand le cron s'apprête à écrire.
-  const jour = dateCalendaire(new Date());
+  // paraît quand le cron s'apprête à écrire. `jour` est déjà posé plus haut,
+  // les flèches en ayant besoin pour ordonner sur la colonne État.
   const etat = etatMarche(
     contrat.dateFin,
     jour,
@@ -73,6 +95,7 @@ export default async function ContratPage({ params }: { params: Promise<{ id: st
           voisin={voisins.precedent}
           sens="precedent"
           hrefBase="/contrats"
+          query={qTri}
           entite="Marché"
         />
         <div className="min-w-0 flex-1">
@@ -106,6 +129,7 @@ export default async function ContratPage({ params }: { params: Promise<{ id: st
           voisin={voisins.suivant}
           sens="suivant"
           hrefBase="/contrats"
+          query={qTri}
           entite="Marché"
         />
       </div>
