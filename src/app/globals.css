@@ -342,8 +342,12 @@ body {
   .data-table tbody tr:hover {
     background: var(--color-inset);
   }
+  /* 5 px et non 6 : le pixel rendu ici est celui que le filet de séparation
+     prend à la rangée, pour que la liste des logiciels tombe sur 48 px de pas
+     et non 49. Vaut pour tous les tableaux — ils y gagnent la même rangée un
+     peu plus serrée. */
   .data-table tbody td {
-    @apply py-1.5 pr-3 align-middle;
+    @apply py-[5px] pr-3 align-middle;
   }
   /* Chaque cellule pousse 12 px à sa droite, y compris la dernière : sans
      contrepartie à gauche, la ligne est collée au bord gauche et décollée du

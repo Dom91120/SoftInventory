@@ -119,7 +119,7 @@ export default async function LogicielsPage({
                   // cellules sont déjà centrées verticalement (`align-middle` de
                   // .data-table), les contenus courts se posent donc au milieu
                   // plutôt qu'en haut.
-                  <tr key={l.id} className="h-[49px]">
+                  <tr key={l.id} className="h-12">
                     {/* Le nom entier reste au survol, et la fiche est à un clic. */}
                     <td>
                       <span className="flex min-w-0 items-center gap-1.5">
