@@ -89,24 +89,63 @@ export default async function ContratsPage({
       ) : (
         <div className="card px-5 py-4">
           <div className="table-wrap">
-            <table className="data-table">
-              {/* Deux colonnes déclarées, les autres se partagent le reste.
+            {/* `table-fixed` : le marché et le fournisseur se coupent en « … »
+                plutôt que de se replier, et une cellule qu'on empêche de se
+                couper élargit sa colonne en disposition automatique — les
+                largeurs ci-dessous n'auraient plus été que des vœux. */}
+            <table className="data-table table-fixed">
+              {/* Les six parts font 100 : en disposition fixe, une colonne qui
+                  se tait prendrait ce qui reste à parts égales avec les autres
+                  muettes, ce qui donnerait autant de place à « État » qu'au
+                  libellé d'un marché.
 
-                  Le FOURNISSEUR reçoit la place rendue par la période, que rien
-                  ne lui réclamait jusqu'ici : « Ressources Consultants Finances »
-                  se repliait sur trois lignes et étirait toute la rangée.
+                  Le MARCHÉ prend le tiers : c'est la colonne qui NOMME la ligne,
+                  et la seule dont on lise le texte en entier.
 
-                  Le MONTANT tient sur 6.25rem : « 999 999,99 € » mesure 88 px
-                  dans la fonte de la cellule (12 px, chiffres à chasse fixe), et
-                  la cellule pousse 12 px à sa droite. En dessous, le plus gros
-                  montant possible se couperait en deux lignes. */}
+                  Trois colonnes ont une largeur ABSOLUE, parce que leur contenu
+                  a une longueur CONNUE et qu'une part du tableau les aurait
+                  repliées en deux dès que la fenêtre rétrécit. Ce sont aussi
+                  celles dont on compare les valeurs d'une ligne à l'autre, et
+                  une valeur coupée s'y lit de travers. Les trois largeurs sont
+                  mesurées, pas estimées : chaque chaîne a été rendue dans la
+                  fonte de sa cellule.
+
+                  Le MONTANT : 6.25rem, soit 100 px. Dans la fonte de la cellule
+                  (12 px, chiffres à chasse fixe), « 999 999,99 € » mesure 73 px
+                  et « 9 999 999,99 € » 83 px ; la cellule pousse 12 px à sa
+                  droite. La colonne tient donc le million comme la dizaine de
+                  millions, sans que sa largeur dépende du plus gros montant
+                  saisi ce jour-là.
+
+                  La PÉRIODE : 5rem, soit 80 px. Ses deux dates sont empilées,
+                  donc une seule compte, et « 31/12/2028 » mesure 66 px — la
+                  fonte donnant la même largeur à tous les chiffres, aucune date
+                  ne dépasse. Avec les 12 px de la cellule, il faut 78 px.
+
+                  L'ÉTAT : 6.5rem, soit 104 px. Sa pastille la plus large est
+                  « À renouveler » — 70 px de texte, 20 px de rembourrage —, et
+                  la cellule pousse ses 12 px. En part, elle tombait à 45 px sur
+                  un tableau étroit et la pastille sortait de sa colonne.
+
+                  Les trois autres se partagent ce qui reste : leurs parts font
+                  100 à elles seules, le navigateur les réduit d'autant que les
+                  fixes ont pris. Elles gardent ainsi leur rapport entre elles à
+                  toutes les largeurs, et ce sont les trois qui se coupent en
+                  « … » — ce qu'elles perdent est à portée de survol.
+
+                  Ce que la période et l'état ont rendu — une centaine de pixels
+                  sur un tableau de 1000 — va au FOURNISSEUR, et à lui seul : le
+                  marché et les logiciels gardent la largeur qu'ils avaient. Les
+                  raisons sociales sont longues, « Ressources Consultants
+                  Finances » se coupait quand les dates avaient de la place à ne
+                  rien dire. */}
               <colgroup>
-                <col />
-                <col style={{ width: "25%" }} />
-                <col />
-                <col />
+                <col style={{ width: "43%" }} />
+                <col style={{ width: "37%" }} />
+                <col style={{ width: "20%" }} />
+                <col style={{ width: "5rem" }} />
                 <col style={{ width: "6.25rem" }} />
-                <col />
+                <col style={{ width: "6.5rem" }} />
               </colgroup>
               <thead>
                 <tr>
@@ -126,16 +165,23 @@ export default async function ContratsPage({
                   );
                   const periode = periodeDe(c.dateDebut, c.dateFin);
                   return (
-                    <tr key={c.id}>
+                    // Même pas que la liste des logiciels : 48 px, quoi que
+                    // portent les cellules. Les rangées allaient de 39 à 47 px
+                    // selon qu'un marché avait ou non une référence sous son
+                    // libellé, et l'œil perdait le pas en descendant la liste.
+                    <tr key={c.id} className="h-12">
                       {/* Le libellé d'abord — il dit de quoi il s'agit —, la
                           référence en dessous : même hiérarchie que l'en-tête
                           de la fiche. `titreDe` retombe sur la référence quand
                           le libellé manque, auquel cas la seconde ligne n'a
                           plus rien à ajouter. */}
+                      {/* Le titre entier reste au survol, et la fiche est à un
+                          clic — ce que la coupure retire est à portée. */}
                       <td>
                         <Link
                           href={`/contrats/${c.id}`}
-                          className="font-medium text-strong hover:text-accent"
+                          title={titreDe(c)}
+                          className="block truncate font-medium text-strong hover:text-accent"
                         >
                           {titreDe(c)}
                         </Link>
@@ -145,7 +191,11 @@ export default async function ContratsPage({
                           </span>
                         ) : null}
                       </td>
-                      <td>{c.fournisseur?.nom ?? "—"}</td>
+                      <td>
+                        <span className="block truncate" title={c.fournisseur?.nom ?? undefined}>
+                          {c.fournisseur?.nom ?? "—"}
+                        </span>
+                      </td>
                       {/* Même interligne que la période d'à côté — 16 px, posé
                           sur la CELLULE, seul endroit qui fixe la hauteur des
                           lignes. Sans lui, la police de 14 px de la table
@@ -155,7 +205,13 @@ export default async function ContratsPage({
                         {c.logiciels.length === 0 ? (
                           <span className="badge-muted">aucun</span>
                         ) : (
-                          <span className="text-muted">
+                          // La liste entière au survol : c'est la colonne où la
+                          // coupure retire le plus, un marché pouvant couvrir
+                          // plusieurs logiciels dont seul le premier se lira.
+                          <span
+                            className="block truncate text-muted"
+                            title={c.logiciels.map((l) => l.logiciel.nom).join(" · ")}
+                          >
                             {c.logiciels.map((l) => l.logiciel.nom).join(" · ")}
                           </span>
                         )}
@@ -164,7 +220,16 @@ export default async function ContratsPage({
                           la hauteur des lignes, et la police de 14 px de la
                           table imposerait sinon un plancher de 20 px à chacune
                           des deux dates. */}
-                      <td className="whitespace-nowrap text-xs leading-none text-muted">
+                      {/* Le tiret se centre, les dates non : seul, il ne dit pas
+                          une valeur mais son absence, et calé à gauche il faisait
+                          croire à une colonne mal remplie plutôt qu'à une case
+                          vide. Les dates, elles, s'alignent entre elles d'une
+                          ligne à l'autre — c'est ainsi qu'on les compare. */}
+                      <td
+                        className={`whitespace-nowrap text-xs leading-none text-muted ${
+                          periode ? "" : "text-center"
+                        }`}
+                      >
                         {periode ? (
                           <>
                             <span className="block">{periode.debut}</span>
