@@ -172,20 +172,30 @@ export function Field({
   htmlFor,
   required,
   hint,
+  action,
   children,
 }: {
   label: string;
   htmlFor?: string;
   required?: boolean;
   hint?: string;
+  /**
+   * Petit geste accolé au LIBELLÉ — ouvrir l'adresse saisie, écrire au
+   * contact. Hors du <label> et non dedans : cliquer un libellé donne le focus
+   * au champ, et un lien qui vit là serait pris dans ce geste.
+   */
+  action?: ReactNode;
   children: ReactNode;
 }) {
   return (
     <div>
-      <label className="label" htmlFor={htmlFor}>
-        {label}
-        {required ? <span className="text-danger"> *</span> : null}
-      </label>
+      <div className="mb-0.5 flex items-center gap-1.5">
+        <label className="label !mb-0" htmlFor={htmlFor}>
+          {label}
+          {required ? <span className="text-danger"> *</span> : null}
+        </label>
+        {action}
+      </div>
       {children}
       {hint ? <p className="mt-1 text-xs text-faint">{hint}</p> : null}
     </div>

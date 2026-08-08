@@ -1,6 +1,6 @@
 "use client";
 
-import { Check } from "lucide-react";
+import { Check, ExternalLink, Mail } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { type ReactNode, useEffect, useState, useTransition } from "react";
 import { useConfirmation } from "@/components/confirmation";
@@ -153,12 +153,47 @@ export function EditeurForm({
    * chacun, ce qui allonge la fiche entière. `hint` reste pour ce qui doit se
    * lire même une fois le champ rempli.
    */
+  /**
+   * Raccourci accolé au libellé d'une adresse : ouvrir le site, écrire au
+   * contact. Il vaut pour ce qui est ENREGISTRÉ, pas pour ce qui est en train
+   * d'être tapé — les champs sont non contrôlés, et un lien qui suivrait la
+   * frappe mènerait à des adresses incomplètes, une lettre sur deux. Il paraît
+   * donc après enregistrement, et disparaît si l'adresse est effacée.
+   *
+   * Le type du champ suffit à décider : `url` et `email` ne sont portés que par
+   * les six adresses de la fiche.
+   */
+  const lienDe = (name: keyof EditeurValues, type?: string) => {
+    const valeur = values[name]?.trim();
+    if (!valeur || (type !== "url" && type !== "email")) return null;
+    const mail = type === "email";
+    // Une adresse saisie sans protocole — « www.editeur.fr » — serait comprise
+    // comme un chemin relatif et mènerait à une page de l'application.
+    const href = mail
+      ? `mailto:${valeur}`
+      : /^https?:\/\//i.test(valeur)
+        ? valeur
+        : `https://${valeur}`;
+    const Icone = mail ? Mail : ExternalLink;
+    return (
+      <a
+        href={href}
+        {...(mail ? {} : { target: "_blank", rel: "noreferrer noopener" })}
+        title={mail ? `Écrire à ${valeur}` : `Ouvrir ${valeur}`}
+        aria-label={mail ? `Écrire à ${valeur}` : `Ouvrir ${valeur}`}
+        className="shrink-0 text-faint transition hover:text-accent"
+      >
+        <Icone className="h-3 w-3" />
+      </a>
+    );
+  };
+
   const champ = (
     name: keyof EditeurValues,
     label: string,
     opts?: { type?: string; hint?: string; placeholder?: string },
   ) => (
-    <Field label={label} htmlFor={name} hint={opts?.hint}>
+    <Field label={label} htmlFor={name} hint={opts?.hint} action={lienDe(name, opts?.type)}>
       <input
         id={name}
         name={name}
