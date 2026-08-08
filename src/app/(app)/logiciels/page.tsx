@@ -85,12 +85,19 @@ export default async function LogicielsPage({
                   décrivent la colonne, pas la cellule d'en-tête. Chacune déclare
                   sa part et la somme fait 100 — en disposition fixe, une colonne
                   qui se tait prend ce qui reste, à parts égales avec les autres
-                  muettes, et « On premise » se repliait alors sur deux lignes. */}
+                  muettes, et « On premise » se repliait alors sur deux lignes.
+
+                  L'HÉBERGEMENT passe de 14 à 17 %, les trois points venant des
+                  services : son en-tête, plus long que ses valeurs, se tronquait
+                  en « Hébergemen ». Les services les rendent sans dommage — leurs
+                  noms sont trop longs pour tenir sur une ligne de toute façon,
+                  une part de plus ou de moins ne change que l'endroit où ils se
+                  replient. */}
               <colgroup>
                 <col style={{ width: "22%" }} />
                 <col style={{ width: "19%" }} />
-                <col style={{ width: "14%" }} />
-                <col style={{ width: "25%" }} />
+                <col style={{ width: "17%" }} />
+                <col style={{ width: "22%" }} />
                 <col style={{ width: "9%" }} />
                 <col style={{ width: "11%" }} />
               </colgroup>
@@ -98,7 +105,7 @@ export default async function LogicielsPage({
                 <tr>
                   <th>Logiciel</th>
                   <th>Éditeur</th>
-                  <th>Hébergement</th>
+                  <th className="text-center">Hébergement</th>
                   <th>Services</th>
                   <th className="text-center">Criticité</th>
                   <th className="text-center">Statut</th>
@@ -159,7 +166,7 @@ export default async function LogicielsPage({
                         )}
                       </span>
                     </td>
-                    <td className="[&>span]:px-2 [&>span]:py-0 [&>span]:text-[11px]">
+                    <td className="text-center [&>span]:px-2 [&>span]:py-0 [&>span]:text-[11px]">
                       <HebergementBadge hebergement={l.hebergement} hebergements={hebergements} />
                     </td>
                     {/* `leading-none` sur la CELLULE, pas sur le span : la
