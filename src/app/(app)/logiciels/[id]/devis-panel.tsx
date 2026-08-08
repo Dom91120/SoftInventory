@@ -752,8 +752,10 @@ function FormulaireDevis({
 
 /**
  * Création d'une société absente de l'annuaire sans quitter la saisie du devis.
- * Reprend les MÊMES champs que « Éditeurs › Nouveau » (coordonnées, support,
- * notes) : la fiche créée ici n'est pas un brouillon à compléter ailleurs.
+ * Reprend les MÊMES champs que « Éditeurs › Nouveau », dans le même ordre et
+ * sous les mêmes libellés — coordonnées et observations, puis les trois rangs
+ * de contacts : la fiche créée ici n'est pas un brouillon à compléter ailleurs.
+ * Les clés étant celles de la page éditeur, la même server action la valide.
  *
  * Pas de <form> ici : la modale s'affiche À L'INTÉRIEUR du formulaire de devis,
  * et un formulaire imbriqué est invalide en HTML. D'où les champs relus à la
@@ -844,7 +846,7 @@ function ModaleSociete({
         role="dialog"
         aria-modal="true"
         aria-labelledby="titre-societe"
-        className="my-8 w-full max-w-2xl rounded-2xl border border-line bg-surface px-5 py-4 shadow-lg"
+        className="my-8 w-full max-w-3xl rounded-2xl border border-line bg-surface px-5 py-4 shadow-lg"
       >
         <h3
           id="titre-societe"
@@ -854,53 +856,75 @@ function ModaleSociete({
         </h3>
         {erreur ? <p className="alert-error mb-3">{erreur}</p> : null}
 
-        <div ref={champsRef} className="space-y-5">
-          <div className="grid gap-x-3 gap-y-2 sm:grid-cols-2">
-            <Field label="Nom de l'éditeur" htmlFor="soc-nom" required>
-              <input
-                // biome-ignore lint/a11y/noAutofocus: la modale vient d'être ouverte par un clic délibéré sur « + ».
-                autoFocus
-                id="soc-nom"
-                name="nom"
-                required
-                maxLength={150}
-                disabled={pending}
-                className="input"
-              />
-            </Field>
-            {champ("siteWeb", "Site web", { type: "url", placeholder: "https://…" })}
-            {champ("adresse", "Adresse")}
-            <div className="grid grid-cols-[8rem_1fr] gap-4">
-              {champ("codePostal", "Code postal")}
-              {champ("ville", "Ville")}
-            </div>
-            {champ("telephone", "Téléphone", { type: "tel" })}
-            {champ("email", "E-mail", { type: "email" })}
-          </div>
-
-          <div className="border-t border-line pt-4">
-            <p className="mb-3 text-xs font-bold uppercase tracking-wider text-muted">Support</p>
+        {/* Les deux cartes de « Éditeurs › Nouveau », telles quelles : mêmes
+            libellés, même grille, et le même composant `Card` avec sa barre
+            d'accent. La modale reprend la fiche plutôt que de la paraphraser —
+            ce qui se saisit ici est une fiche éditeur entière, pas un brouillon
+            à compléter ailleurs. */}
+        <div ref={champsRef} className="space-y-3">
+          <Card title="Coordonnées">
             <div className="grid gap-x-3 gap-y-2 sm:grid-cols-2">
+              <Field label="Nom de l'éditeur" htmlFor="soc-nom" required>
+                <input
+                  // biome-ignore lint/a11y/noAutofocus: la modale vient d'être ouverte par un clic délibéré sur « + ».
+                  autoFocus
+                  id="soc-nom"
+                  name="nom"
+                  required
+                  maxLength={150}
+                  disabled={pending}
+                  className="input"
+                />
+              </Field>
+              {champ("siteWeb", "Site web", { type: "url", placeholder: "https://…" })}
+              {champ("adresse", "Adresse")}
+              <div className="grid grid-cols-[8rem_1fr] gap-4">
+                {champ("codePostal", "Code postal")}
+                {champ("ville", "Ville")}
+              </div>
+              {champ("telephone", "Téléphone standard", { type: "tel" })}
+              {champ("email", "E-mail", { type: "email" })}
+              {/* Pleine largeur : c'est de la prose, elle ne se lit pas en
+                  colonne de 8 rem comme un code postal. */}
+              <div className="sm:col-span-2">
+                <Field label="Observations" htmlFor="soc-notes">
+                  <textarea
+                    id="soc-notes"
+                    name="notes"
+                    rows={3}
+                    disabled={pending}
+                    className="input"
+                    placeholder="Informations libres : interlocuteurs, historique, particularités du contrat…"
+                  />
+                </Field>
+              </div>
+            </div>
+          </Card>
+
+          {/* `items-end`, comme sur la fiche : au tiers de largeur, « Téléphone
+              administratif » passe sur deux lignes là où « Mail » tient sur une,
+              et aligner par le bas garde les champs sur la même ligne. */}
+          <Card title="Contacts">
+            <div className="grid items-end gap-x-3 gap-y-2 sm:grid-cols-3">
               {champ("supportUrl", "Portail de tickets", {
                 type: "url",
                 placeholder: "https://…",
               })}
-              {champ("supportEmail", "E-mail du support", { type: "email" })}
               {champ("supportTelephone", "Téléphone du support", { type: "tel" })}
-              {champ("supportHoraires", "Horaires", { placeholder: "Ex. lun-ven 9h-18h" })}
+              {champ("supportEmail", "Mail du support", { type: "email" })}
+              <div className="sm:col-span-3">
+                {champ("supportHoraires", "Horaires du support", {
+                  placeholder: "Ex. lun-ven 9h-18h",
+                })}
+              </div>
+              {champ("commercialContact", "Contact commercial")}
+              {champ("commercialTelephone", "Téléphone commercial", { type: "tel" })}
+              {champ("commercialEmail", "Mail commercial", { type: "email" })}
+              {champ("adminContact", "Contact administratif")}
+              {champ("adminTelephone", "Téléphone administratif", { type: "tel" })}
+              {champ("adminEmail", "Mail administratif", { type: "email" })}
             </div>
-          </div>
-
-          <div className="border-t border-line pt-4">
-            <p className="mb-3 text-xs font-bold uppercase tracking-wider text-muted">Notes</p>
-            <textarea
-              name="notes"
-              rows={3}
-              disabled={pending}
-              className="input"
-              placeholder="Informations libres : interlocuteurs, historique, particularités du contrat…"
-            />
-          </div>
+          </Card>
         </div>
 
         <div className="mt-5 flex items-center gap-2">
