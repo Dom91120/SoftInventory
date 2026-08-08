@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import { ModaleSociete } from "@/components/modale-societe";
 import { Field } from "@/components/ui";
 
 /**
@@ -53,20 +55,39 @@ export const MARCHE_VIDE: ValeursMarche = {
 export function ChampsMarche({
   values = MARCHE_VIDE,
   editeurs,
-  optionFournisseurVide = "— non précisé —",
   disabled,
 }: {
   values?: ValeursMarche;
   /** Annuaire des sociétés, pour désigner le fournisseur. */
   editeurs: Array<{ id: number; nom: string }>;
-  /**
-   * Ce que veut dire un fournisseur VIDE. « — non précisé — » sur la fiche du
-   * marché, qui ne connaît aucun logiciel ; « — l'éditeur du logiciel (X) — »
-   * dans l'onglet d'un logiciel, où le vide a ce sens précis.
-   */
-  optionFournisseurVide?: string;
   disabled: boolean;
 }) {
+  /**
+   * Annuaire tenu localement : une société créée depuis ce formulaire doit
+   * paraître dans la liste SANS recharger la page, qui perdrait la saisie.
+   */
+  const [annuaire, setAnnuaire] = useState(editeurs);
+  const [modaleSociete, setModaleSociete] = useState(false);
+  /**
+   * Société à retenir une fois son option rendue. La liste est NON CONTRÔLÉE —
+   * `defaultValue`, comme tout ce module, pour que « Annuler » la rende au
+   * `reset()` du DOM. On pose donc la valeur sur l'élément, mais après le rendu
+   * qui a ajouté l'option, d'où le passage par un effet.
+   */
+  const [aRetenir, setARetenir] = useState<number | null>(null);
+  useEffect(() => {
+    if (aRetenir === null) return;
+    const liste = document.getElementById("fournisseurId");
+    if (liste instanceof HTMLSelectElement) {
+      liste.value = String(aRetenir);
+      // Événement natif qui REMONTE : ce module ignore qui l'enveloppe, et
+      // c'est le <form> parent qui suit l'écart à l'enregistré. Sans cela,
+      // « Enregistrer » resterait absent alors que le marché a changé.
+      liste.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+    setARetenir(null);
+  }, [aRetenir]);
+
   return (
     <div className="grid items-end gap-x-3 gap-y-2 sm:grid-cols-3">
       {/* La nature ouvre la ligne, à gauche de la référence et dans SA colonne :
@@ -117,20 +138,48 @@ export function ChampsMarche({
         />
       </Field>
       <Field label="Fournisseur" htmlFor="fournisseurId">
-        <select
-          id="fournisseurId"
-          name="fournisseurId"
-          defaultValue={values.fournisseurId}
-          disabled={disabled}
-          className="input"
-        >
-          <option value="">{optionFournisseurVide}</option>
-          {editeurs.map((e) => (
-            <option key={e.id} value={String(e.id)}>
-              {e.nom}
-            </option>
-          ))}
-        </select>
+        {/* Le « + » ouvre la fiche éditeur entière, sans quitter le marché en
+            cours de saisie : on découvre qu'une société manque au moment de la
+            désigner. Même geste et même modale qu'au champ « Éditeur » d'un
+            logiciel ou au fournisseur d'un devis. */}
+        <span className="flex items-center gap-1">
+          <select
+            id="fournisseurId"
+            name="fournisseurId"
+            defaultValue={values.fournisseurId}
+            disabled={disabled}
+            className="input min-w-0 flex-1"
+          >
+            {/* « — non précisé — » et NON « l'éditeur du logiciel » : un marché
+                est signé avec la société du jour de la signature. Laisser le
+                champ vide vouloir dire « l'éditeur, quel qu'il soit » faisait
+                changer de fournisseur un acte de 2019 le jour où le logiciel
+                changeait de main — l'écran réécrivait le passé. Le vide ne dit
+                donc plus que « on ne l'a pas encore dépouillé ». */}
+            <option value="">— non précisé —</option>
+            {annuaire.map((e) => (
+              <option key={e.id} value={String(e.id)}>
+                {e.nom}
+              </option>
+            ))}
+          </select>
+          {disabled ? null : (
+            <button
+              type="button"
+              // Carré de 29.6 px, la hauteur de la liste. Les DEUX dimensions
+              // sont posées : privé de texte, le bouton n'a plus qu'un glyphe
+              // pour se tenir et retomberait quatre pixels plus bas.
+              className="btn-secondary !h-[1.85rem] !w-[1.85rem] shrink-0 !p-0"
+              title="Créer un fournisseur absent de l'annuaire"
+              aria-label="Créer un fournisseur absent de l'annuaire"
+              onClick={() => setModaleSociete(true)}
+            >
+              <span aria-hidden className="text-sm leading-none">
+                ➕
+              </span>
+            </button>
+          )}
+        </span>
       </Field>
 
       <Field label="Montant annuel (€)" htmlFor="montantAnnuel">
@@ -244,6 +293,21 @@ export function ChampsMarche({
           />
         </Field>
       </div>
+
+      {modaleSociete ? (
+        <ModaleSociete
+          onFermer={() => setModaleSociete(false)}
+          onCreee={(societe) => {
+            // Insérée dans l'ordre alphabétique, comme la liste du serveur, et
+            // retenue aussitôt : c'est pour ce marché-ci qu'on l'a créée.
+            setAnnuaire((liste) =>
+              [...liste, societe].sort((a, b) => a.nom.localeCompare(b.nom, "fr")),
+            );
+            setARetenir(societe.id);
+            setModaleSociete(false);
+          }}
+        />
+      ) : null}
     </div>
   );
 }

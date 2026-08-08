@@ -2,6 +2,7 @@ import { ExternalLink } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import type { ReactNode } from "react";
 import { BoutonQuitter } from "@/components/bouton-quitter";
 import { DocumentsPanel } from "@/components/documents-panel";
 import { FlecheVoisin } from "@/components/fleche-voisin";
@@ -230,7 +231,21 @@ export default async function LogicielPage({
           }
         />
       ) : null}
-      {actif === "liaisons" ? <OngletLiaisons logiciel={logiciel} readOnly={!isAdmin} /> : null}
+      {actif === "liaisons" ? (
+        <OngletLiaisons
+          logiciel={logiciel}
+          readOnly={!isAdmin}
+          supprimer={
+            isAdmin ? (
+              <BoutonSupprimerLogiciel
+                id={id}
+                nom={logiciel.nom}
+                nbPiecesJointes={compterPieces(logiciel)}
+              />
+            ) : undefined
+          }
+        />
+      ) : null}
       {actif === "contrats" ? <OngletContrats logiciel={logiciel} readOnly={!isAdmin} /> : null}
       {actif === "devis" ? <OngletDevis logiciel={logiciel} readOnly={!isAdmin} /> : null}
       {actif === "taches" ? <OngletTaches logicielId={id} readOnly={!isAdmin} /> : null}
@@ -268,7 +283,7 @@ export default async function LogicielPage({
           les deux gestes voisinent « Enregistrer » : ils reçoivent la corbeille
           en prop plutôt que cette rangée, qui ferait doublon et la poserait une
           ligne trop bas. */}
-      {actif === "synthese" || actif === "rgpd" ? null : (
+      {actif === "synthese" || actif === "rgpd" || actif === "liaisons" ? null : (
         <div className="mt-3 flex items-start justify-between gap-3">
           <BoutonQuitter vers="/logiciels" titre="Revenir à la liste des logiciels" />
           {/* La corbeille garde son bout de ligne, comme sur la Synthèse : elle
@@ -373,7 +388,6 @@ async function OngletContrats({
       readOnly={readOnly}
       categories={categories.map((c) => ({ id: c.id, label: c.label }))}
       editeurs={editeurs.map((e) => ({ id: e.id, nom: e.nom }))}
-      editeurDuLogiciel={logiciel.editeur?.nom ?? null}
       editeurDuLogicielId={logiciel.editeur?.id ?? null}
       marchesDisponibles={marchesDisponibles}
       // Calculé ICI et non dans le composant client : le jour courant lu des
@@ -557,9 +571,11 @@ async function OngletSynthese({
 async function OngletLiaisons({
   logiciel,
   readOnly,
+  supprimer,
 }: {
   logiciel: LogicielComplet;
   readOnly: boolean;
+  supprimer?: ReactNode;
 }) {
   const [services, serveurs, autres] = await Promise.all([
     listServicesUtilisateurs(),
@@ -570,6 +586,7 @@ async function OngletLiaisons({
     <LiaisonsPanel
       logicielId={logiciel.id}
       readOnly={readOnly}
+      supprimer={supprimer}
       services={services.map((s) => ({ id: s.id, label: s.nom }))}
       servicesLies={logiciel.services.map((s) => s.serviceId)}
       serveurs={serveurs.map((s) => ({ id: s.id, label: s.nom }))}

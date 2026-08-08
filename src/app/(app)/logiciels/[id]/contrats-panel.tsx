@@ -7,7 +7,7 @@ import { useState, useTransition } from "react";
 import { attacherLogicielAction, detacherLogicielAction } from "@/app/(app)/contrats/actions";
 import { useConfirmation } from "@/components/confirmation";
 import { type CategorieOption, LigneDocument } from "@/components/documents-panel";
-import { ChampsMarche } from "@/components/marche-champs";
+import { ChampsMarche, MARCHE_VIDE } from "@/components/marche-champs";
 import { FormulairePiece, type PieceContratRow, usePieceContrat } from "@/components/piece-contrat";
 import { Card, EmptyState } from "@/components/ui";
 import { DATE_FMT_FR_UTC, formatEuros } from "@/lib/format";
@@ -160,7 +160,6 @@ export function ContratsPanel({
   contrats,
   categories,
   editeurs,
-  editeurDuLogiciel,
   editeurDuLogicielId,
   marchesDisponibles,
   nbUtilisateurs,
@@ -175,9 +174,12 @@ export function ContratsPanel({
   categories: CategorieOption[];
   /** Annuaire des sociétés, pour désigner un revendeur. */
   editeurs: Array<{ id: number; nom: string }>;
-  /** Éditeur du logiciel : fournisseur par défaut quand le marché n'en nomme pas. */
-  editeurDuLogiciel: string | null;
-  /** Son id, pour que ce fournisseur par défaut mène à sa fiche comme les autres. */
+  /**
+   * Éditeur du logiciel : proposé d'office comme fournisseur d'un marché NEUF,
+   * la valeur étant alors inscrite. Il ne sert plus à combler l'affichage d'un
+   * marché sans fournisseur — un acte nomme la société du jour de sa signature
+   * et ne suit pas les changements d'éditeur qui viennent après.
+   */
   editeurDuLogicielId: number | null;
   /**
    * Marchés rattachables : les orphelins et ceux du même éditeur, déjà filtrés
@@ -366,7 +368,7 @@ export function ContratsPanel({
             key="m-new"
             row={null}
             editeurs={editeurs}
-            editeurDuLogiciel={editeurDuLogiciel}
+            editeurDuLogicielId={editeurDuLogicielId}
             pending={pending}
             onSubmit={soumettreMarche}
             onCancel={() => setMarcheForm(null)}
@@ -394,7 +396,7 @@ export function ContratsPanel({
                     key={`m-${c.id}`}
                     row={marcheForm.row}
                     editeurs={editeurs}
-                    editeurDuLogiciel={editeurDuLogiciel}
+                    editeurDuLogicielId={editeurDuLogicielId}
                     pending={pending}
                     onSubmit={soumettreMarche}
                     onCancel={() => setMarcheForm(null)}
@@ -487,22 +489,25 @@ export function ContratsPanel({
                         </span>
                         {/* Le fournisseur rejoint l'en-tête du marché : c'est lui
                           qu'on engage, au même titre que la référence.
-                          Sans société nommée, c'est l'éditeur du logiciel qui
-                          s'applique — on l'affiche plutôt qu'un vide, et il mène
-                          à sa fiche comme les autres : un nom affiché ici a
-                          toujours un id derrière, qu'il vienne du marché ou du
-                          logiciel. */}
-                        {c.fournisseurId || editeurDuLogicielId ? (
+
+                          Ce que le marché NOMME, et rien d'autre. L'écran
+                          affichait l'éditeur du logiciel à la place d'un
+                          fournisseur vide : un acte de 2019 se serait donc mis à
+                          désigner le repreneur du jour où le logiciel change de
+                          main. Un marché est signé avec la société du moment ;
+                          il ne suit pas l'éditeur. Sans nom enregistré, la
+                          colonne se tait. */}
+                        {c.fournisseurId ? (
                           <Link
-                            href={`/editeurs/${c.fournisseurId || editeurDuLogicielId}`}
+                            href={`/editeurs/${c.fournisseurId}`}
                             className="truncate text-muted hover:text-accent"
-                            title={c.fournisseurNom ?? editeurDuLogiciel ?? undefined}
+                            title={c.fournisseurNom ?? undefined}
                           >
-                            {c.fournisseurNom ?? editeurDuLogiciel}
+                            {c.fournisseurNom}
                           </Link>
                         ) : (
-                          // Ni l'un ni l'autre : la colonne reste, vide, pour que
-                          // les deux rangées gardent le même gabarit.
+                          // La colonne reste, vide, pour que les deux rangées
+                          // gardent le même gabarit.
                           <span />
                         )}
                       </span>
@@ -622,7 +627,7 @@ export function ContratsPanel({
                     {readOnly ? null : (
                       <button
                         type="button"
-                        className="btn-secondary !gap-1.5 !px-2.5"
+                        className="btn-secondary !gap-1.5 !px-2.5 !text-xs"
                         disabled={pending}
                         onClick={() =>
                           setPieceForm((f) =>
@@ -632,7 +637,7 @@ export function ContratsPanel({
                           )
                         }
                       >
-                        <Plus className="h-4 w-4" />
+                        <Plus className="h-3.5 w-3.5" />
                         Pièce
                       </button>
                     )}
@@ -772,7 +777,7 @@ export function ContratsPanel({
 function FormulaireMarche({
   row,
   editeurs,
-  editeurDuLogiciel,
+  editeurDuLogicielId,
   pending,
   onSubmit,
   onCancel,
@@ -780,7 +785,8 @@ function FormulaireMarche({
 }: {
   row: ContratRow | null;
   editeurs: Array<{ id: number; nom: string }>;
-  editeurDuLogiciel: string | null;
+  /** Fournisseur proposé d'office à la création — inscrit, jamais déduit. */
+  editeurDuLogicielId: number | null;
   pending: boolean;
   onSubmit: (e: React.FormEvent<HTMLFormElement>) => void;
   onCancel: () => void;
@@ -794,15 +800,23 @@ function FormulaireMarche({
   return (
     <form onSubmit={onSubmit} className={className}>
       {/* Les champs viennent du module partagé avec la fiche du marché : mêmes
-          libellés, mêmes aides, même grille. Seul le sens d'un fournisseur vide
-          change ici — c'est l'éditeur du logiciel. */}
+          libellés, mêmes aides, même grille.
+
+          À la CRÉATION, le fournisseur s'ouvre sur l'éditeur du logiciel : c'est
+          avec lui qu'on signe neuf fois sur dix, et la valeur est INSCRITE, non
+          déduite — un marché nomme la société du jour de sa signature, et ne
+          doit pas suivre l'éditeur si le logiciel change de main plus tard. En
+          MODIFICATION, la valeur enregistrée est reprise telle quelle : on ne
+          réécrit pas un acte passé en rouvrant son formulaire. */}
       <ChampsMarche
-        values={row ?? undefined}
+        values={
+          row ??
+          (editeurDuLogicielId === null
+            ? undefined
+            : { ...MARCHE_VIDE, fournisseurId: String(editeurDuLogicielId) })
+        }
         editeurs={editeurs}
         disabled={pending}
-        optionFournisseurVide={
-          editeurDuLogiciel ? `— l'éditeur du logiciel (${editeurDuLogiciel}) —` : "— non précisé —"
-        }
       />
       <div className="mt-3 flex gap-3">
         <button type="submit" disabled={pending} className="btn-primary">

@@ -1,10 +1,12 @@
 "use client";
 
-import { ArrowLeft, ArrowRight, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { type ReactNode, useEffect, useState, useTransition } from "react";
+import { BoutonQuitter } from "@/components/bouton-quitter";
 import { Card } from "@/components/ui";
+import { compareAlpha } from "@/lib/format";
 import { LIBELLES } from "@/schemas/logiciel";
 import {
   addInterconnexionAction,
@@ -14,6 +16,14 @@ import {
   setServicesAction,
 } from "../actions";
 import type { Option } from "../fiche-form";
+
+/**
+ * Le service fourre-tout du référentiel, poussé en fin de liste : il ne désigne
+ * personne en particulier et se coche quand aucun autre ne convient. Rapproché
+ * par LIBELLÉ — le référentiel est saisi par l'admin, qui peut l'avoir renommé ;
+ * dans ce cas la ligne reprend simplement son rang alphabétique.
+ */
+const SERVICE_FOURRE_TOUT = "Tous les services";
 
 type ServeurLie = { serveurId: number; nom: string; environnement: string };
 type Interco = {
@@ -37,6 +47,7 @@ export function LiaisonsPanel({
   autresLogiciels,
   interconnexions,
   readOnly,
+  supprimer,
 }: {
   logicielId: number;
   services: Option[];
@@ -46,6 +57,12 @@ export function LiaisonsPanel({
   autresLogiciels: Option[];
   interconnexions: Interco[];
   readOnly: boolean;
+  /**
+   * La corbeille de la fiche, posée au bout de la ligne d'actions. Reçue de la
+   * page plutôt que rendue ici : elle porte sur le logiciel entier, pas sur ses
+   * liaisons, et c'est la page qui sait compter ses pièces jointes.
+   */
+  supprimer?: ReactNode;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -56,8 +73,35 @@ export function LiaisonsPanel({
   const [nouvelleCible, setNouvelleCible] = useState("");
   const [nouvelleDesc, setNouvelleDesc] = useState("");
 
+  const [saved, setSaved] = useState(false);
+
+  /**
+   * Ordre alphabétique, et non celui du référentiel : on cherche ici un service
+   * qu'on a en tête, ce qui suppose de savoir où le trouver. `compareAlpha`
+   * plutôt que la base — la collation du serveur trierait « Élections » après
+   * « Urbanisme ».
+   */
+  const servicesTries = [...services].sort((a, b) => {
+    const aFourreTout = a.label === SERVICE_FOURRE_TOUT;
+    const bFourreTout = b.label === SERVICE_FOURRE_TOUT;
+    if (aFourreTout !== bFourreTout) return aFourreTout ? 1 : -1;
+    return compareAlpha(a.label, b.label);
+  });
+
+  /**
+   * « Les cases diffèrent-elles de ce qui est enregistré ? » — l'équivalent, pour
+   * des cases contrôlées, de l'empreinte que les fiches relèvent sur leur
+   * formulaire. C'est lui qui décide d'offrir ou non « Enregistrer ».
+   */
   const dirtyServices =
     coches.size !== servicesLies.length || servicesLies.some((id) => !coches.has(id));
+
+  /** La confirmation s'efface d'elle-même, comme sur les fiches. */
+  useEffect(() => {
+    if (!saved) return;
+    const t = setTimeout(() => setSaved(false), 4000);
+    return () => clearTimeout(t);
+  }, [saved]);
 
   function run(fn: () => Promise<{ ok: boolean; error?: string }>, onOk?: () => void) {
     setError(null);
@@ -81,37 +125,36 @@ export function LiaisonsPanel({
             Aucun service dans le référentiel — ajoutez-les depuis Administration › Référentiels.
           </p>
         ) : (
-          <>
-            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-              {services.map((s) => (
-                <label key={s.id} className="flex items-center gap-2 text-sm text-body">
-                  <input
-                    type="checkbox"
-                    className="h-4 w-4 accent-(--color-accent)"
-                    checked={coches.has(s.id)}
-                    disabled={readOnly || pending}
-                    onChange={(e) => {
-                      const next = new Set(coches);
-                      if (e.target.checked) next.add(s.id);
-                      else next.delete(s.id);
-                      setCoches(next);
-                    }}
-                  />
-                  {s.label}
-                </label>
-              ))}
-            </div>
-            {readOnly ? null : (
-              <button
-                type="button"
-                className="btn-primary mt-3"
-                disabled={pending || !dirtyServices}
-                onClick={() => run(() => setServicesAction(logicielId, [...coches]))}
-              >
-                Enregistrer les services
-              </button>
-            )}
-          </>
+          // Jusqu'à QUATRE colonnes sur un large écran : le référentiel compte
+          // une trentaine de services, et trois colonnes les étalaient sur dix
+          // rangées qu'il fallait parcourir pour en cocher deux.
+          //
+          // Aucun écart, ni vertical ni horizontal : les cases se lisent comme
+          // une liste, et l'air entre elles allongeait la carte sans rien
+          // séparer — la ligne de chaque case, et la case elle-même en tête de
+          // colonne, suffisent à les distinguer. La place ainsi rendue revient
+          // aux LIBELLÉS, chaque colonne s'élargissant de ce que la gouttière
+          // prenait : c'est eux qui manquaient de largeur, pas les colonnes qui
+          // manquaient d'écart.
+          <div className="grid gap-0 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {servicesTries.map((s) => (
+              <label key={s.id} className="flex items-center gap-2 text-sm text-body">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 accent-(--color-accent)"
+                  checked={coches.has(s.id)}
+                  disabled={readOnly || pending}
+                  onChange={(e) => {
+                    const next = new Set(coches);
+                    if (e.target.checked) next.add(s.id);
+                    else next.delete(s.id);
+                    setCoches(next);
+                  }}
+                />
+                {s.label}
+              </label>
+            ))}
+          </div>
         )}
       </Card>
 
@@ -284,6 +327,60 @@ export function LiaisonsPanel({
           </div>
         )}
       </Card>
+
+      {/* Une seule ligne d'actions, tout en bas, comme sur la Synthèse : les
+          gestes qui portent sur l'onglet à gauche, la corbeille au bout.
+
+          Tant que les cases ne diffèrent pas de l'enregistré, il n'y a rien à
+          enregistrer et le seul geste qui reste est de partir. Dès qu'une case
+          bouge, « Enregistrer » prend la place de « Quitter » et « Annuler » le
+          rejoint, qui rend aux cases leurs valeurs enregistrées — sans
+          confirmation, il n'y a que des clics à perdre.
+
+          Les serveurs et les interconnexions n'y figurent pas : ils s'appliquent
+          AU CLIC, chacun dans sa carte. Seules les cases attendent un
+          enregistrement, parce qu'on en coche plusieurs d'affilée. */}
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          {!readOnly && dirtyServices ? (
+            <>
+              <button
+                type="button"
+                className="btn-primary"
+                disabled={pending}
+                onClick={() =>
+                  run(
+                    () => setServicesAction(logicielId, [...coches]),
+                    () => setSaved(true),
+                  )
+                }
+              >
+                {pending ? "Enregistrement…" : "Enregistrer"}
+              </button>
+              <button
+                type="button"
+                className="btn-warn"
+                disabled={pending}
+                onClick={() => setCoches(new Set(servicesLies))}
+              >
+                Annuler
+              </button>
+            </>
+          ) : (
+            <BoutonQuitter vers="/logiciels" titre="Revenir à la liste des logiciels" />
+          )}
+          {saved ? (
+            <span
+              className="flex items-center gap-1.5 text-sm"
+              style={{ color: "var(--color-ok-text)" }}
+            >
+              <Check className="h-4 w-4" />
+              Services enregistrés.
+            </span>
+          ) : null}
+        </div>
+        {supprimer}
+      </div>
     </div>
   );
 }

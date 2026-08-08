@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Plus } from "lucide-react";
+import { Check } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 import { ModaleSociete } from "@/components/modale-societe";
@@ -218,7 +218,7 @@ export function FicheForm({
               maison, il n'y a pas d'éditeur à désigner. La sentinelle redevient
               le booléen `developpementInterne` côté serveur (voir parseFiche) ;
               rien n'entre dans l'annuaire des éditeurs. */}
-          <Field label="Éditeur / fournisseur" htmlFor="editeurId">
+          <Field label="Éditeur" htmlFor="editeurId">
             {/* Le « + » ouvre la fiche éditeur ENTIÈRE, sans quitter celle-ci :
                 on découvre qu'un éditeur manque au moment de le désigner, et
                 aller le créer ailleurs coûterait la saisie en cours. Même geste
@@ -238,13 +238,19 @@ export function FicheForm({
               {readOnly ? null : (
                 <button
                   type="button"
-                  className="btn-secondary shrink-0 !px-2.5"
+                  // Carré de 29.6 px, la hauteur de la liste qu'il accompagne.
+                  // Les DEUX dimensions sont posées : privé de texte, le bouton
+                  // n'a plus qu'une icône de 16 px pour se tenir et retombait à
+                  // 25.6 px, quatre de moins que le champ d'à côté.
+                  className="btn-secondary !h-[1.85rem] !w-[1.85rem] shrink-0 !p-0"
                   title="Créer un éditeur absent de l'annuaire"
                   aria-label="Créer un éditeur absent de l'annuaire"
                   disabled={dis}
                   onClick={() => setModaleSociete(true)}
                 >
-                  <Plus className="h-4 w-4" />
+                  <span aria-hidden className="text-sm leading-none">
+                    ➕
+                  </span>
                 </button>
               )}
             </span>

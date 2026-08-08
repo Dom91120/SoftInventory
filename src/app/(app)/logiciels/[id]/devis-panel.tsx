@@ -12,7 +12,7 @@ import {
 } from "@/components/documents-panel";
 import { ModaleSociete } from "@/components/modale-societe";
 import { Card, EmptyState, Field } from "@/components/ui";
-import { formatEuros } from "@/lib/format";
+import { DATE_FMT_FR_UTC, formatEuros } from "@/lib/format";
 import {
   createConsultationAction,
   createDevisAction,
@@ -22,6 +22,11 @@ import {
   updateConsultationAction,
   updateDevisAction,
 } from "../actions";
+
+/** "AAAA-MM-JJ" → "JJ/MM/AAAA", ancrée en UTC comme la colonne `@db.Date`. */
+function enDateFr(iso: string): string {
+  return DATE_FMT_FR_UTC.format(new Date(`${iso}T00:00:00.000Z`));
+}
 
 export type DevisRow = {
   id: number;
@@ -304,21 +309,43 @@ export function DevisPanel({
                 <header className="flex flex-wrap items-center justify-between gap-2 border-b border-line px-4 py-3">
                   <span className="min-w-0">
                     <span className="block truncate font-semibold text-strong">{c.objet}</span>
-                    <span className="text-xs text-faint">
-                      {[
-                        c.date || null,
-                        `${c.devis.length} devis`,
+                    {/* Ne reste ici que ce qui qualifie la CONSULTATION : quand
+                        elle a eu lieu, et si elle a tranché — le compte des
+                        devis est parti en tête du tableau, au-dessus de la
+                        liste qu'il dénombre.
+
+                        La ligne disparaît quand elle n'aurait rien à dire :
+                        annoncer une date non renseignée, c'est occuper une
+                        rangée pour un vide que le silence dit aussi bien.
+
+                        `block` et non en ligne : logée dans une ligne calquée
+                        sur l'interligne du titre au-dessus — 21.6 px pour un
+                        texte de 12 —, elle prenait 6.4 px de trop et l'en-tête
+                        d'une consultation dépassait de 5.6 px celui d'un
+                        marché, qui dit pourtant la même chose. */}
+                    {(() => {
+                      const details = [
+                        c.date ? enDateFr(c.date) : null,
                         c.devis.some((d) => d.retenu) ? null : "aucun retenu",
-                      ]
-                        .filter(Boolean)
-                        .join(" · ")}
-                    </span>
+                      ].filter(Boolean);
+                      return details.length === 0 ? null : (
+                        <span className="block text-xs leading-4 text-faint">
+                          {details.join(" · ")}
+                        </span>
+                      );
+                    })()}
                   </span>
                   {readOnly ? null : (
                     <span className="flex shrink-0 items-center gap-1">
+                      {/* Même gabarit que le « + Pièce » d'un marché : un verbe
+                          court accolé à une ligne, pas une commande de page.
+                          Et le même aller-retour que les commandes d'en-tête :
+                          le bouton qui a ouvert le formulaire le referme, et le
+                          dit — un « + » sur un formulaire déjà ouvert laisse
+                          croire qu'il en ajouterait un second. */}
                       <button
                         type="button"
-                        className="btn-secondary !py-1.5"
+                        className="btn-secondary !gap-1.5 !px-2.5 !text-xs"
                         disabled={pending}
                         onClick={() =>
                           setDevisForm((f) =>
@@ -328,8 +355,17 @@ export function DevisPanel({
                           )
                         }
                       >
-                        <Plus className="h-4 w-4" />
-                        Devis
+                        {devisForm?.consultationId === c.id && devisForm.row === null ? (
+                          <>
+                            <X className="h-3.5 w-3.5" />
+                            Fermer
+                          </>
+                        ) : (
+                          <>
+                            <Plus className="h-3.5 w-3.5" />
+                            Devis
+                          </>
+                        )}
                       </button>
                       <button
                         type="button"
@@ -380,7 +416,19 @@ export function DevisPanel({
                       <table className="data-table">
                         <thead>
                           <tr>
-                            <th>Devis</th>
+                            {/* La colonne se COMPTE au lieu de se nommer : ce
+                                qu'elle contient — un nom de fichier — se
+                                reconnaît sans intitulé, et le nombre, lui,
+                                n'était nulle part au-dessus de la liste.
+
+                                Ni les capitales d'un en-tête de colonne, ni le
+                                tout-minuscule d'une phrase : le compte se lit
+                                comme un intitulé, d'où la seule majuscule
+                                initiale. `tracking-normal` part avec les
+                                capitales, dont il espaçait les lettres. Même
+                                forme que « 3 Pièces » sur un marché ;
+                                « devis » est invariable. */}
+                            <th className="normal-case tracking-normal">{c.devis.length} Devis</th>
                             <th>Fournisseur</th>
                             <th className="text-right">Montant</th>
                             <th>Date</th>
@@ -428,7 +476,7 @@ export function DevisPanel({
                                 <td className="text-right tabular-nums">
                                   {formatEuros(d.montant) ?? "—"}
                                 </td>
-                                <td>{d.date || "—"}</td>
+                                <td>{d.date ? enDateFr(d.date) : "—"}</td>
                                 {readOnly ? null : (
                                   <td>
                                     <span className="flex items-center gap-1">
@@ -677,15 +725,21 @@ function FormulaireDevis({
                   </option>
                 ))}
               </select>
+              {/* Même bouton qu'au champ « Éditeur » de la synthèse : carré de
+                  29.6 px, la hauteur de la liste qu'il accompagne. Les DEUX
+                  dimensions sont posées — privé de texte, il n'a plus qu'un
+                  glyphe pour se tenir et retomberait quatre pixels plus bas. */}
               <button
                 type="button"
-                className="btn-secondary shrink-0 !px-2.5"
+                className="btn-secondary !h-[1.85rem] !w-[1.85rem] shrink-0 !p-0"
                 title="Créer une société absente de l'annuaire"
                 aria-label="Créer une société absente de l'annuaire"
                 disabled={pending}
                 onClick={() => setModale(true)}
               >
-                <Plus className="h-4 w-4" />
+                <span aria-hidden className="text-sm leading-none">
+                  ➕
+                </span>
               </button>
             </span>
           </Field>
