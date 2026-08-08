@@ -352,47 +352,72 @@ export function DocumentsPanel({
   }
 
   return (
-    <Card title={titre}>
+    <Card
+      title={titre}
+      hint={readOnly ? undefined : "PDF, Office, OpenDocument, images, txt/csv/zip — 25 Mo max."}
+      // Le dépôt monte dans l'en-tête, comme les commandes des autres cartes :
+      // il porte sur la carte entière et n'a pas à s'intercaler entre le titre
+      // et la liste, où il repoussait les documents d'une rangée.
+      actions={
+        readOnly ? undefined : (
+          <>
+            <select
+              // `field-sizing: content` : un <select> en largeur `auto` se règle
+              // sur sa PLUS LONGUE option — ici « Présentation commerciale » —
+              // et retient cette place même quand il affiche « Autre ». Il prend
+              // désormais la largeur de ce qu'il montre. Le plafond garde
+              // l'en-tête lisible sur un libellé long.
+              //
+              // Hauteur explicite : les navigateurs imposent `line-height:
+              // normal` aux <select>, qui dépasserait sinon le bouton voisin.
+              className="input !h-[1.6rem] !w-auto max-w-40 !text-xs [field-sizing:content] sm:max-w-56"
+              value={categorieId}
+              onChange={(e) => setCategorieId(e.target.value)}
+              disabled={uploading}
+              aria-label="Catégorie du document"
+            >
+              {categories.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.label}
+                </option>
+              ))}
+            </select>
+            <input
+              ref={fileRef}
+              type="file"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) void upload(f);
+              }}
+            />
+            {/* Réduit à sa flèche, comme l'export des listes : l'icône de dépôt
+                se passe de légende, et le libellé entier reste au survol et
+                pour les lecteurs d'écran. L'infobulle NOMME le geste avant de
+                détailler les formats — sans texte, elle est le seul endroit où
+                l'on apprend ce que fait le bouton. */}
+            <button
+              type="button"
+              // Hauteur explicite, comme le menu voisin : privé de son texte, le
+              // bouton n'a plus qu'une icône de 14 px pour se tenir et tombait
+              // 2 px plus bas que lui.
+              className="btn-secondary !h-[1.6rem] !px-2 !py-1 !text-xs"
+              disabled={uploading}
+              onClick={() => fileRef.current?.click()}
+              title={
+                uploading
+                  ? "Dépôt en cours…"
+                  : "Déposer un fichier — PDF, Office, OpenDocument, images, txt/csv/zip, 25 Mo max."
+              }
+              aria-label={uploading ? "Dépôt en cours" : "Déposer un fichier"}
+            >
+              <Upload className="h-3.5 w-3.5" />
+            </button>
+          </>
+        )
+      }
+    >
       {error ? <p className="alert-error mb-3">{error}</p> : null}
-
-      {readOnly ? null : (
-        <div className="mb-3 flex flex-wrap items-center gap-2">
-          <select
-            className="input !w-auto"
-            value={categorieId}
-            onChange={(e) => setCategorieId(e.target.value)}
-            disabled={uploading}
-            aria-label="Catégorie du document"
-          >
-            {categories.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.label}
-              </option>
-            ))}
-          </select>
-          <input
-            ref={fileRef}
-            type="file"
-            className="hidden"
-            onChange={(e) => {
-              const f = e.target.files?.[0];
-              if (f) void upload(f);
-            }}
-          />
-          <button
-            type="button"
-            className="btn-secondary"
-            disabled={uploading}
-            onClick={() => fileRef.current?.click()}
-          >
-            <Upload className="h-4 w-4" />
-            {uploading ? "Dépôt en cours…" : "Déposer un fichier"}
-          </button>
-          <span className="text-xs text-faint">
-            PDF, Office, OpenDocument, images, txt/csv/zip — 25 Mo max.
-          </span>
-        </div>
-      )}
 
       {documents.length === 0 ? (
         <EmptyState>Aucun document (guides, contrats, délibérations, arrêtés…).</EmptyState>

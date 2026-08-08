@@ -37,11 +37,20 @@ export function PageHeader({
 /** Carte avec en-tête à barre d'accent (simcity) ; `title` optionnel. */
 export function Card({
   title,
+  hint,
   actions,
   children,
   className = "",
 }: {
   title?: string;
+  /**
+   * Mention discrète accolée au titre — une contrainte de saisie, un format
+   * admis. Elle vit dans l'en-tête plutôt qu'en tête de contenu, où elle
+   * repoussait d'une rangée ce que la carte a à montrer. Effacée sous 640 px :
+   * elle y disputerait la ligne aux commandes, qui, elles, ne peuvent pas
+   * partir.
+   */
+  hint?: string;
   actions?: ReactNode;
   children: ReactNode;
   className?: string;
@@ -50,7 +59,27 @@ export function Card({
     <section className={`card ${className}`}>
       {title ? (
         <header className="card-header pl-7">
-          <h2 className="card-title">{title}</h2>
+          {/* Centrage et non alignement des lignes de base : le titre est en
+              CAPITALES, sans jambages, quand la mention en a — « p », « j »,
+              « q ». Sur une même ligne de base, la mention paraissait basse.
+              Un demi-point de moins la met au second rang sans la rendre
+              illisible. */}
+          <span className="flex min-w-0 items-center gap-2">
+            <h2 className="card-title shrink-0">{title}</h2>
+            {/* `title` posé sans condition : les navigateurs n'offrent aucune
+                infobulle d'office sur un texte coupé, et savoir s'il l'est
+                demande de mesurer à l'exécution — donc de rendre la carte
+                côté client pour une bulle. Quand la mention tient en entier,
+                l'infobulle la répète : sans conséquence. */}
+            {hint ? (
+              <span
+                title={hint}
+                className="hidden truncate text-[11px]/4 font-normal normal-case tracking-normal text-faint sm:inline"
+              >
+                {hint}
+              </span>
+            ) : null}
+          </span>
           {actions ? <div className="flex items-center gap-2">{actions}</div> : null}
         </header>
       ) : null}
