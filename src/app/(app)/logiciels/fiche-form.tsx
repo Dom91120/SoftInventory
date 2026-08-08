@@ -1,9 +1,10 @@
 "use client";
 
-import { Check } from "lucide-react";
+import { Check, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 import { useConfirmation } from "@/components/confirmation";
+import { ModaleSociete } from "@/components/modale-societe";
 import { useSaisieEnCours } from "@/components/saisie-en-cours";
 import { Card, Field } from "@/components/ui";
 import { EDITEUR_INTERNE, LIBELLES } from "@/schemas/logiciel";
@@ -61,15 +62,18 @@ function Select({
   options,
   disabled,
   aucun,
+  className = "input",
 }: {
   name: string;
   value: string;
   options: Array<{ value: string; label: string }>;
   disabled: boolean;
   aucun?: string;
+  /** Surchargé quand la liste PARTAGE sa ligne : `.input` est en pleine largeur. */
+  className?: string;
 }) {
   return (
-    <select name={name} id={name} defaultValue={value} disabled={disabled} className="input">
+    <select name={name} id={name} defaultValue={value} disabled={disabled} className={className}>
       {aucun !== undefined ? <option value="">{aucun}</option> : null}
       {options.map((o) => (
         <option key={o.value} value={o.value}>
@@ -134,6 +138,32 @@ export function FicheForm({
    *  ou un rechargement, un retour d'historique ferait sortir de l'application. */
   const quitter = () => router.push("/logiciels");
   const dis = readOnly || pending;
+
+  /**
+   * Annuaire tenu localement : une société créée depuis la fiche doit paraître
+   * dans la liste SANS recharger la page, qui perdrait la saisie en cours.
+   */
+  const [annuaire, setAnnuaire] = useState(editeurs);
+  const [modaleSociete, setModaleSociete] = useState(false);
+  /**
+   * Société à sélectionner une fois son option rendue. La liste est NON
+   * CONTRÔLÉE — `defaultValue`, comme tout ce formulaire, pour que « Annuler »
+   * la rende au `reset()` du DOM. On ne peut donc pas la piloter par un état :
+   * on pose la valeur sur l'élément, mais après le rendu qui a ajouté l'option,
+   * d'où le passage par un effet.
+   */
+  const [aSelectionner, setASelectionner] = useState<number | null>(null);
+  useEffect(() => {
+    if (aSelectionner === null) return;
+    const liste = document.getElementById("editeurId");
+    if (liste instanceof HTMLSelectElement) {
+      liste.value = String(aSelectionner);
+      // La ligne d'actions suit l'écart à l'enregistré : sans cette annonce,
+      // « Enregistrer » resterait absent alors que la fiche a changé.
+      saisie.surSaisie();
+    }
+    setASelectionner(null);
+  }, [aSelectionner, saisie.surSaisie]);
 
   /** La confirmation s'efface d'elle-même : elle annonce un fait accompli, pas
    *  un état à surveiller. La laisser à l'écran, c'est laisser croire, au geste
@@ -209,16 +239,35 @@ export function FicheForm({
               le booléen `developpementInterne` côté serveur (voir parseFiche) ;
               rien n'entre dans l'annuaire des éditeurs. */}
           <Field label="Éditeur / fournisseur" htmlFor="editeurId">
-            <Select
-              name="editeurId"
-              value={values.developpementInterne ? EDITEUR_INTERNE : values.editeurId}
-              options={[
-                { value: EDITEUR_INTERNE, label: "— développement interne —" },
-                ...refOptions(editeurs),
-              ]}
-              disabled={dis}
-              aucun="— aucun —"
-            />
+            {/* Le « + » ouvre la fiche éditeur ENTIÈRE, sans quitter celle-ci :
+                on découvre qu'un éditeur manque au moment de le désigner, et
+                aller le créer ailleurs coûterait la saisie en cours. Même geste
+                qu'au fournisseur d'un devis, et la même modale. */}
+            <span className="flex items-center gap-1">
+              <Select
+                name="editeurId"
+                value={values.developpementInterne ? EDITEUR_INTERNE : values.editeurId}
+                options={[
+                  { value: EDITEUR_INTERNE, label: "— développement interne —" },
+                  ...refOptions(annuaire),
+                ]}
+                disabled={dis}
+                aucun="— aucun —"
+                className="input min-w-0 flex-1"
+              />
+              {readOnly ? null : (
+                <button
+                  type="button"
+                  className="btn-secondary shrink-0 !px-2.5"
+                  title="Créer un éditeur absent de l'annuaire"
+                  aria-label="Créer un éditeur absent de l'annuaire"
+                  disabled={dis}
+                  onClick={() => setModaleSociete(true)}
+                >
+                  <Plus className="h-4 w-4" />
+                </button>
+              )}
+            </span>
           </Field>
           <Field label="Statut" htmlFor="statut">
             <Select
@@ -498,6 +547,23 @@ export function FicheForm({
           )}
         </div>
       )}
+
+      {modaleSociete ? (
+        <ModaleSociete
+          onFermer={() => setModaleSociete(false)}
+          onCreee={(societe) => {
+            // Insérée dans l'ordre alphabétique, comme la liste du serveur, et
+            // retenue aussitôt : c'est pour cette fiche-ci qu'on l'a créée.
+            setAnnuaire((liste) =>
+              [...liste, { id: societe.id, label: societe.nom }].sort((a, b) =>
+                a.label.localeCompare(b.label, "fr"),
+              ),
+            );
+            setASelectionner(societe.id);
+            setModaleSociete(false);
+          }}
+        />
+      ) : null}
     </form>
   );
 }
