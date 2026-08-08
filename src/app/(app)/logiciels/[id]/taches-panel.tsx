@@ -245,7 +245,7 @@ export function TachesPanel({
               </button>
               <button
                 type="button"
-                className="btn-ghost"
+                className="btn-warn"
                 disabled={pending}
                 onClick={() => setCompletion(null)}
               >
@@ -410,7 +410,7 @@ export function TachesPanel({
               </button>
               <button
                 type="button"
-                className="btn-ghost"
+                className="btn-warn"
                 disabled={pending}
                 onClick={() => {
                   setEnEdition(null);

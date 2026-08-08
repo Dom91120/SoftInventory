@@ -279,7 +279,7 @@ export function DevisPanel({
               </button>
               <button
                 type="button"
-                className="btn-secondary"
+                className="btn-warn"
                 disabled={pending}
                 onClick={() => setConsultationForm(null)}
               >
@@ -724,7 +724,7 @@ function FormulaireDevis({
         <button type="submit" disabled={pending} className="btn-primary">
           {pending ? "Enregistrement…" : "Enregistrer"}
         </button>
-        <button type="button" className="btn-secondary" disabled={pending} onClick={onCancel}>
+        <button type="button" className="btn-warn" disabled={pending} onClick={onCancel}>
           Annuler
         </button>
       </div>
@@ -931,7 +931,7 @@ function ModaleSociete({
           <button type="button" className="btn-primary" disabled={pending} onClick={creer}>
             {pending ? "Création…" : "Créer l'éditeur"}
           </button>
-          <button type="button" className="btn-secondary" disabled={pending} onClick={onFermer}>
+          <button type="button" className="btn-warn" disabled={pending} onClick={onFermer}>
             Annuler
           </button>
         </div>

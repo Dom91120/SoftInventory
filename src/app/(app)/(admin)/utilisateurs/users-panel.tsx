@@ -243,7 +243,7 @@ export function UsersPanel({ users }: { users: UserRow[] }) {
               </button>
               <button
                 type="button"
-                className="btn-ghost"
+                className="btn-warn"
                 disabled={pending}
                 onClick={() => {
                   setEnEdition(null);

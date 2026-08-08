@@ -802,7 +802,7 @@ function FormulaireMarche({
         <button type="submit" disabled={pending} className="btn-primary">
           {pending ? "Enregistrement…" : row ? "Enregistrer" : "Ajouter le contrat"}
         </button>
-        <button type="button" className="btn-ghost" disabled={pending} onClick={onCancel}>
+        <button type="button" className="btn-warn" disabled={pending} onClick={onCancel}>
           Annuler
         </button>
       </div>

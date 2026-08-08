@@ -146,7 +146,10 @@ body {
   }
   /* Contour ambre sur fond blanc, pour le geste qui REVIENT en arrière plutôt
      que de détruire : « Annuler » y remplace la corbeille sans en prendre le
-     poids. L'ambre dit « attention » là où le rouge dit « destruction ». */
+     poids. L'ambre dit « attention » là où le rouge dit « destruction ».
+     C'est le style de TOUS les « Annuler » de l'application — formulaires,
+     panneaux dépliants et dialogue de confirmation compris : un même geste ne
+     doit pas changer d'apparence selon l'écran où il se trouve. */
   .btn-warn {
     @apply border border-warn/30 bg-surface text-warn shadow-sm hover:bg-warn-dim;
   }

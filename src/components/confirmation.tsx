@@ -144,7 +144,7 @@ export function ConfirmationProvider({ children }: { children: React.ReactNode }
                 réflexe ne doit pas détruire. Il reste à gauche, le geste à
                 droite — l'ordre de lecture habituel d'une validation. */}
             <div className="mt-5 flex justify-end gap-2">
-              <button type="button" className="btn-ghost" onClick={() => repondre(false)}>
+              <button type="button" className="btn-warn" onClick={() => repondre(false)}>
                 Annuler
               </button>
               <button

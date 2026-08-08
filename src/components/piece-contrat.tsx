@@ -298,7 +298,7 @@ export function FormulairePiece({
             <button type="submit" disabled={pending} className="btn-primary">
               {pending ? "Enregistrement…" : "Enregistrer"}
             </button>
-            <button type="button" className="btn-secondary" disabled={pending} onClick={onCancel}>
+            <button type="button" className="btn-warn" disabled={pending} onClick={onCancel}>
               Annuler
             </button>
           </span>
