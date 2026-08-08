@@ -75,32 +75,36 @@ export function FiltresBar({
   const refOptions = (list: Option[]) => list.map((o) => ({ value: String(o.id), label: o.label }));
 
   return (
-    // Deux rangées, et non un seul flux qui se replie : la recherche et l'export
-    // encadrent la première, les filtres tiennent la seconde. Ce qui porte sur
-    // la LISTE ENTIÈRE — la chercher, l'emporter — se lit ainsi d'un bout à
-    // l'autre d'une même ligne, et ce qui la restreint se lit ensemble en
-    // dessous, sans que l'ordre change au gré de la largeur de la fenêtre.
-    <div className="mb-3 space-y-2">
-      <div className="flex items-center gap-2">
-        {/* Le champ prend la place laissée libre plutôt qu'une largeur fixe,
-            jusqu'à 448 px : au-delà, une ligne de saisie devient une bannière et
-            le curseur se perd dans le vide à sa droite. Il rétrécit de lui-même
-            sur une fenêtre étroite au lieu de pousser l'export hors de la
-            rangée. */}
-        <div className="relative w-full max-w-md">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-faint" />
-          <input
-            ref={recherche}
-            type="search"
-            aria-label="Rechercher un logiciel"
-            placeholder="Rechercher un logiciel…"
-            className="input !pl-9"
-            defaultValue={params.get("q") ?? ""}
-            onChange={(e) => setParam("q", e.target.value.trim())}
-          />
-        </div>
+    // Une seule rangée tant que la largeur le permet, et un repli à UN endroit
+    // choisi : entre la recherche et les filtres. Le champ est élastique, le
+    // bloc des filtres ne l'est pas — il ne sait pas se comprimer, donc c'est
+    // lui qui descend en entier plutôt que de se replier en escalier au milieu
+    // des listes. L'ordre de lecture est le même sur une rangée ou sur deux.
+    <div className="mb-3 flex flex-wrap items-center gap-2">
+      {/* Le champ prend la place laissée libre plutôt qu'une largeur fixe,
+          jusqu'à 448 px : au-delà, une ligne de saisie devient une bannière et
+          le curseur se perd dans le vide à sa droite. Son plancher de 224 px
+          est ce qui décide du repli : en dessous, il ne resterait pas de quoi
+          chercher. */}
+      <div className="relative min-w-56 max-w-md flex-1">
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-faint" />
+        <input
+          ref={recherche}
+          type="search"
+          aria-label="Rechercher un logiciel"
+          placeholder="Rechercher un logiciel…"
+          className="input !pl-9"
+          defaultValue={params.get("q") ?? ""}
+          onChange={(e) => setParam("q", e.target.value.trim())}
+        />
       </div>
-      <div className="flex flex-wrap items-center gap-2">
+      {/* Les filtres tiennent ensemble. `basis` annonce la largeur qu'il leur
+          faut d'un seul tenant : tant que la rangée ne l'offre pas, le bloc
+          descend ENTIER sous la recherche plutôt que de s'y replier en escalier.
+          `min-w-0` le laisse ensuite rétrécir une fois seul sur sa ligne, et
+          c'est là seulement que ses listes se replient — sinon elles
+          déborderaient de la carte sur une fenêtre étroite. */}
+      <div className="flex min-w-0 basis-[46rem] grow flex-wrap items-center gap-2">
         {sel("editeur", "Éditeur", refOptions(editeurs))}
         {sel("service", "Service", refOptions(services))}
         {sel("criticite", "Criticité", refOptions(criticites))}
@@ -131,7 +135,8 @@ export function FiltresBar({
         {/* Réduit à sa flèche et poussé au bout de la rangée des filtres : c'est
             la liste AINSI FILTRÉE qu'il emporte, et l'icône de téléchargement se
             passe de légende. Le libellé entier reste au survol et pour les
-            lecteurs d'écran. */}
+            lecteurs d'écran. Dans le bloc et non à côté : il suit les filtres
+            quand ils descendent, au lieu de rester seul sur une ligne. */}
         <a
           href={`/logiciels/export?${params.toString()}`}
           className="btn-secondary ml-auto !px-2"
