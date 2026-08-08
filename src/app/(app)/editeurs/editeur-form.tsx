@@ -1,7 +1,8 @@
 "use client";
 
+import { Check } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { type ReactNode, useState, useTransition } from "react";
+import { type ReactNode, useEffect, useState, useTransition } from "react";
 import { useConfirmation } from "@/components/confirmation";
 import { useSaisieEnCours } from "@/components/saisie-en-cours";
 import { Card, Field } from "@/components/ui";
@@ -93,6 +94,18 @@ export function EditeurForm({
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const saisie = useSaisieEnCours();
+  /** Retour à SA liste, et non à la page précédente : arrivé par une URL collée
+   *  ou un rechargement, un retour d'historique ferait sortir de l'application. */
+  const quitter = () => router.push("/editeurs");
+
+  /** La confirmation s'efface d'elle-même : elle annonce un fait accompli, pas
+   *  un état à surveiller. La laisser à l'écran, c'est laisser croire, au geste
+   *  suivant, qu'elle parle de celui-là. */
+  useEffect(() => {
+    if (!saved) return;
+    const t = setTimeout(() => setSaved(false), 4000);
+    return () => clearTimeout(t);
+  }, [saved]);
 
   function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -219,8 +232,8 @@ export function EditeurForm({
         <Card title="Contacts">
           <div className="grid items-end gap-x-3 gap-y-2 sm:grid-cols-3">
             {champ("supportUrl", "Portail de tickets", { type: "url", placeholder: "https://…" })}
-            {champ("supportEmail", "E-mail du support", { type: "email" })}
             {champ("supportTelephone", "Téléphone du support", { type: "tel" })}
+            {champ("supportEmail", "Mail du support", { type: "email" })}
             <div className="sm:col-span-3">
               {champ("supportHoraires", "Horaires du support", {
                 placeholder: "Ex. lun-ven 9h-18h",
@@ -239,28 +252,63 @@ export function EditeurForm({
       {children}
 
       {error ? <p className="alert-error">{error}</p> : null}
-      {saved ? <p className="alert-success">Fiche enregistrée.</p> : null}
 
       {readOnly ? null : (
         <div className="flex items-center justify-between gap-3">
-          {/* Les deux gestes qui portent sur la SAISIE, côte à côte : l'un la
-              garde, l'autre la rend. « Annuler » ne paraît que lorsqu'il y a
-              quelque chose à annuler, et sans confirmation — il n'y a que des
-              frappes non enregistrées à perdre. Ambre sur fond blanc : revenir
-              en arrière n'a pas le poids de détruire. */}
+          {/* La ligne suit l'état de la saisie plutôt que d'offrir tout, tout le
+              temps.
+
+              Fiche EXISTANTE, rien de modifié : il n'y a rien à enregistrer, et
+              le seul geste qui reste est de partir — « Quitter », en clair,
+              puisqu'il ne décide de rien. Dès qu'un champ change, « Enregistrer »
+              prend sa place et « Annuler » le rejoint, qui rend au formulaire ses
+              valeurs enregistrées, sans confirmation : il n'y a que des frappes
+              non sauvegardées à perdre.
+
+              En CRÉATION, la fiche n'existe pas encore : rien à retrouver, donc
+              « Annuler » y veut dire quitter, et il est toujours offert — on entre
+              parfois ici par erreur. */}
           <div className="flex items-center gap-3">
-            <button type="submit" form={FORM_ID} disabled={pending} className="btn-primary">
-              {pending ? "Enregistrement…" : id === undefined ? "Créer l'éditeur" : "Enregistrer"}
-            </button>
-            {saisie.modifie ? (
+            {id !== undefined && !saisie.modifie ? (
               <button
                 type="button"
-                onClick={saisie.annuler}
+                onClick={quitter}
                 disabled={pending}
-                className="btn-warn"
+                className="btn-secondary"
+                title="Revenir à la liste des éditeurs"
               >
-                Annuler
+                Quitter
               </button>
+            ) : (
+              <>
+                <button type="submit" form={FORM_ID} disabled={pending} className="btn-primary">
+                  {pending
+                    ? "Enregistrement…"
+                    : id === undefined
+                      ? "Créer l'éditeur"
+                      : "Enregistrer"}
+                </button>
+                <button
+                  type="button"
+                  onClick={id === undefined ? quitter : saisie.annuler}
+                  disabled={pending}
+                  className="btn-warn"
+                  title={id === undefined ? "Quitter sans créer l'éditeur" : undefined}
+                >
+                  Annuler
+                </button>
+              </>
+            )}
+            {/* La confirmation se range à la suite des boutons, là où le regard
+                revient après le clic — plutôt qu'en bandeau, qui pousse la page. */}
+            {saved ? (
+              <span
+                className="flex items-center gap-1.5 text-sm"
+                style={{ color: "var(--color-ok-text)" }}
+              >
+                <Check className="h-4 w-4" />
+                Fiche enregistrée.
+              </span>
             ) : null}
           </div>
           {/* La corbeille garde son bout de ligne : elle ne porte pas sur la

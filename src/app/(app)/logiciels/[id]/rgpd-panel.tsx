@@ -1,7 +1,9 @@
 "use client";
 
+import { Check } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
+import { useSaisieEnCours } from "@/components/saisie-en-cours";
 import { Card, Field } from "@/components/ui";
 import { LIBELLES } from "@/schemas/logiciel";
 import { updateRgpdAction } from "../actions";
@@ -28,7 +30,27 @@ export function RgpdPanel({
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [traite, setTraite] = useState(values.donneesPersonnelles);
+  const saisie = useSaisieEnCours();
   const dis = readOnly || pending;
+  /** Retour à SA liste, et non à la page précédente : arrivé par une URL collée
+   *  ou un rechargement, un retour d'historique ferait sortir de l'application. */
+  const quitter = () => router.push("/logiciels");
+  /** `reset()` rend au DOM ses valeurs, mais la case vit dans un état React
+   *  qu'il n'atteint pas : sans cette ligne, « Annuler » laisserait le volet
+   *  déplié sur une case redevenue décochée. */
+  const annuler = () => {
+    setTraite(values.donneesPersonnelles);
+    saisie.annuler();
+  };
+
+  /** La confirmation s'efface d'elle-même : elle annonce un fait accompli, pas
+   *  un état à surveiller. La laisser à l'écran, c'est laisser croire, au geste
+   *  suivant, qu'elle parle de celui-là. */
+  useEffect(() => {
+    if (!saved) return;
+    const t = setTimeout(() => setSaved(false), 4000);
+    return () => clearTimeout(t);
+  }, [saved]);
 
   function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -41,13 +63,14 @@ export function RgpdPanel({
       if (!res.ok) setError(res.error);
       else {
         setSaved(true);
+        saisie.enregistre();
         router.refresh();
       }
     });
   }
 
   return (
-    <form onSubmit={submit} className="space-y-3">
+    <form ref={saisie.formRef} onSubmit={submit} onChange={saisie.surSaisie} className="space-y-3">
       <Card title="Données personnelles">
         <label className="flex items-center gap-3 text-sm text-body">
           <input
@@ -115,11 +138,45 @@ export function RgpdPanel({
         )}
       </Card>
       {error ? <p className="alert-error">{error}</p> : null}
-      {saved ? <p className="alert-success">Volet RGPD enregistré.</p> : null}
       {readOnly ? null : (
-        <button type="submit" disabled={pending} className="btn-primary">
-          {pending ? "Enregistrement…" : "Enregistrer"}
-        </button>
+        <div className="flex items-center gap-3">
+          {/* Comme dans l'onglet Synthèse, la ligne suit l'état de la saisie :
+              tant que rien ne diffère de l'enregistré, il n'y a rien à
+              enregistrer et le seul geste qui reste est de partir. Le volet
+              existe toujours — on n'entre jamais ici en création —, donc pas
+              de cas où « Annuler » voudrait dire quitter. */}
+          {saisie.modifie ? (
+            <>
+              <button type="submit" disabled={pending} className="btn-primary">
+                {pending ? "Enregistrement…" : "Enregistrer"}
+              </button>
+              <button type="button" onClick={annuler} disabled={pending} className="btn-warn">
+                Annuler
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              onClick={quitter}
+              disabled={pending}
+              className="btn-secondary"
+              title="Revenir à la liste des logiciels"
+            >
+              Quitter
+            </button>
+          )}
+          {/* La confirmation se range à la suite des boutons, là où le regard
+              revient après le clic — plutôt qu'au-dessus, où elle les pousse. */}
+          {saved ? (
+            <span
+              className="flex items-center gap-1.5 text-sm"
+              style={{ color: "var(--color-ok-text)" }}
+            >
+              <Check className="h-4 w-4" />
+              Volet RGPD enregistré.
+            </span>
+          ) : null}
+        </div>
       )}
     </form>
   );
