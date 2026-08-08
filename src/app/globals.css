@@ -210,8 +210,13 @@ body {
   .card {
     @apply rounded-2xl border border-line bg-surface shadow-sm;
   }
+  /* Le plancher de 2.65rem — 42.4 px — est la hauteur qu'un en-tête PORTANT un
+     bouton atteint de lui-même : 25.6 px de bouton, 16 px de retrait vertical,
+     le filet du bas. Sans lui, un en-tête réduit à son titre tombait à 32.8 px,
+     et deux cartes empilées ne commençaient pas au même rythme selon que l'une
+     offrait une commande et l'autre non. */
   .card-header {
-    @apply relative flex items-center justify-between gap-3 border-b border-line px-5 py-2;
+    @apply relative flex min-h-[2.65rem] items-center justify-between gap-3 border-b border-line px-5 py-2;
   }
   .card-header::before {
     content: "";
