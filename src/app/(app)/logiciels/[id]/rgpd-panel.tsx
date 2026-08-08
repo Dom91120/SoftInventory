@@ -2,7 +2,7 @@
 
 import { Check } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useTransition } from "react";
+import { type ReactNode, useEffect, useState, useTransition } from "react";
 import { useSaisieEnCours } from "@/components/saisie-en-cours";
 import { Card, Field } from "@/components/ui";
 import { LIBELLES } from "@/schemas/logiciel";
@@ -20,10 +20,17 @@ export function RgpdPanel({
   logicielId,
   values,
   readOnly,
+  supprimer,
 }: {
   logicielId: number;
   values: RgpdValues;
   readOnly: boolean;
+  /**
+   * La corbeille de la fiche, posée au bout de la ligne d'actions. Reçue de la
+   * page plutôt que rendue ici : elle porte sur le logiciel entier, pas sur le
+   * volet RGPD, et c'est la page qui sait compter ses pièces jointes.
+   */
+  supprimer?: ReactNode;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -138,14 +145,18 @@ export function RgpdPanel({
         )}
       </Card>
       {error ? <p className="alert-error">{error}</p> : null}
-      {readOnly ? null : (
+      {/* Une seule ligne d'actions, comme sur la Synthèse : la saisie à gauche,
+          la corbeille au bout. Elle est rendue même en lecture seule — « Quitter »
+          n'est pas une modification, et le lecteur doit pouvoir refermer la
+          fiche depuis cet onglet comme depuis les autres. */}
+      <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           {/* Comme dans l'onglet Synthèse, la ligne suit l'état de la saisie :
               tant que rien ne diffère de l'enregistré, il n'y a rien à
               enregistrer et le seul geste qui reste est de partir. Le volet
               existe toujours — on n'entre jamais ici en création —, donc pas
               de cas où « Annuler » voudrait dire quitter. */}
-          {saisie.modifie ? (
+          {!readOnly && saisie.modifie ? (
             <>
               <button type="submit" disabled={pending} className="btn-primary">
                 {pending ? "Enregistrement…" : "Enregistrer"}
@@ -177,7 +188,8 @@ export function RgpdPanel({
             </span>
           ) : null}
         </div>
-      )}
+        {supprimer}
+      </div>
     </form>
   );
 }

@@ -239,6 +239,15 @@ export default async function LogicielPage({
         <RgpdPanel
           logicielId={id}
           readOnly={!isAdmin}
+          supprimer={
+            isAdmin ? (
+              <BoutonSupprimerLogiciel
+                id={id}
+                nom={logiciel.nom}
+                nbPiecesJointes={compterPieces(logiciel)}
+              />
+            ) : undefined
+          }
           values={{
             donneesPersonnelles: logiciel.donneesPersonnelles,
             categoriesDonnees: logiciel.categoriesDonnees,
@@ -255,18 +264,13 @@ export default async function LogicielPage({
 
           La Synthèse et le volet RGPD sont exclus : leur ligne d'actions porte
           déjà le sien, à côté d'« Enregistrer ». */}
-      {actif === "synthese" ? null : (
-        <div
-          className={`mt-3 flex items-start gap-3 ${
-            actif === "rgpd" ? "justify-end" : "justify-between"
-          }`}
-        >
-          {/* Le volet RGPD porte déjà son « Quitter », à côté de son
-              « Enregistrer » — il ne reçoit ici que la corbeille, seule à
-              droite. */}
-          {actif === "rgpd" ? null : (
-            <BoutonQuitter vers="/logiciels" titre="Revenir à la liste des logiciels" />
-          )}
+      {/* La Synthèse et le volet RGPD portent leur propre ligne d'actions, où
+          les deux gestes voisinent « Enregistrer » : ils reçoivent la corbeille
+          en prop plutôt que cette rangée, qui ferait doublon et la poserait une
+          ligne trop bas. */}
+      {actif === "synthese" || actif === "rgpd" ? null : (
+        <div className="mt-3 flex items-start justify-between gap-3">
+          <BoutonQuitter vers="/logiciels" titre="Revenir à la liste des logiciels" />
           {/* La corbeille garde son bout de ligne, comme sur la Synthèse : elle
               porte sur la fiche entière, pas sur l'onglet qu'on regarde. */}
           {isAdmin ? (
