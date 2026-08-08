@@ -2,6 +2,7 @@ import { ExternalLink } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { BoutonQuitter } from "@/components/bouton-quitter";
 import { DocumentsPanel } from "@/components/documents-panel";
 import { FlecheVoisin } from "@/components/fleche-voisin";
 import { EcheanceBadge } from "@/components/tache-badges";
@@ -25,6 +26,7 @@ import {
   listTypesTaches,
 } from "@/server/services/referentiels";
 import { listTachesDuLogiciel } from "@/server/services/taches";
+import { BoutonSupprimerLogiciel } from "../bouton-supprimer";
 import { FicheForm } from "../fiche-form";
 import { CriticiteBadge, StatutBadge } from "../shared";
 import { type ContratRow, ContratsPanel } from "./contrats-panel";
@@ -69,6 +71,20 @@ const ONGLETS_ALIAS: Record<string, OngletKey> = { licences: "contrats" };
 const LIBELLE_INTERNE = "Développement interne";
 
 const dateStr = (d: Date | null) => (d ? d.toISOString().slice(0, 10) : "");
+
+/**
+ * Pièces jointes de la fiche, TOUS chemins de cascade confondus : les siennes,
+ * celles de ses marchés, celles de ses devis — le même compte qu'applique
+ * `compterPiecesLogiciel` côté serveur, qui refuse la suppression tant qu'il
+ * n'est pas nul.
+ */
+function compterPieces(l: LogicielComplet): number {
+  return (
+    l.documents.length +
+    l.contrats.reduce((n, c) => n + c.pieces.reduce((m, p) => m + p.documents.length, 0), 0) +
+    l.consultations.reduce((n, c) => n + c.devis.reduce((m, d) => m + d.documents.length, 0), 0)
+  );
+}
 
 export default async function LogicielPage({
   params,
@@ -231,6 +247,37 @@ export default async function LogicielPage({
           }}
         />
       ) : null}
+
+      {/* « Quitter » sur CHAQUE onglet : on referme une fiche depuis l'onglet
+          où l'on se trouve, et non en revenant d'abord à la Synthèse. Rendu ici
+          plutôt que dans chaque panneau — le geste porte sur la fiche entière,
+          pas sur ce que l'onglet montre.
+
+          La Synthèse et le volet RGPD sont exclus : leur ligne d'actions porte
+          déjà le sien, à côté d'« Enregistrer ». */}
+      {actif === "synthese" ? null : (
+        <div
+          className={`mt-3 flex items-start gap-3 ${
+            actif === "rgpd" ? "justify-end" : "justify-between"
+          }`}
+        >
+          {/* Le volet RGPD porte déjà son « Quitter », à côté de son
+              « Enregistrer » — il ne reçoit ici que la corbeille, seule à
+              droite. */}
+          {actif === "rgpd" ? null : (
+            <BoutonQuitter vers="/logiciels" titre="Revenir à la liste des logiciels" />
+          )}
+          {/* La corbeille garde son bout de ligne, comme sur la Synthèse : elle
+              porte sur la fiche entière, pas sur l'onglet qu'on regarde. */}
+          {isAdmin ? (
+            <BoutonSupprimerLogiciel
+              id={id}
+              nom={logiciel.nom}
+              nbPiecesJointes={compterPieces(logiciel)}
+            />
+          ) : null}
+        </div>
+      )}
     </>
   );
 }
@@ -476,19 +523,7 @@ async function OngletSynthese({
       statuts={statuts.map((s) => ({ cle: s.cle, label: s.label }))}
       hebergements={hebergements.map((h) => ({ cle: h.cle, label: h.label }))}
       rappelJoursAvant={seuils.contrat}
-      // Les TROIS chemins de cascade vers `documents`, comme le compte
-      // qu'applique compterPiecesLogiciel côté serveur.
-      nbPiecesJointes={
-        logiciel.documents.length +
-        logiciel.contrats.reduce(
-          (n, c) => n + c.pieces.reduce((m, l) => m + l.documents.length, 0),
-          0,
-        ) +
-        logiciel.consultations.reduce(
-          (n, c) => n + c.devis.reduce((m, d) => m + d.documents.length, 0),
-          0,
-        )
-      }
+      nbPiecesJointes={compterPieces(logiciel)}
       values={{
         nom: logiciel.nom,
         description: logiciel.description,

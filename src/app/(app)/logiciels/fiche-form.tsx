@@ -3,12 +3,12 @@
 import { Check, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
-import { useConfirmation } from "@/components/confirmation";
 import { ModaleSociete } from "@/components/modale-societe";
 import { useSaisieEnCours } from "@/components/saisie-en-cours";
 import { Card, Field } from "@/components/ui";
 import { EDITEUR_INTERNE, LIBELLES } from "@/schemas/logiciel";
-import { createLogicielAction, deleteLogicielAction, updateLogicielAction } from "./actions";
+import { createLogicielAction, updateLogicielAction } from "./actions";
+import { BoutonSupprimerLogiciel } from "./bouton-supprimer";
 
 export type Option = { id: number; label: string };
 
@@ -129,7 +129,6 @@ export function FicheForm({
   readOnly?: boolean;
 }) {
   const router = useRouter();
-  const confirmer = useConfirmation();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
@@ -195,25 +194,6 @@ export function FicheForm({
         saisie.enregistre();
         router.refresh();
       }
-    });
-  }
-
-  async function supprimer() {
-    if (id === undefined) return;
-    const ok = await confirmer({
-      question: `Supprimer « ${values.nom} » de l'inventaire ?`,
-      detail: "Ses contrats, devis, tâches et liaisons seront supprimés aussi.",
-    });
-    if (!ok) return;
-    setError(null);
-    startTransition(async () => {
-      const res = await deleteLogicielAction(id);
-      if (!res.ok) {
-        setError(res.error);
-        return;
-      }
-      router.replace("/logiciels");
-      router.refresh();
     });
   }
 
@@ -529,21 +509,11 @@ export function FicheForm({
             ) : null}
           </div>
           {/* La corbeille garde son bout de ligne : elle ne porte pas sur la
-              saisie en cours mais sur la fiche entière. */}
+              saisie en cours mais sur la fiche entière. Même composant que sur
+              les autres onglets — la question posée et la garde des pièces
+              jointes ne doivent pas dépendre de l'endroit d'où l'on supprime. */}
           {id === undefined ? null : (
-            <button
-              type="button"
-              onClick={supprimer}
-              disabled={pending || nbPiecesJointes > 0}
-              title={
-                nbPiecesJointes > 0
-                  ? `Suppression impossible : ${nbPiecesJointes === 1 ? "1 pièce jointe" : `${nbPiecesJointes} pièces jointes`} sur cette fiche, ses contrats ou ses devis, à retirer d'abord.`
-                  : undefined
-              }
-              className="btn-danger"
-            >
-              Supprimer
-            </button>
+            <BoutonSupprimerLogiciel id={id} nom={values.nom} nbPiecesJointes={nbPiecesJointes} />
           )}
         </div>
       )}

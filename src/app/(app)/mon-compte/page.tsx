@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
+import { BoutonQuitter } from "@/components/bouton-quitter";
 import { Card, PageHeader } from "@/components/ui";
 import { requireUser } from "@/server/guards";
-import { BoutonQuitter } from "./bouton-quitter";
 import { PasswordForm } from "./password-form";
 import { ProfileForm } from "./profile-form";
 
@@ -39,8 +39,10 @@ export default async function MonComptePage() {
           )}
         </Card>
       </div>
+      {/* La page du compte n'est la fiche d'aucune liste : on la quitte vers le
+          tableau de bord, d'où l'on vient en passant par le menu du compte. */}
       <div className="mt-4">
-        <BoutonQuitter />
+        <BoutonQuitter vers="/tableau-de-bord" titre="Revenir au tableau de bord" />
       </div>
     </>
   );
