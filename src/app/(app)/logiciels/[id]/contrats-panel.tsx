@@ -309,7 +309,11 @@ export function ContratsPanel({
                   rendu d'un choix passé. */}
               {marchesDisponibles.length === 0 ? null : (
                 <select
-                  className="input !w-auto max-w-40 sm:max-w-56"
+                  // `!h-[1.6rem]` — 25.6 px — et non un interligne : les
+                  // navigateurs imposent `line-height: normal` aux <select>, si
+                  // bien qu'il dépassait le bouton d'à côté de 0.8 px et
+                  // enflait l'en-tête d'autant.
+                  className="input !h-[1.6rem] !w-auto max-w-40 !text-xs sm:max-w-56"
                   value=""
                   onChange={(e) => {
                     if (e.target.value) rattacherMarche(Number(e.target.value));
@@ -329,21 +333,23 @@ export function ContratsPanel({
                   l'objet étant dit par le titre de la carte. Un libellé entier
                   — « Ajouter un contrat ou marché » — poussait le menu hors de
                   l'en-tête sur un écran ordinaire. */}
-              {/* Aucun `!py` : la hauteur revient à celle de `.btn`, 30 px comme
-                  les champs. `!px-2.5` et `!gap-1.5` resserrent ce qu'une icône
-                  et un mot n'ont pas besoin d'étaler — même gabarit que le
-                  bouton « + Pièce » des marchés, plus bas. */}
+              {/* `!text-xs` ramène la hauteur à 26 px — 16 de ligne, 8 de
+                  retrait, 2 de bordure —, le gabarit des commandes d'en-tête de
+                  la fiche d'un marché. `!px-2.5` et `!gap-1.5` resserrent ce
+                  qu'une icône et un mot n'ont pas besoin d'étaler. Le menu
+                  voisin reçoit le même `!text-xs` : posés sur la même ligne, ils
+                  doivent tomber à la même hauteur. */}
               <button
                 type="button"
-                className="btn-secondary !gap-1.5 !px-2.5"
+                className="btn-secondary !gap-1.5 !px-2.5 !text-xs"
                 onClick={() =>
                   setMarcheForm((f) => (f?.mode === "creation" ? null : { mode: "creation" }))
                 }
               >
                 {marcheForm?.mode === "creation" ? (
-                  <X className="h-4 w-4" />
+                  <X className="h-3.5 w-3.5" />
                 ) : (
-                  <Plus className="h-4 w-4" />
+                  <Plus className="h-3.5 w-3.5" />
                 )}
                 {marcheForm?.mode === "creation" ? "Fermer" : "Créer"}
               </button>

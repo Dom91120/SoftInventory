@@ -51,11 +51,11 @@ export function CronPanel({ taches }: { taches: TacheCronRow[] }) {
           actions={
             <button
               type="button"
-              className="btn-secondary !py-1.5"
+              className="btn-secondary !px-2.5 !py-1 !text-xs"
               disabled={pending}
               onClick={() => run(() => runNowAction(t.key), "Tâche exécutée")}
             >
-              <Play className="h-4 w-4" />
+              <Play className="h-3.5 w-3.5" />
               Exécuter maintenant
             </button>
           }

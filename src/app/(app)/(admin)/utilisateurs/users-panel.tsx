@@ -64,13 +64,17 @@ export function UsersPanel({ users }: { users: UserRow[] }) {
         actions={
           <button
             type="button"
-            className="btn-secondary !py-1.5"
+            className="btn-secondary !px-2.5 !py-1 !text-xs"
             onClick={() => {
               setEnEdition(null);
               setFormVisible((v) => !v);
             }}
           >
-            {formVisible && !enEdition ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+            {formVisible && !enEdition ? (
+              <X className="h-3.5 w-3.5" />
+            ) : (
+              <Plus className="h-3.5 w-3.5" />
+            )}
             {formVisible && !enEdition ? "Fermer" : "Créer un compte"}
           </button>
         }
