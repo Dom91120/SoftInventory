@@ -1,6 +1,6 @@
 "use client";
 
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
@@ -32,6 +32,13 @@ export function LogicielsCouverts({
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [choix, setChoix] = useState("");
+  /** Zone de rattachement dépliée, comme le formulaire des pièces juste dessous. */
+  const [ouvert, setOuvert] = useState(false);
+
+  function fermer() {
+    setOuvert(false);
+    setChoix("");
+  }
 
   function run(action: () => Promise<{ ok: boolean; error?: string }>, apres?: () => void) {
     setError(null);
@@ -47,8 +54,70 @@ export function LogicielsCouverts({
   }
 
   return (
-    <Card title="Logiciels couverts">
+    <Card
+      title="Logiciels couverts"
+      // Le geste monte dans l'en-tête, comme « Ajouter une pièce » de la carte
+      // voisine : il porte sur la CARTE, pas sur une de ses lignes, et la liste
+      // n'a plus un champ de saisie collé sous elle en permanence.
+      actions={
+        readOnly || disponibles.length === 0 ? undefined : (
+          <button
+            type="button"
+            className="btn-secondary !py-1.5"
+            disabled={pending}
+            onClick={() => (ouvert ? fermer() : setOuvert(true))}
+          >
+            {ouvert ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+            {ouvert ? "Fermer" : "Rattacher"}
+          </button>
+        )
+      }
+    >
       {error ? <p className="alert-error mb-3">{error}</p> : null}
+
+      {/* La zone se déplie AU-DESSUS de la liste, à l'endroit où le logiciel
+          choisi viendra s'inscrire. */}
+      {ouvert ? (
+        <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-sub bg-inset p-4">
+          <select
+            // biome-ignore lint/a11y/noAutofocus: la zone vient d'être ouverte par un clic délibéré sur « Rattacher ».
+            autoFocus
+            className="input !w-auto"
+            value={choix}
+            onChange={(e) => setChoix(e.target.value)}
+            disabled={pending}
+            aria-label="Logiciel à rattacher"
+          >
+            <option value="">Choisir un logiciel…</option>
+            {disponibles.map((l) => (
+              <option key={l.id} value={l.id}>
+                {l.nom}
+              </option>
+            ))}
+          </select>
+          {/* Plein comme un « Enregistrer », et grisé pour la même raison que
+              lui — l'enregistrement en cours — et pour elle seule. Un bouton
+              désactivé parce qu'un champ est vide se lit comme une commande
+              hors service ; celui-ci répond, et dit ce qui manque. */}
+          <button
+            type="button"
+            className="btn-primary"
+            disabled={pending}
+            onClick={() => {
+              if (!choix) {
+                setError("Choisissez d'abord un logiciel dans la liste.");
+                return;
+              }
+              run(() => attacherLogicielAction(contratId, Number(choix)), fermer);
+            }}
+          >
+            {pending ? "Rattachement…" : "Rattacher"}
+          </button>
+          <button type="button" className="btn-warn" disabled={pending} onClick={fermer}>
+            Annuler
+          </button>
+        </div>
+      ) : null}
 
       {rattaches.length === 0 ? (
         <p className="mb-3 text-sm text-faint">
@@ -80,41 +149,13 @@ export function LogicielsCouverts({
         </ul>
       )}
 
-      {readOnly ? null : disponibles.length === 0 ? (
+      {/* Plus de bouton dans l'en-tête quand il n'y a plus rien à rattacher :
+          la carte le dit en clair plutôt que de laisser une commande sans
+          effet. */}
+      {readOnly || disponibles.length > 0 ? null : (
         <p className="text-sm text-faint">
           Tous les logiciels de l'inventaire sont déjà rattachés à ce marché.
         </p>
-      ) : (
-        <div className="flex flex-wrap items-center gap-2">
-          <select
-            className="input !w-auto"
-            value={choix}
-            onChange={(e) => setChoix(e.target.value)}
-            disabled={pending}
-            aria-label="Logiciel à rattacher"
-          >
-            <option value="">Choisir un logiciel…</option>
-            {disponibles.map((l) => (
-              <option key={l.id} value={l.id}>
-                {l.nom}
-              </option>
-            ))}
-          </select>
-          <button
-            type="button"
-            className="btn-secondary"
-            disabled={pending || !choix}
-            onClick={() =>
-              run(
-                () => attacherLogicielAction(contratId, Number(choix)),
-                () => setChoix(""),
-              )
-            }
-          >
-            <Plus className="h-4 w-4" />
-            Rattacher
-          </button>
-        </div>
       )}
     </Card>
   );
