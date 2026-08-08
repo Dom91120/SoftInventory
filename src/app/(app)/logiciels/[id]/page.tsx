@@ -17,6 +17,7 @@ import { getLogiciel, listAutresLogiciels, voisinsLogiciel } from "@/server/serv
 import {
   listCategoriesDocuments,
   listCriticites,
+  listModesHebergement,
   listServeurs,
   listServicesUtilisateurs,
   listStatutsLogiciels,
@@ -457,11 +458,12 @@ async function OngletSynthese({
   logiciel: LogicielComplet;
   readOnly: boolean;
 }) {
-  const [editeurs, technologies, criticites, statuts, seuils] = await Promise.all([
+  const [editeurs, technologies, criticites, statuts, hebergements, seuils] = await Promise.all([
     listEditeurs(),
     listTechnologies(),
     listCriticites(),
     listStatutsLogiciels(),
+    listModesHebergement(),
     seuilsRappel(),
   ]);
   return (
@@ -472,6 +474,7 @@ async function OngletSynthese({
       technologies={technologies.map((t) => ({ id: t.id, label: t.label }))}
       criticites={criticites.map((c) => ({ id: c.id, label: c.label }))}
       statuts={statuts.map((s) => ({ cle: s.cle, label: s.label }))}
+      hebergements={hebergements.map((h) => ({ cle: h.cle, label: h.label }))}
       rappelJoursAvant={seuils.contrat}
       // Les TROIS chemins de cascade vers `documents`, comme le compte
       // qu'applique compterPiecesLogiciel côté serveur.

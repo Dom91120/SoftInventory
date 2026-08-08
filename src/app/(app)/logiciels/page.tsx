@@ -4,18 +4,18 @@ import Link from "next/link";
 import { Pagination, pageDepuisParams, paginer } from "@/components/pagination";
 import { EmptyState, PageHeader } from "@/components/ui";
 import type { Role } from "@/generated/prisma/client";
-import { LIBELLES } from "@/schemas/logiciel";
 import { requireUser } from "@/server/guards";
 import { listEditeurs } from "@/server/services/editeurs";
 import { listLogiciels } from "@/server/services/logiciels";
 import {
   listCriticites,
+  listModesHebergement,
   listServicesUtilisateurs,
   listStatutsLogiciels,
   listTechnologies,
 } from "@/server/services/referentiels";
 import { FiltresBar } from "./filtres-bar";
-import { CriticiteBadge, filtresDepuisParams, StatutBadge } from "./shared";
+import { CriticiteBadge, filtresDepuisParams, HebergementBadge, StatutBadge } from "./shared";
 
 export const metadata: Metadata = { title: "Logiciels" };
 
@@ -29,14 +29,16 @@ export default async function LogicielsPage({
   const params = await searchParams;
   const filtres = filtresDepuisParams(params);
 
-  const [tous, editeurs, services, criticites, technologies, statuts] = await Promise.all([
-    listLogiciels(filtres),
-    listEditeurs(),
-    listServicesUtilisateurs(),
-    listCriticites(),
-    listTechnologies(),
-    listStatutsLogiciels(),
-  ]);
+  const [tous, editeurs, services, criticites, technologies, statuts, hebergements] =
+    await Promise.all([
+      listLogiciels(filtres),
+      listEditeurs(),
+      listServicesUtilisateurs(),
+      listCriticites(),
+      listTechnologies(),
+      listStatutsLogiciels(),
+      listModesHebergement(),
+    ]);
 
   const { page, pages, total, elements: logiciels } = paginer(tous, pageDepuisParams(params));
 
@@ -63,6 +65,7 @@ export default async function LogicielsPage({
         criticites={opt(criticites)}
         technologies={opt(technologies)}
         statuts={statuts.map((s) => ({ cle: s.cle, label: s.label }))}
+        hebergements={hebergements.map((h) => ({ cle: h.cle, label: h.label }))}
       />
       {total === 0 ? (
         <EmptyState>
@@ -156,7 +159,9 @@ export default async function LogicielsPage({
                         )}
                       </span>
                     </td>
-                    <td>{LIBELLES.hebergement[l.hebergement]}</td>
+                    <td className="[&>span]:px-2 [&>span]:py-0 [&>span]:text-[11px]">
+                      <HebergementBadge hebergement={l.hebergement} hebergements={hebergements} />
+                    </td>
                     {/* `leading-none` sur la CELLULE, pas sur le span : la
                         hauteur d'une ligne est celle du bloc qui la contient, et
                         la cellule impose un plancher de 20 px (sa police de

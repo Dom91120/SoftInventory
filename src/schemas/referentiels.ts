@@ -64,6 +64,27 @@ export const statutLogicielSchema = z.object({
 });
 export type StatutLogicielInput = z.infer<typeof statutLogicielSchema>;
 
+/**
+ * Mode d'hébergement : même régime que le statut — la clé (`saas`,
+ * `on_premise`, `hybride`) est portée par l'enum et absente du schéma, donc
+ * inatteignable par le formulaire. L'ordre s'administre en plus, la liste étant
+ * trop courte pour qu'un tri alphabétique dise quoi que ce soit.
+ */
+export const modeHebergementSchema = z.object({
+  label: label(80),
+  couleur: z
+    .string()
+    .trim()
+    .max(9)
+    .refine((v) => v === "" || /^#[0-9a-fA-F]{6}$/.test(v), "Couleur attendue au format #rrggbb."),
+  position: z.coerce
+    .number()
+    .int("L'ordre doit être un entier.")
+    .min(0, "L'ordre doit être positif.")
+    .max(99, "Ordre trop grand (99 max)."),
+});
+export type ModeHebergementInput = z.infer<typeof modeHebergementSchema>;
+
 export const typeTacheSchema = z.object({ label: label(80) });
 export type TypeTacheInput = z.infer<typeof typeTacheSchema>;
 

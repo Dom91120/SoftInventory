@@ -85,6 +85,19 @@ model StatutLogiciel {
   @@map("statuts_logiciels")
 }
 
+/// Habillage des modes d'hébergement, sur le même principe que `StatutLogiciel` :
+/// le libellé, la couleur et l'ordre s'administrent, la clé non. Les trois clés
+/// sont portées par l'enum `Hebergement` et servent aux filtres et à l'export.
+model ModeHebergement {
+  id       Int         @id @default(autoincrement())
+  cle      Hebergement @unique
+  label    String
+  couleur  String      @default("#94a3b8")
+  position Int         @default(0)
+
+  @@map("modes_hebergement")
+}
+
 /// Nature d'une ligne de contrat.
 enum TypeContrat {
   perpetuelle

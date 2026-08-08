@@ -16,6 +16,7 @@ export function FiltresBar({
   criticites,
   technologies,
   statuts,
+  hebergements,
 }: {
   editeurs: Option[];
   services: Option[];
@@ -23,6 +24,8 @@ export function FiltresBar({
   technologies: Option[];
   /** Statuts du référentiel : libellés administrables, clés figées. */
   statuts: Array<{ cle: string; label: string }>;
+  /** Modes d'hébergement du référentiel : mêmes clés figées, libellés administrables. */
+  hebergements: Array<{ cle: string; label: string }>;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -102,11 +105,11 @@ export function FiltresBar({
         {sel("service", "Service", refOptions(services))}
         {sel("criticite", "Criticité", refOptions(criticites))}
         {sel("technologie", "Technologie", refOptions(technologies))}
-        {sel("hebergement", "Hébergement", [
-          { value: "saas", label: "SaaS" },
-          { value: "on_premise", label: "On premise" },
-          { value: "hybride", label: "Hybride" },
-        ])}
+        {sel(
+          "hebergement",
+          "Hébergement",
+          hebergements.map((h) => ({ value: h.cle, label: h.label })),
+        )}
         {sel(
           "statut",
           "Statut",

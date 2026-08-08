@@ -5,6 +5,7 @@ import type { z } from "zod";
 import {
   categorieDocumentSchema,
   criticiteSchema,
+  modeHebergementSchema,
   serveurSchema,
   serviceUtilisateurSchema,
   statutLogicielSchema,
@@ -74,6 +75,11 @@ const REGISTRY = {
   statuts: {
     schema: statutLogicielSchema,
     update: refs.updateStatutLogiciel,
+    fige: true,
+  },
+  hebergements: {
+    schema: modeHebergementSchema,
+    update: refs.updateModeHebergement,
     fige: true,
   },
 } satisfies Record<string, Registry>;

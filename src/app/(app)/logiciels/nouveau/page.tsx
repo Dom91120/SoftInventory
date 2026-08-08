@@ -5,6 +5,7 @@ import { requireRole } from "@/server/guards";
 import { listEditeurs } from "@/server/services/editeurs";
 import {
   listCriticites,
+  listModesHebergement,
   listStatutsLogiciels,
   listTechnologies,
 } from "@/server/services/referentiels";
@@ -14,11 +15,12 @@ export const metadata: Metadata = { title: "Nouveau logiciel" };
 
 export default async function NouveauLogicielPage() {
   await requireRole("admin");
-  const [editeurs, technologies, criticites, statuts, seuils] = await Promise.all([
+  const [editeurs, technologies, criticites, statuts, hebergements, seuils] = await Promise.all([
     listEditeurs(),
     listTechnologies(),
     listCriticites(),
     listStatutsLogiciels(),
+    listModesHebergement(),
     seuilsRappel(),
   ]);
   return (
@@ -32,6 +34,7 @@ export default async function NouveauLogicielPage() {
         technologies={technologies.map((t) => ({ id: t.id, label: t.label }))}
         criticites={criticites.map((c) => ({ id: c.id, label: c.label }))}
         statuts={statuts.map((s) => ({ cle: s.cle, label: s.label }))}
+        hebergements={hebergements.map((h) => ({ cle: h.cle, label: h.label }))}
         rappelJoursAvant={seuils.contrat}
       />
     </>

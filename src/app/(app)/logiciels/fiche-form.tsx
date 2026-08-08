@@ -95,6 +95,7 @@ export function FicheForm({
   technologies,
   criticites,
   statuts,
+  hebergements,
   rappelJoursAvant,
   nbPiecesJointes = 0,
   readOnly = false,
@@ -106,6 +107,8 @@ export function FicheForm({
   criticites: Option[];
   /** Statuts du référentiel : la clé est envoyée, le libellé est affiché. */
   statuts: Array<{ cle: string; label: string }>;
+  /** Modes d'hébergement du référentiel : même régime que les statuts. */
+  hebergements: Array<{ cle: string; label: string }>;
   /**
    * Délai de rappel avant la fin de contrat, en jours (Administration ›
    * Messagerie). Reçu du serveur et affiché tel quel plutôt que renvoyé au
@@ -262,7 +265,7 @@ export function FicheForm({
             <Select
               name="hebergement"
               value={values.hebergement}
-              options={enumOptions(LIBELLES.hebergement)}
+              options={hebergements.map((h) => ({ value: h.cle, label: h.label }))}
               disabled={dis}
             />
           </Field>

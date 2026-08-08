@@ -71,6 +71,34 @@ export function StatutBadge({ statut, statuts }: { statut: string; statuts: Stat
   );
 }
 
+/** Mode d'hébergement tel qu'administré dans Référentiels › Hébergements. */
+export type HebergementOption = { cle: string; label: string; couleur: string };
+
+/** Même rendu que le statut : trois clés figées, un habillage administrable. */
+export function HebergementBadge({
+  hebergement,
+  hebergements,
+}: {
+  hebergement: string;
+  hebergements: HebergementOption[];
+}) {
+  const h = hebergements.find((x) => x.cle === hebergement);
+  if (!h) return <span className="badge-muted">{hebergement}</span>;
+  const c = h.couleur || "#94a3b8";
+  return (
+    <span
+      className="badge"
+      style={{
+        color: c,
+        background: `color-mix(in srgb, ${c} 14%, transparent)`,
+        boxShadow: `inset 0 0 0 1px color-mix(in srgb, ${c} 35%, transparent)`,
+      }}
+    >
+      {h.label}
+    </span>
+  );
+}
+
 /**
  * Plafond dépassé : vrai si le nombre d'utilisateurs réels excède le
  * plafond prévu au contrat. Plafond null = illimité ou non renseigné → rien à

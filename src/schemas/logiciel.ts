@@ -62,8 +62,9 @@ export const NATURES_MARCHE = ["marche", "contrat"] as const;
 export const ENVIRONNEMENTS = ["production", "test", "recette", "formation"] as const;
 
 // Libellés d'affichage des enums (une seule traduction pour toute l'app).
+// L'hébergement n'y est plus : ses libellés s'administrent dans Référentiels ›
+// Hébergements, et une copie en dur ici finirait par contredire la table.
 export const LIBELLES = {
-  hebergement: { saas: "SaaS", on_premise: "On premise", hybride: "Hybride" },
   statut: {
     evaluation: "En évaluation",
     production: "Production",

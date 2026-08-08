@@ -39,17 +39,6 @@ export type DonneesDashboard = {
   parCriticite: Repartition;
 };
 
-const COULEURS_HEBERGEMENT: Record<string, string> = {
-  saas: "#2563eb",
-  on_premise: "#4f46e5",
-  hybride: "#7c3aed",
-};
-const LIBELLES_HEBERGEMENT: Record<string, string> = {
-  saas: "SaaS",
-  on_premise: "On premise",
-  hybride: "Hybride",
-};
-
 export async function chargerDashboard(): Promise<DonneesDashboard> {
   const aujourdhui = dateCalendaire(new Date());
   // Même horizon que les rappels par e-mail : la carte annonce la fenêtre que
@@ -63,6 +52,7 @@ export async function chargerDashboard(): Promise<DonneesDashboard> {
     nbEditeurs,
     nbServeurs,
     criticites,
+    modesHebergement,
     taches,
     contratsARenouveler,
   ] = await Promise.all([
@@ -89,6 +79,7 @@ export async function chargerDashboard(): Promise<DonneesDashboard> {
     prisma.editeur.count(),
     prisma.serveur.count(),
     prisma.criticite.findMany({ orderBy: { rank: "asc" } }),
+    prisma.modeHebergement.findMany({ orderBy: { position: "asc" } }),
     prisma.tacheRecurrente.findMany({
       where: { statut: "active" },
       select: {
@@ -177,11 +168,13 @@ export async function chargerDashboard(): Promise<DonneesDashboard> {
       })),
   ].sort((a, b) => a.echeance.getTime() - b.echeance.getTime());
 
-  const parHebergement: Repartition = (["saas", "on_premise", "hybride"] as const)
-    .map((h) => ({
-      label: LIBELLES_HEBERGEMENT[h],
-      couleur: COULEURS_HEBERGEMENT[h],
-      nb: logiciels.filter((l) => l.hebergement === h).length,
+  // Libellés, couleurs et ordre viennent du référentiel : la barre dit la même
+  // chose que la liste des logiciels, et suit ce qui y est administré.
+  const parHebergement: Repartition = modesHebergement
+    .map((m) => ({
+      label: m.label,
+      couleur: m.couleur || "#94a3b8",
+      nb: logiciels.filter((l) => l.hebergement === m.cle).length,
     }))
     .filter((r) => r.nb > 0);
 

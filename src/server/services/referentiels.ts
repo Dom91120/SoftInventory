@@ -1,6 +1,7 @@
 import type {
   CategorieDocumentInput,
   CriticiteInput,
+  ModeHebergementInput,
   ServeurInput,
   ServiceUtilisateurInput,
   StatutLogicielInput,
@@ -105,4 +106,15 @@ export function listStatutsLogiciels() {
 }
 export function updateStatutLogiciel(id: number, data: StatutLogicielInput) {
   return prisma.statutLogiciel.update({ where: { id }, data });
+}
+
+// ── Modes d'hébergement ──
+// Même régime que les statuts : trois clés figées par l'enum `Hebergement`,
+// seul l'habillage se modifie.
+
+export function listModesHebergement() {
+  return prisma.modeHebergement.findMany({ orderBy: [{ position: "asc" }, { label: "asc" }] });
+}
+export function updateModeHebergement(id: number, data: ModeHebergementInput) {
+  return prisma.modeHebergement.update({ where: { id }, data });
 }
