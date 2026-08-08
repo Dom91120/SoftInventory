@@ -142,8 +142,11 @@ export function SupportPanel({ editeur }: { editeur: SupportEditeur | null }) {
         </a>
       ) : null,
     },
-    ligneMail("E-mail du support", editeur.supportEmail),
+    // Téléphone puis e-mail, comme le commercial et l'administratif plus bas et
+    // comme la carte « Contacts » de la fiche éditeur : l'assistance était la
+    // seule à prendre les deux à contresens.
     ligneTel("Téléphone du support", editeur.supportTelephone),
+    ligneMail("Mail du support", editeur.supportEmail),
     {
       icone: <Clock className="h-4 w-4" />,
       label: "Horaires du support",
