@@ -172,12 +172,12 @@ export default async function ContratsPage({
                   fonte donnant la même largeur à tous les chiffres, aucune date
                   ne dépasse. Avec les 12 px de la cellule, il faut 78 px.
 
-                  L'ÉTAT : 6.5rem, soit 104 px. Sa pastille la plus large est
-                  « À renouveler » — 70 px de texte, 20 px de rembourrage. Sa
+                  L'ÉTAT : 90 px, la mesure exacte de sa pastille la plus large,
+                  « À renouveler » — 70 px de texte et 20 px de rembourrage. Sa
                   cellule ne pousse rien à sa droite, étant centrée (voir son
-                  en-tête), les 14 px qui restent lui font sa marge. En part,
-                  elle tombait à 45 px sur un tableau étroit et la pastille
-                  sortait de sa colonne.
+                  en-tête) : les 104 px qu'elle prenait avant comptaient ces
+                  12 px, plus 2 de battement. En part, elle tombait à 45 px sur
+                  un tableau étroit et la pastille sortait de sa colonne.
 
                   Les trois autres se partagent ce qui reste : leurs parts font
                   100 à elles seules, le navigateur les réduit d'autant que les
@@ -197,7 +197,7 @@ export default async function ContratsPage({
                 <col style={{ width: "20%" }} />
                 <col style={{ width: "5rem" }} />
                 <col style={{ width: "6.25rem" }} />
-                <col style={{ width: "6.5rem" }} />
+                <col style={{ width: "90px" }} />
               </colgroup>
               {/* Les six colonnes se trient au clic — voir `enTete`. */}
               <thead>
