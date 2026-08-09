@@ -87,28 +87,40 @@ export default async function LogicielsPage({
                   qui se tait prend ce qui reste, à parts égales avec les autres
                   muettes, et « On premise » se repliait alors sur deux lignes.
 
-                  L'HÉBERGEMENT passe de 14 à 17 %, les trois points venant des
-                  services : son en-tête, plus long que ses valeurs, se tronquait
-                  en « Hébergemen ». Les services les rendent sans dommage — leurs
-                  noms sont trop longs pour tenir sur une ligne de toute façon,
-                  une part de plus ou de moins ne change que l'endroit où ils se
-                  replient. */}
+                  Les TROIS COLONNES DE PASTILLES font exception : 62, 74 et
+                  92 px fixes, la largeur de leur en-tête — plus long que
+                  « Critique », « Abandonné » et « On premise », leurs plus
+                  longues valeurs. En part variable elles grandissaient avec la
+                  fenêtre sans rien en faire, l'hébergement allant jusqu'à 178 px
+                  sur un écran large.
+
+                  Les trois autres somment donc à 100, et non au reste : le
+                  navigateur sert d'abord les largeurs fixes, puis ramène les
+                  pourcentages à ce qui reste. Laissées à leur part de la largeur
+                  ENTIÈRE, les colonnes fixes encaissaient le reliquat et leurs
+                  px n'avaient plus aucun effet. Les proportions d'origine
+                  (22/19/22) sont conservées, chacune rapportée à leur total. */}
               <colgroup>
-                <col style={{ width: "22%" }} />
-                <col style={{ width: "19%" }} />
-                <col style={{ width: "17%" }} />
-                <col style={{ width: "22%" }} />
-                <col style={{ width: "9%" }} />
-                <col style={{ width: "11%" }} />
+                <col style={{ width: "34.9%" }} />
+                <col style={{ width: "30.2%" }} />
+                <col style={{ width: "34.9%" }} />
+                <col style={{ width: "62px" }} />
+                <col style={{ width: "74px" }} />
+                <col style={{ width: "92px" }} />
               </colgroup>
               <thead>
                 <tr>
                   <th>Logiciel</th>
                   <th>Éditeur</th>
-                  <th className="text-center">Hébergement</th>
                   <th>Services</th>
-                  <th className="text-center">Criticité</th>
-                  <th className="text-center">Statut</th>
+                  {/* `pr-0` : les cellules poussent toutes 12 px à leur droite,
+                      et une colonne centrée dans sa boîte de contenu se retrouve
+                      6 px à gauche du milieu de la colonne. Les trois colonnes de
+                      pastilles n'ont pas de voisin à droite dont il faille les
+                      écarter — leur largeur fixe s'en charge. */}
+                  <th className="pr-0 text-center">Criticité</th>
+                  <th className="pr-0 text-center">Statut</th>
+                  <th className="pr-0 text-center">Hébergement</th>
                 </tr>
               </thead>
               <tbody>
@@ -166,9 +178,6 @@ export default async function LogicielsPage({
                         )}
                       </span>
                     </td>
-                    <td className="text-center [&>span]:px-2 [&>span]:py-0 [&>span]:text-[11px]">
-                      <HebergementBadge hebergement={l.hebergement} hebergements={hebergements} />
-                    </td>
                     {/* `leading-none` sur la CELLULE, pas sur le span : la
                         hauteur d'une ligne est celle du bloc qui la contient, et
                         la cellule impose un plancher de 20 px (sa police de
@@ -190,15 +199,18 @@ export default async function LogicielsPage({
                         par dizaines et deux colonnes entières de pilules pleine
                         taille pèsent plus que ce qu'elles disent. Les fiches
                         gardent le gabarit normal, où le badge est seul. */}
-                    <td className="text-center [&>span]:px-2 [&>span]:py-0 [&>span]:text-[11px]">
+                    <td className="pr-0 text-center [&>span]:px-2 [&>span]:py-0 [&>span]:text-[11px]">
                       {l.criticite ? (
                         <CriticiteBadge criticite={l.criticite} />
                       ) : (
                         <span className="text-faint">—</span>
                       )}
                     </td>
-                    <td className="text-center [&>span]:px-2 [&>span]:py-0 [&>span]:text-[11px]">
+                    <td className="pr-0 text-center [&>span]:px-2 [&>span]:py-0 [&>span]:text-[11px]">
                       <StatutBadge statut={l.statut} statuts={statuts} />
+                    </td>
+                    <td className="pr-0 text-center [&>span]:px-2 [&>span]:py-0 [&>span]:text-[11px]">
+                      <HebergementBadge hebergement={l.hebergement} hebergements={hebergements} />
                     </td>
                   </tr>
                 ))}

@@ -10,6 +10,7 @@ export type SupportEditeur = {
   supportEmail: string;
   supportTelephone: string;
   supportHoraires: string;
+  supportHoraires2: string;
   commercialContact: string;
   commercialTelephone: string;
   commercialEmail: string;
@@ -150,7 +151,12 @@ export function SupportPanel({ editeur }: { editeur: SupportEditeur | null }) {
     {
       icone: <Clock className="h-4 w-4" />,
       label: "Horaires du support",
-      valeur: editeur.supportHoraires || null,
+      // Les deux régimes sont saisis séparément — la semaine, puis le jour qui
+      // en sort — mais se lisent d'un trait sur cette ligne pleine largeur, joints
+      // par le « · » qui sépare partout ailleurs les valeurs d'une même énumération.
+      // La liste des éditeurs, elle, les empile : sa colonne est étroite.
+      valeur:
+        [editeur.supportHoraires, editeur.supportHoraires2].filter(Boolean).join(" · ") || null,
       pleineLargeur: true,
     },
     // Le filet ferme l'assistance : en dessous, on n'appelle plus pour une panne.

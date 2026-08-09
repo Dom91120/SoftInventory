@@ -20,6 +20,7 @@ export type EditeurValues = {
   supportEmail: string;
   supportTelephone: string;
   supportHoraires: string;
+  supportHoraires2: string;
   commercialContact: string;
   commercialTelephone: string;
   commercialEmail: string;
@@ -41,6 +42,7 @@ const VIDE: EditeurValues = {
   supportEmail: "",
   supportTelephone: "",
   supportHoraires: "",
+  supportHoraires2: "",
   commercialContact: "",
   commercialTelephone: "",
   commercialEmail: "",
@@ -269,9 +271,22 @@ export function EditeurForm({
             {champ("supportUrl", "Portail de tickets", { type: "url", placeholder: "https://…" })}
             {champ("supportTelephone", "Téléphone du support", { type: "tel" })}
             {champ("supportEmail", "Mail du support", { type: "email" })}
-            <div className="sm:col-span-3">
+            {/* Deux lignes plutôt qu'une : les horaires décrivent presque
+                toujours deux régimes — la semaine, puis le jour qui en sort.
+                Cousus sur une seule ligne, chaque fiche inventait sa ponctuation
+                (« — », « / », « | ») et la liste ne pouvait rien en faire. La
+                seconde reste vide quand la semaine est d'un bloc. */}
+            {/* Deux moitiés sur une seule ligne, et non deux rangs pleine
+                largeur : ce sont les deux versants d'une même information, et
+                la grille de trois tiers ne sait pas les couper en deux. D'où la
+                sous-grille — `items-end` comme la grille mère, le second libellé
+                passant sur deux lignes là où le premier tient sur une. */}
+            <div className="grid items-end gap-x-3 gap-y-2 sm:col-span-3 sm:grid-cols-2">
               {champ("supportHoraires", "Horaires du support", {
-                placeholder: "Ex. lun-ven 9h-18h",
+                placeholder: "Ex. lundi au vendredi 8h-17h",
+              })}
+              {champ("supportHoraires2", "Horaires du support (2ᵉ ligne)", {
+                placeholder: "Ex. samedi 8h-12h",
               })}
             </div>
             {champ("commercialContact", "Contact commercial")}

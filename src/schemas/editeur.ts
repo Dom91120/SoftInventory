@@ -37,6 +37,7 @@ export const editeurSchema = z.object({
   supportEmail: emailOptionnel(200),
   supportTelephone: texte(30, "Téléphone du support"),
   supportHoraires: texte(200, "Horaires du support"),
+  supportHoraires2: texte(200, "Horaires du support (2ᵉ ligne)"),
   commercialContact: texte(120, "Contact commercial"),
   commercialTelephone: texte(30, "Téléphone commercial"),
   commercialEmail: emailOptionnel(200),

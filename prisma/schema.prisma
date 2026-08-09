@@ -282,7 +282,13 @@ model Editeur {
   supportUrl          String   @default("") @map("support_url")
   supportEmail        String   @default("") @map("support_email")
   supportTelephone    String   @default("") @map("support_telephone")
+  /// Les horaires tiennent sur DEUX lignes parce qu'ils décrivent presque
+  /// toujours deux régimes — « lundi au vendredi 8h-17h » puis « samedi
+  /// 8h-12h ». Une seule ligne obligeait à les coudre avec un tiret ou une
+  /// barre, chaque fiche inventant sa ponctuation. La seconde reste vide quand
+  /// la semaine est d'un bloc.
   supportHoraires     String   @default("") @map("support_horaires")
+  supportHoraires2    String   @default("") @map("support_horaires_2")
   /// Contacts hors support : le commercial pour l'offre et le renouvellement,
   /// l'administratif pour la facturation. Chacun porte le NOM de la personne
   /// puis ses coordonnées. Distincts des `telephone`/`email` du standard, qui

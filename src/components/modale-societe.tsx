@@ -171,9 +171,14 @@ export function ModaleSociete({
               })}
               {champ("supportTelephone", "Téléphone du support", { type: "tel" })}
               {champ("supportEmail", "Mail du support", { type: "email" })}
-              <div className="sm:col-span-3">
+              {/* Deux lignes, comme sur la fiche : la semaine, puis le jour qui
+                  en sort. La seconde reste vide quand il n'y en a pas. */}
+              <div className="grid items-end gap-x-3 gap-y-2 sm:col-span-3 sm:grid-cols-2">
                 {champ("supportHoraires", "Horaires du support", {
-                  placeholder: "Ex. lun-ven 9h-18h",
+                  placeholder: "Ex. lundi au vendredi 8h-17h",
+                })}
+                {champ("supportHoraires2", "Horaires du support (2ᵉ ligne)", {
+                  placeholder: "Ex. samedi 8h-12h",
                 })}
               </div>
               {champ("commercialContact", "Contact commercial")}

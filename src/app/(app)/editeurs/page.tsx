@@ -64,15 +64,21 @@ export default async function EditeursPage({
             <table className="data-table table-fixed">
               <thead>
                 <tr>
-                  <th className="w-[26.66%]">Éditeur</th>
-                  <th className="w-[26.66%]">Contact commercial</th>
-                  <th className="w-[26.66%]">Support</th>
+                  <th className="w-[26%]">Éditeur</th>
+                  <th className="w-[27%]">Contact commercial</th>
+                  <th className="w-[27%]">Support</th>
                   <th className="w-[20%]">Horaires du support</th>
                 </tr>
               </thead>
               <tbody>
                 {elements.map((e) => (
-                  <tr key={e.id}>
+                  // Même pas que les listes de logiciels et de marchés : 48 px,
+                  // soit exactement les trois lignes de la pile support à 16 px.
+                  // D'où `py-0` : les 5 px que chaque cellule prend en haut et en
+                  // bas ailleurs pousseraient ces rangées-là à 58. C'est un
+                  // plancher, pas un plafond — une adresse qui se coupe en deux
+                  // pousse encore sa rangée.
+                  <tr key={e.id} className="h-12 [&>td]:py-0">
                     <td>
                       <Link
                         href={`/editeurs/${e.id}`}
@@ -132,7 +138,12 @@ export default async function EditeursPage({
                     {/* Les trois canaux de l'assistance en pile : le portail
                         d'abord, puis les deux adresses où l'on écrit avant celle
                         où l'on appelle. La fiche logiciel, elle, garde l'ordre
-                        inverse — téléphone puis e-mail. */}
+                        inverse — téléphone puis e-mail.
+
+                        Pas d'espace ajouté entre les lignes, à la différence du
+                        contact commercial ci-contre : trois canaux d'un même
+                        service se lisent comme un bloc, pas comme trois données
+                        distinctes. Le pas tombe de 18 à 16 px. */}
                     <td>
                       {/* `break-all` : une URL sans espace ne se coupe nulle part
                           et déborderait sur les horaires, la largeur étant fixe. */}
@@ -151,14 +162,14 @@ export default async function EditeursPage({
                         <a
                           href={`mailto:${e.supportEmail}`}
                           title={`Écrire à ${e.supportEmail}`}
-                          className="mt-0.5 flex items-start gap-1.5 break-all text-xs text-faint transition hover:text-accent"
+                          className="flex items-start gap-1.5 break-all text-xs text-faint transition hover:text-accent"
                         >
                           <Mail className="mt-0.5 h-3 w-3 shrink-0" />
                           {e.supportEmail}
                         </a>
                       ) : null}
                       {e.supportTelephone ? (
-                        <span className="mt-0.5 flex items-center gap-1.5 whitespace-nowrap text-xs text-faint">
+                        <span className="flex items-center gap-1.5 whitespace-nowrap text-xs text-faint">
                           <Phone className="h-3 w-3 shrink-0" />
                           {formatTel(e.supportTelephone)}
                         </span>
@@ -168,10 +179,23 @@ export default async function EditeursPage({
                           alors qu'il ne disait que « pas de portail ». */}
                       {e.supportUrl || e.supportEmail || e.supportTelephone ? null : "—"}
                     </td>
-                    {/* Les horaires sont une phrase — « du lundi au vendredi,
-                        8h30-12h30 et 14h-17h » — pas une coordonnée : elle garde
-                        sa colonne et le droit de passer à la ligne. */}
-                    <td className="text-xs text-muted">{e.supportHoraires || "—"}</td>
+                    {/* Une ligne de saisie, une ligne à l'écran : la semaine puis
+                        le jour qui en sort, empilés comme sur la fiche. Le tiret
+                        ne vaut que pour les deux lignes vides. */}
+                    <td className="text-xs text-muted">
+                      {e.supportHoraires || e.supportHoraires2 ? (
+                        <>
+                          {e.supportHoraires ? (
+                            <span className="block">{e.supportHoraires}</span>
+                          ) : null}
+                          {e.supportHoraires2 ? (
+                            <span className="block">{e.supportHoraires2}</span>
+                          ) : null}
+                        </>
+                      ) : (
+                        "—"
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>

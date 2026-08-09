@@ -173,9 +173,11 @@ export default async function ContratsPage({
                   ne dépasse. Avec les 12 px de la cellule, il faut 78 px.
 
                   L'ÉTAT : 6.5rem, soit 104 px. Sa pastille la plus large est
-                  « À renouveler » — 70 px de texte, 20 px de rembourrage —, et
-                  la cellule pousse ses 12 px. En part, elle tombait à 45 px sur
-                  un tableau étroit et la pastille sortait de sa colonne.
+                  « À renouveler » — 70 px de texte, 20 px de rembourrage. Sa
+                  cellule ne pousse rien à sa droite, étant centrée (voir son
+                  en-tête), les 14 px qui restent lui font sa marge. En part,
+                  elle tombait à 45 px sur un tableau étroit et la pastille
+                  sortait de sa colonne.
 
                   Les trois autres se partagent ce qui reste : leurs parts font
                   100 à elles seules, le navigateur les réduit d'autant que les
@@ -205,7 +207,11 @@ export default async function ContratsPage({
                   {enTete("logiciels", "Logiciels couverts")}
                   {enTete("periode", "Période", "text-center")}
                   {enTete("montant", "Mnt annuel", "text-right")}
-                  {enTete("etat", "État", "text-center")}
+                  {/* `pr-0` : les cellules poussent toutes 12 px à leur droite,
+                      et une colonne centrée dans sa boîte de contenu se retrouve
+                      6 px à gauche du milieu de la colonne. L'état est la
+                      dernière colonne, elle n'a pas de voisine à écarter. */}
+                  {enTete("etat", "État", "pr-0 text-center")}
                 </tr>
               </thead>
               <tbody>
@@ -294,7 +300,7 @@ export default async function ContratsPage({
                       <td className="whitespace-nowrap text-right text-xs tabular-nums text-muted">
                         {montant ?? "—"}
                       </td>
-                      <td className="text-center">
+                      <td className="pr-0 text-center">
                         {etat === "termine" ? (
                           <span className="badge-muted">Terminé</span>
                         ) : etat === "a_renouveler" ? (
