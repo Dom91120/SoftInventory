@@ -41,6 +41,9 @@ function parseForm(formData: FormData) {
     adminContact: formData.get("adminContact") ?? "",
     adminTelephone: formData.get("adminTelephone") ?? "",
     adminEmail: formData.get("adminEmail") ?? "",
+    dpoContact: formData.get("dpoContact") ?? "",
+    dpoTelephone: formData.get("dpoTelephone") ?? "",
+    dpoEmail: formData.get("dpoEmail") ?? "",
     notes: formData.get("notes") ?? "",
   });
 }

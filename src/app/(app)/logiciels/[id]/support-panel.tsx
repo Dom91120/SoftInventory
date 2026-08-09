@@ -17,6 +17,9 @@ export type SupportEditeur = {
   adminContact: string;
   adminTelephone: string;
   adminEmail: string;
+  dpoContact: string;
+  dpoTelephone: string;
+  dpoEmail: string;
 };
 
 type Ligne = {
@@ -166,6 +169,9 @@ export function SupportPanel({ editeur }: { editeur: SupportEditeur | null }) {
     ligneContact("Contact administratif", editeur.adminContact),
     ligneTel("Téléphone administratif", editeur.adminTelephone),
     ligneMail("Mail administratif", editeur.adminEmail),
+    ligneContact("DPO", editeur.dpoContact),
+    ligneTel("Téléphone DPO", editeur.dpoTelephone),
+    ligneMail("Mail DPO", editeur.dpoEmail),
   ];
 
   return (

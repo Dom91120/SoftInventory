@@ -76,6 +76,9 @@ export default async function EditeurPage({ params }: { params: Promise<{ id: st
           adminContact: editeur.adminContact,
           adminTelephone: editeur.adminTelephone,
           adminEmail: editeur.adminEmail,
+          dpoContact: editeur.dpoContact,
+          dpoTelephone: editeur.dpoTelephone,
+          dpoEmail: editeur.dpoEmail,
           notes: editeur.notes,
         }}
       >

@@ -27,6 +27,9 @@ export type EditeurValues = {
   adminContact: string;
   adminTelephone: string;
   adminEmail: string;
+  dpoContact: string;
+  dpoTelephone: string;
+  dpoEmail: string;
   notes: string;
 };
 
@@ -49,6 +52,9 @@ const VIDE: EditeurValues = {
   adminContact: "",
   adminTelephone: "",
   adminEmail: "",
+  dpoContact: "",
+  dpoTelephone: "",
+  dpoEmail: "",
   notes: "",
 };
 
@@ -295,6 +301,13 @@ export function EditeurForm({
             {champ("adminContact", "Contact administratif")}
             {champ("adminTelephone", "Téléphone administratif", { type: "tel" })}
             {champ("adminEmail", "Mail administratif", { type: "email" })}
+            {/* Le DPO de l'ÉDITEUR, sur le même rang « qui, son numéro, son
+                adresse » que le commercial et l'administratif : c'est à lui
+                qu'on écrit pour une violation de données ou une demande
+                d'exercice de droits chez ce fournisseur. */}
+            {champ("dpoContact", "DPO")}
+            {champ("dpoTelephone", "Téléphone DPO", { type: "tel" })}
+            {champ("dpoEmail", "Mail DPO", { type: "email" })}
           </div>
         </Card>
       </form>

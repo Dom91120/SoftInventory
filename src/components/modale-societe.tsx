@@ -187,6 +187,9 @@ export function ModaleSociete({
               {champ("adminContact", "Contact administratif")}
               {champ("adminTelephone", "Téléphone administratif", { type: "tel" })}
               {champ("adminEmail", "Mail administratif", { type: "email" })}
+              {champ("dpoContact", "DPO")}
+              {champ("dpoTelephone", "Téléphone DPO", { type: "tel" })}
+              {champ("dpoEmail", "Mail DPO", { type: "email" })}
             </div>
           </Card>
         </div>

@@ -36,6 +36,9 @@ export function GET(request: Request): Promise<Response> {
         "Contact administratif",
         "Téléphone administratif",
         "Mail administratif",
+        "DPO",
+        "Téléphone DPO",
+        "Mail DPO",
         "Observations",
       ],
       ...editeurs.map((e) => [
@@ -57,6 +60,9 @@ export function GET(request: Request): Promise<Response> {
         e.adminContact,
         e.adminTelephone,
         e.adminEmail,
+        e.dpoContact,
+        e.dpoTelephone,
+        e.dpoEmail,
         e.notes,
       ]),
     ];

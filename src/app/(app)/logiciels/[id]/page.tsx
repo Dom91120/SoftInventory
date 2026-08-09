@@ -227,6 +227,9 @@ export default async function LogicielPage({
                   adminContact: logiciel.editeur.adminContact,
                   adminTelephone: logiciel.editeur.adminTelephone,
                   adminEmail: logiciel.editeur.adminEmail,
+                  dpoContact: logiciel.editeur.dpoContact,
+                  dpoTelephone: logiciel.editeur.dpoTelephone,
+                  dpoEmail: logiciel.editeur.dpoEmail,
                 }
               : null
           }

@@ -299,6 +299,13 @@ model Editeur {
   adminContact        String   @default("") @map("admin_contact")
   adminTelephone      String   @default("") @map("admin_telephone")
   adminEmail          String   @default("") @map("admin_email")
+  /// Le délégué à la protection des données de l'ÉDITEUR — celui à qui écrire
+  /// pour une violation ou une demande d'exercice de droits sur les données
+  /// qu'il héberge. Distinct du DPO de la collectivité, qui n'a pas sa place
+  /// dans un annuaire de fournisseurs.
+  dpoContact          String   @default("") @map("dpo_contact")
+  dpoTelephone        String   @default("") @map("dpo_telephone")
+  dpoEmail            String   @default("") @map("dpo_email")
   notes               String   @default("")
   createdAt           DateTime @default(now()) @db.Timestamptz
   updatedAt           DateTime @updatedAt @db.Timestamptz

@@ -44,6 +44,9 @@ export const editeurSchema = z.object({
   adminContact: texte(120, "Contact administratif"),
   adminTelephone: texte(30, "Téléphone administratif"),
   adminEmail: emailOptionnel(200),
+  dpoContact: texte(120, "DPO"),
+  dpoTelephone: texte(30, "Téléphone DPO"),
+  dpoEmail: emailOptionnel(200),
   notes: texte(4000, "Observations"),
 });
 export type EditeurInput = z.infer<typeof editeurSchema>;
