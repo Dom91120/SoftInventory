@@ -139,8 +139,10 @@ export const logicielSchema = z.object({
     .string()
     .trim()
     .max(150, "Référent technique trop long (150 caractères max)."),
-  coutAnnuel: montantOptionnel,
-  finContratLe: dateOptionnelle,
+  // `coutAnnuel` et `finContratLe` ne sont plus saisis : le MARCHÉ rattaché
+  // porte le montant et l'échéance, avec ses propres rappels. Les colonnes
+  // restent en base — leurs valeurs historiques ne sont pas détruites — mais
+  // plus rien ne les écrit ni ne les lit.
 });
 export type LogicielInput = z.infer<typeof logicielSchema>;
 

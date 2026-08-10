@@ -1,6 +1,6 @@
 "use client";
 
-import { Check } from "lucide-react";
+import { Check, ExternalLink, SquarePen, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 import { ModaleSociete } from "@/components/modale-societe";
@@ -30,8 +30,6 @@ export type FicheValues = {
   nbMaxUtilisateurs: string;
   referentMetier: string;
   referentTechnique: string;
-  coutAnnuel: string;
-  finContratLe: string;
 };
 
 export const FICHE_VIDE: FicheValues = {
@@ -52,8 +50,6 @@ export const FICHE_VIDE: FicheValues = {
   nbMaxUtilisateurs: "",
   referentMetier: "",
   referentTechnique: "",
-  coutAnnuel: "",
-  finContratLe: "",
 };
 
 function Select({
@@ -100,7 +96,6 @@ export function FicheForm({
   criticites,
   statuts,
   hebergements,
-  rappelJoursAvant,
   nbPiecesJointes = 0,
   readOnly = false,
 }: {
@@ -113,12 +108,6 @@ export function FicheForm({
   statuts: Array<{ cle: string; label: string }>;
   /** Modes d'hébergement du référentiel : même régime que les statuts. */
   hebergements: Array<{ cle: string; label: string }>;
-  /**
-   * Délai de rappel avant la fin de contrat, en jours (Administration ›
-   * Messagerie). Reçu du serveur et affiché tel quel plutôt que renvoyé au
-   * réglage : l'aide annonce le délai que le cron applique réellement.
-   */
-  rappelJoursAvant: number;
   /**
    * Pièces jointes qu'emporterait la suppression : celles de la fiche, de ses
    * contrats et de ses devis. Tant qu'il y en a, le bouton Supprimer reste
@@ -136,7 +125,39 @@ export function FicheForm({
   /** Retour à SA liste, et non à la page précédente : arrivé par une URL collée
    *  ou un rechargement, un retour d'historique ferait sortir de l'application. */
   const quitter = () => router.push("/logiciels");
-  const dis = readOnly || pending;
+
+  /**
+   * La fiche s'ouvre en LECTURE : on vient bien plus souvent y chercher une
+   * version ou un référent qu'en changer un, et un formulaire d'emblée vivant
+   * se modifie d'une molette égarée sur une liste déroulante. Le crayon des
+   * en-têtes lève le verrou. En création, rien à protéger : tout reste à saisir.
+   *
+   * UN SEUL verrou pour les deux cartes, et non un par carte : elles vivent
+   * dans le même <form> et partent au même enregistrement. Verrouiller l'une
+   * en laissant l'autre ouverte désactiverait ses champs, que `FormData`
+   * ignore — la moitié de la fiche partirait vide à chaque envoi.
+   */
+  const [verrouille, setVerrouille] = useState(id !== undefined);
+  const dis = readOnly || pending || verrouille;
+
+  /**
+   * `FormData` IGNORE les champs désactivés : l'empreinte relevée au premier
+   * rendu, cartes verrouillées, ne vaut donc rien une fois les champs
+   * réveillés. On la reprend à l'ouverture du verrou — sans quoi la première
+   * frappe comparerait un formulaire complet à un formulaire vide, et la coche
+   * d'enregistrement paraîtrait d'elle-même. En `useEffect` et non dans le
+   * clic : à ce moment-là, les champs portent encore leur `disabled`.
+   */
+  useEffect(() => {
+    if (!verrouille) saisie.enregistre();
+  }, [verrouille, saisie.enregistre]);
+
+  /** Refermer rend ses valeurs enregistrées au formulaire : le verrou ne garde
+   *  pas des frappes que plus rien ne montre. C'est le geste d'« Annuler ». */
+  function basculerVerrou() {
+    if (!verrouille) saisie.annuler();
+    setVerrouille(!verrouille);
+  }
 
   /**
    * Annuaire tenu localement : une société créée depuis la fiche doit paraître
@@ -192,86 +213,315 @@ export function FicheForm({
       } else {
         setSaved(true);
         saisie.enregistre();
+        // Les cartes se referment : la modification est faite, les laisser
+        // ouvertes exposerait à nouveau les champs à une molette égarée.
+        setVerrouille(true);
         router.refresh();
       }
     });
   }
 
+  /**
+   * Les commandes du verrou, posées dans les DEUX en-têtes : la fiche est
+   * longue, et le geste doit être là où l'œil se trouve. Elles pilotent le même
+   * état — ouvrir depuis Technique déverrouille aussi Identité.
+   *
+   * `key` distincte et `preventDefault` sur le crayon : sans eux, ce clic
+   * ENREGISTRERAIT la fiche. React réutilise le nœud <button> pour la coche qui
+   * prend sa place et le mute en `type="submit"` PENDANT le gestionnaire de
+   * clic — le navigateur exécute ensuite l'action par défaut sur ce qu'il est
+   * devenu. La clé lui interdit la réutilisation, `preventDefault` annule
+   * l'action par défaut. (Vu à l'œuvre sur la fiche marché.)
+   */
+  const commandesVerrou = readOnly ? undefined : verrouille ? (
+    <button
+      key="verrou-ouvrir"
+      type="button"
+      onClick={(e) => {
+        e.preventDefault();
+        basculerVerrou();
+      }}
+      disabled={pending}
+      title="Modifier cette fiche"
+      aria-label="Modifier cette fiche"
+      className="btn-ghost !p-2 hover:!text-accent"
+    >
+      <SquarePen className="h-4 w-4" />
+    </button>
+  ) : (
+    <>
+      {/* La coche attend qu'il y ait quelque chose à enregistrer, comme le
+          bouton du bas de page : offerte d'emblée, elle invitait à un geste
+          sans effet qui touchait quand même la date de modification. */}
+      {saisie.modifie ? (
+        <button
+          key="verrou-valider"
+          type="submit"
+          disabled={pending}
+          title="Enregistrer cette fiche"
+          aria-label="Enregistrer cette fiche"
+          className="btn-ghost !p-2 hover:!text-ok"
+        >
+          <Check className="h-4 w-4" />
+        </button>
+      ) : null}
+      <button
+        key="verrou-annuler"
+        type="button"
+        onClick={(e) => {
+          e.preventDefault();
+          basculerVerrou();
+        }}
+        disabled={pending}
+        title="Annuler la modification"
+        aria-label="Annuler la modification"
+        className="btn-ghost !p-2 hover:!text-danger"
+      >
+        <X className="h-4 w-4" />
+      </button>
+    </>
+  );
+
   const refOptions = (list: Option[]) => list.map((o) => ({ value: String(o.id), label: o.label }));
+
+  /**
+   * Raccourci accolé au libellé de l'URL, comme sur la fiche éditeur : ouvrir
+   * l'application depuis sa fiche, sans recopier l'adresse. Il vaut pour ce qui
+   * est ENREGISTRÉ, pas pour ce qui est en train d'être tapé — le champ est non
+   * contrôlé, et un lien qui suivrait la frappe mènerait à des adresses
+   * incomplètes une lettre sur deux. Il paraît donc après enregistrement, et
+   * disparaît si l'adresse est effacée.
+   */
+  const urlSaisie = values.url.trim();
+  const lienApplication = urlSaisie ? (
+    <a
+      // Une adresse enregistrée sans protocole serait comprise comme un chemin
+      // relatif et mènerait à une page de l'application.
+      href={/^https?:\/\//i.test(urlSaisie) ? urlSaisie : `https://${urlSaisie}`}
+      target="_blank"
+      rel="noreferrer noopener"
+      title={`Ouvrir ${urlSaisie}`}
+      aria-label={`Ouvrir ${urlSaisie}`}
+      className="shrink-0 text-faint transition hover:text-accent"
+    >
+      <ExternalLink className="h-3 w-3" />
+    </a>
+  ) : null;
 
   return (
     <form ref={saisie.formRef} onSubmit={submit} onChange={saisie.surSaisie} className="space-y-3">
-      <Card title="Identité">
+      <Card title="Identité" actions={commandesVerrou}>
         <div className="grid gap-x-3 gap-y-2 sm:grid-cols-2">
-          <Field label="Nom du logiciel" htmlFor="nom" required>
-            <input
-              id="nom"
-              name="nom"
-              defaultValue={values.nom}
-              required
-              disabled={dis}
-              className="input"
-            />
-          </Field>
-          {/* Une seule liste pour une seule question : qui édite ce logiciel ?
-              « Développement interne » y est une réponse comme une autre — fait
-              maison, il n'y a pas d'éditeur à désigner. La sentinelle redevient
-              le booléen `developpementInterne` côté serveur (voir parseFiche) ;
-              rien n'entre dans l'annuaire des éditeurs. */}
-          <Field label="Éditeur" htmlFor="editeurId">
-            {/* Le « + » ouvre la fiche éditeur ENTIÈRE, sans quitter celle-ci :
-                on découvre qu'un éditeur manque au moment de le désigner, et
-                aller le créer ailleurs coûterait la saisie en cours. Même geste
-                qu'au fournisseur d'un devis, et la même modale. */}
-            <span className="flex items-center gap-1">
-              <Select
-                name="editeurId"
-                value={values.developpementInterne ? EDITEUR_INTERNE : values.editeurId}
-                options={[
-                  { value: EDITEUR_INTERNE, label: "— développement interne —" },
-                  ...refOptions(annuaire),
-                ]}
+          {/* Ce qui NOMME le logiciel sur un seul rang : comment il s'appelle,
+              dans quelle version, chez qui, et où on l'ouvre. Parts inégales —
+              25 / 8 / 33 / 33 — parce que ces quatre valeurs n'ont pas du tout
+              la même longueur : un numéro de version tient en six caractères,
+              une URL en soixante.
+
+              `fr` et non `%` : la grille pose trois gouttières de 12 px entre
+              les colonnes, et quatre pourcentages faisant 99 déborderaient
+              d'autant. Les parts se partagent ce qui reste après les
+              gouttières, dans le rapport demandé. */}
+          <div
+            className="grid items-end gap-x-3 gap-y-2 sm:col-span-2"
+            style={{ gridTemplateColumns: "25fr 8fr 33fr 33fr" }}
+          >
+            <Field label="Nom du logiciel" htmlFor="nom" required>
+              <input
+                id="nom"
+                name="nom"
+                defaultValue={values.nom}
+                required
                 disabled={dis}
-                aucun="— aucun —"
-                className="input min-w-0 flex-1"
+                className="input"
               />
-              {readOnly ? null : (
-                <button
-                  type="button"
-                  // Carré de 29.6 px, la hauteur de la liste qu'il accompagne.
-                  // Les DEUX dimensions sont posées : privé de texte, le bouton
-                  // n'a plus qu'une icône de 16 px pour se tenir et retombait à
-                  // 25.6 px, quatre de moins que le champ d'à côté.
-                  className="btn-secondary !h-[1.85rem] !w-[1.85rem] shrink-0 !p-0"
-                  title="Créer un éditeur absent de l'annuaire"
-                  aria-label="Créer un éditeur absent de l'annuaire"
+            </Field>
+            {/* La version accompagne le nom : « Adagio 6.2 » se dit d'un trait,
+                et c'est la première chose qu'on vérifie devant une fiche. Elle
+                vient de la carte Technique, où elle voisinait des choix
+                d'architecture qu'on ne rouvre presque jamais. */}
+            {/* La version se serre contre le nom : ensemble ils disent la même
+                chose, « Adagio 6.2 ». Les 4 px qui les séparent sont ceux qui
+                séparent l'éditeur de son « + », deux morceaux d'un même geste.
+
+                Une grille n'a qu'une gouttière pour toutes ses colonnes : le
+                bloc déborde donc de 8 px sur la sienne, et les récupère en
+                largeur. Sa piste ne bouge pas — il n'en occupe toujours que la
+                largeur nue —, donc ses voisines non plus.
+
+                Le plancher, lui, est POSÉ : une piste `fr` ne descend pas sous
+                la largeur de son libellé, et sur une fenêtre étroite « VERSION »
+                cloue la sienne à 57 px, où le retrait négatif reprendrait les
+                8 px qu'il vient de donner. Un plancher SEUL ne suffirait pas
+                non plus : passé 840 px de rangée, la part de 8 % dépasse ces
+                65 px et une largeur fixe rétrécirait le champ au lieu de
+                l'élargir. */}
+            <div className="-ml-2 w-[calc(100%_+_0.5rem)] min-w-[65px]">
+              <Field label="Version" htmlFor="versionInstallee">
+                <input
+                  id="versionInstallee"
+                  name="versionInstallee"
+                  defaultValue={values.versionInstallee}
                   disabled={dis}
-                  onClick={() => setModaleSociete(true)}
-                >
-                  <span aria-hidden className="text-sm leading-none">
-                    ➕
-                  </span>
-                </button>
-              )}
-            </span>
-          </Field>
-          <Field label="Statut" htmlFor="statut">
-            <Select
-              name="statut"
-              value={values.statut}
-              options={statuts.map((s) => ({ value: s.cle, label: s.label }))}
-              disabled={dis}
-            />
-          </Field>
-          <Field label="Criticité" htmlFor="criticiteId">
-            <Select
-              name="criticiteId"
-              value={values.criticiteId}
-              options={refOptions(criticites)}
-              disabled={dis}
-              aucun="— non évaluée —"
-            />
-          </Field>
+                  className="input"
+                />
+              </Field>
+            </div>
+            {/* Une seule liste pour une seule question : qui édite ce logiciel ?
+                « Développement interne » y est une réponse comme une autre —
+                fait maison, il n'y a pas d'éditeur à désigner. La sentinelle
+                redevient le booléen `developpementInterne` côté serveur (voir
+                parseFiche) ; rien n'entre dans l'annuaire des éditeurs. */}
+            <Field label="Éditeur" htmlFor="editeurId">
+              {/* Le « + » ouvre la fiche éditeur ENTIÈRE, sans quitter celle-ci :
+                  on découvre qu'un éditeur manque au moment de le désigner, et
+                  aller le créer ailleurs coûterait la saisie en cours. Même
+                  geste qu'au fournisseur d'un devis, et la même modale. */}
+              <span className="flex items-center gap-1">
+                <Select
+                  name="editeurId"
+                  value={values.developpementInterne ? EDITEUR_INTERNE : values.editeurId}
+                  options={[
+                    { value: EDITEUR_INTERNE, label: "— développement interne —" },
+                    ...refOptions(annuaire),
+                  ]}
+                  disabled={dis}
+                  aucun="— aucun —"
+                  className="input min-w-0 flex-1"
+                />
+                {readOnly ? null : (
+                  <button
+                    type="button"
+                    // Carré de 29.6 px, la hauteur de la liste qu'il accompagne.
+                    // Les DEUX dimensions sont posées : privé de texte, le bouton
+                    // n'a plus qu'une icône de 16 px pour se tenir et retombait à
+                    // 25.6 px, quatre de moins que le champ d'à côté.
+                    className="btn-secondary !h-[1.85rem] !w-[1.85rem] shrink-0 !p-0"
+                    title="Créer un éditeur absent de l'annuaire"
+                    aria-label="Créer un éditeur absent de l'annuaire"
+                    disabled={dis}
+                    onClick={() => setModaleSociete(true)}
+                  >
+                    <span aria-hidden className="text-sm leading-none">
+                      ➕
+                    </span>
+                  </button>
+                )}
+              </span>
+            </Field>
+            {/* Son aide passe en infobulle : sous le champ, elle aurait creusé
+                le rang d'une ligne et décalé les trois voisins, `items-end`
+                alignant les cellules par le bas. */}
+            <Field
+              label="URL de l'application"
+              htmlFor="url"
+              infobulle="Lien direct vers le produit quand il est accessible en mode web."
+              action={lienApplication}
+            >
+              <input
+                id="url"
+                name="url"
+                type="url"
+                defaultValue={values.url}
+                disabled={dis}
+                className="input"
+                placeholder="https://…"
+              />
+            </Field>
+          </div>
+          {/* Cinq champs sur un seul rang : ce qui QUALIFIE le logiciel — son
+              état, son importance, sa population, qui en répond — se lit d'un
+              balayage plutôt que sur deux rangs de moitiés. Le nombre
+              d'utilisateurs tient de l'identité plus que du coût : on le demande
+              juste après « à quel point est-il critique ? », et le plafond
+              derrière lui, qui ne veut rien dire sans le réel.
+
+              Parts très inégales — 12/15/9/9/55 — parce que les quatre
+              premières portent une pastille ou deux chiffres, quand la dernière
+              porte un nom de personne. `fr` et non `%`, comme au rang du
+              dessus : les quatre gouttières de 12 px se prennent avant le
+              partage. Sur une fenêtre étroite les parts ne tiennent qu'à peu
+              près : une piste ne descend pas sous la largeur de son libellé,
+              et « Utilisateurs » en impose 91 à elle seule.
+
+              Sous-grille, la carte étant en deux colonnes : elle ne sait pas
+              couper une moitié en cinq.
+
+              `items-end` comme les contacts de la fiche éditeur : au cinquième
+              de largeur, « Nombre d'utilisateurs » se replie là où « Statut »
+              tient sur une ligne, et aligner les cellules par le BAS garde les
+              cinq champs sur le même rang. Ce que la carte « Usage et coûts »
+              s'interdit — ses aides sous la saisie décaleraient les champs —
+              vaut ici : les deux précisions de ce rang sont passées en
+              infobulle du libellé. */}
+          <div
+            className="grid items-end gap-x-3 gap-y-2 sm:col-span-2"
+            style={{ gridTemplateColumns: "12fr 15fr 9fr 9fr 55fr" }}
+          >
+            <Field label="Statut" htmlFor="statut">
+              <Select
+                name="statut"
+                value={values.statut}
+                options={statuts.map((s) => ({ value: s.cle, label: s.label }))}
+                disabled={dis}
+              />
+            </Field>
+            <Field label="Criticité" htmlFor="criticiteId">
+              <Select
+                name="criticiteId"
+                value={values.criticiteId}
+                options={refOptions(criticites)}
+                disabled={dis}
+                aucun="— non évaluée —"
+              />
+            </Field>
+            {/* Libellés courts, et l'infobulle dit le reste : au dixième de
+                largeur, « Nombre d'utilisateurs » clouait sa colonne à 95 px —
+                la largeur de son plus long mot — et mangeait la part du référent
+                métier. « Utilisateurs » puis « Max » se lisent l'un après
+                l'autre, le second n'ayant de sens que par le premier. */}
+            <Field
+              label="Utilisateurs"
+              htmlFor="nbUtilisateurs"
+              infobulle="Nombre d'utilisateurs. Vide = pas encore compté, différent de 0 utilisateur."
+            >
+              <input
+                id="nbUtilisateurs"
+                name="nbUtilisateurs"
+                type="number"
+                min={0}
+                defaultValue={values.nbUtilisateurs}
+                disabled={dis}
+                className="input"
+              />
+            </Field>
+            <Field
+              label="Max"
+              htmlFor="nbMaxUtilisateurs"
+              infobulle="Nombre d'utilisateurs maximum. Plafond prévu au contrat. Vide = illimité."
+            >
+              <input
+                id="nbMaxUtilisateurs"
+                name="nbMaxUtilisateurs"
+                type="number"
+                min={0}
+                defaultValue={values.nbMaxUtilisateurs}
+                disabled={dis}
+                className="input"
+              />
+            </Field>
+            {/* Le référent métier vient de « Usage et coûts » : c'est la personne
+                qui répond de ce logiciel, pas une dépense. */}
+            <Field label="Référent métier" htmlFor="referentMetier">
+              <input
+                id="referentMetier"
+                name="referentMetier"
+                defaultValue={values.referentMetier}
+                disabled={dis}
+                className="input"
+              />
+            </Field>
+          </div>
           {/* Le descriptif ferme la carte : c'est le seul champ long, et il
               tient les deux colonnes. Seul champ libre de la fiche depuis que
               les notes l'ont rejoint — d'où le « puis » du placeholder : la
@@ -292,9 +542,12 @@ export function FicheForm({
         </div>
       </Card>
 
-      <Card title="Technique">
-        {/* Six champs courts en trois tiers, deux rangs — puis l'URL, seule sur
-            sa ligne : c'est la seule valeur qui a besoin de la largeur. */}
+      <Card title="Technique" actions={commandesVerrou}>
+        {/* Six champs courts en trois tiers, deux rangs pleins : la carte s'est
+            allégée de la version, partie rejoindre le nom du logiciel, et de
+            l'URL, partie avec l'éditeur — on ouvre l'application depuis la même
+            ligne qui dit de qui elle vient —, mais elle a recueilli le référent
+            technique. */}
         <div className="grid gap-x-3 gap-y-2 sm:grid-cols-3">
           <Field label="Hébergement" htmlFor="hebergement">
             <Select
@@ -329,15 +582,6 @@ export function FicheForm({
               disabled={dis}
             />
           </Field>
-          <Field label="Version installée" htmlFor="versionInstallee">
-            <input
-              id="versionInstallee"
-              name="versionInstallee"
-              defaultValue={values.versionInstallee}
-              disabled={dis}
-              className="input"
-            />
-          </Field>
           <Field label="Date de mise en service" htmlFor="dateMiseEnService">
             <input
               id="dateMiseEnService"
@@ -348,105 +592,15 @@ export function FicheForm({
               className="input"
             />
           </Field>
-          <div className="sm:col-span-3">
-            <Field
-              label="URL de l'application"
-              htmlFor="url"
-              hint="Lien direct vers le produit quand il est accessible en mode web."
-            >
-              <input
-                id="url"
-                name="url"
-                type="url"
-                defaultValue={values.url}
-                disabled={dis}
-                className="input"
-                placeholder="https://…"
-              />
-            </Field>
-          </div>
-        </div>
-      </Card>
-
-      {/* Trois tiers : six champs courts, deux rangs au lieu de trois. Pas de
-          `items-end` ici, contrairement aux contacts de la fiche éditeur — ces
-          champs portent des aides de longueurs très inégales sous la saisie,
-          aligner par le bas décalerait les champs eux-mêmes. */}
-      <Card title="Usage et coûts">
-        <div className="grid gap-x-3 gap-y-2 sm:grid-cols-3">
-          <Field
-            label="Utilisateurs réels"
-            htmlFor="nbUtilisateurs"
-            hint="Vide = pas encore compté, différent de 0 utilisateur."
-          >
-            <input
-              id="nbUtilisateurs"
-              name="nbUtilisateurs"
-              type="number"
-              min={0}
-              defaultValue={values.nbUtilisateurs}
-              disabled={dis}
-              className="input"
-            />
-          </Field>
-          <Field
-            label="Utilisateurs max"
-            htmlFor="nbMaxUtilisateurs"
-            hint="Plafond prévu au contrat. Vide = illimité."
-          >
-            <input
-              id="nbMaxUtilisateurs"
-              name="nbMaxUtilisateurs"
-              type="number"
-              min={0}
-              defaultValue={values.nbMaxUtilisateurs}
-              disabled={dis}
-              className="input"
-            />
-          </Field>
-          <Field label="Coût annuel (€)" htmlFor="coutAnnuel" hint="Maintenance ou abonnement.">
-            <input
-              id="coutAnnuel"
-              name="coutAnnuel"
-              inputMode="decimal"
-              defaultValue={values.coutAnnuel}
-              disabled={dis}
-              className="input"
-              placeholder="Ex. 4500"
-            />
-          </Field>
-          <Field label="Référent métier" htmlFor="referentMetier">
-            <input
-              id="referentMetier"
-              name="referentMetier"
-              defaultValue={values.referentMetier}
-              disabled={dis}
-              className="input"
-            />
-          </Field>
+          {/* Le référent technique rejoint la technique : c'est la personne à
+              qui l'on parle d'hébergement, de version et d'authentification —
+              les champs qui l'entourent désormais. Le référent métier, lui, est
+              resté avec l'identité du logiciel. */}
           <Field label="Référent technique" htmlFor="referentTechnique">
             <input
               id="referentTechnique"
               name="referentTechnique"
               defaultValue={values.referentTechnique}
-              disabled={dis}
-              className="input"
-            />
-          </Field>
-          <Field
-            label="Fin de contrat / marché"
-            htmlFor="finContratLe"
-            hint={
-              rappelJoursAvant === 0
-                ? "Déclenche un rappel le jour de l'échéance."
-                : `Déclenche un rappel ${rappelJoursAvant} jour${rappelJoursAvant > 1 ? "s" : ""} avant l'échéance.`
-            }
-          >
-            <input
-              id="finContratLe"
-              name="finContratLe"
-              type="date"
-              defaultValue={values.finContratLe}
               disabled={dis}
               className="input"
             />

@@ -1,6 +1,6 @@
 "use client";
 
-import { Check } from "lucide-react";
+import { Check, SquarePen, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { type ReactNode, useEffect, useState, useTransition } from "react";
 import { useConfirmation } from "@/components/confirmation";
@@ -83,6 +83,10 @@ export function ContratForm({
       } else {
         setSaved(true);
         saisie.enregistre();
+        // La carte se referme : la modification est faite, la laisser ouverte
+        // exposerait à nouveau les champs à une molette égarée. Le crayon la
+        // rouvre en un clic pour qui n'a pas fini.
+        setVerrouille(true);
         router.refresh();
       }
     });
@@ -108,7 +112,35 @@ export function ContratForm({
     });
   }
 
-  const dis = readOnly || pending;
+  /**
+   * La carte s'ouvre en LECTURE sur une fiche existante : on vient bien plus
+   * souvent y chercher une date de fin qu'en changer une, et un formulaire
+   * d'emblée vivant se modifie d'une molette égarée sur une liste déroulante.
+   * Le crayon de l'en-tête lève le verrou.
+   *
+   * En création, rien à protéger : la fiche n'existe pas et tout reste à saisir.
+   */
+  const [verrouille, setVerrouille] = useState(id !== undefined);
+  const dis = readOnly || pending || verrouille;
+
+  /**
+   * `FormData` IGNORE les champs désactivés : l'empreinte relevée au premier
+   * rendu, carte verrouillée, ne vaut donc rien une fois les champs réveillés.
+   * On la reprend à l'ouverture du verrou — sans quoi la première frappe
+   * comparerait un formulaire complet à un formulaire vide, et « Enregistrer »
+   * s'allumerait de lui-même. En `useEffect` et non dans le clic : à ce
+   * moment-là, les champs portent encore leur `disabled`.
+   */
+  useEffect(() => {
+    if (!verrouille) saisie.enregistre();
+  }, [verrouille, saisie.enregistre]);
+
+  /** Refermer rend ses valeurs enregistrées au formulaire : le verrou ne garde
+   *  pas des frappes que plus rien ne montre. C'est le geste d'« Annuler ». */
+  function basculerVerrou() {
+    if (!verrouille) saisie.annuler();
+    setVerrouille(!verrouille);
+  }
 
   return (
     <div className="space-y-3">
@@ -119,7 +151,74 @@ export function ContratForm({
         onChange={saisie.surSaisie}
         className="space-y-3"
       >
-        <Card title="Marché">
+        <Card
+          title="Marché"
+          actions={
+            readOnly ? undefined : verrouille ? (
+              /**
+               * `key` distincte et `preventDefault` : sans eux, ce clic
+               * ENREGISTRAIT le marché. React réutilise le nœud <button> pour
+               * la coche qui prend sa place et le mute en `type="submit"`
+               * PENDANT le gestionnaire de clic — le navigateur exécute ensuite
+               * l'action par défaut sur ce qu'il est devenu. La clé lui interdit
+               * la réutilisation, `preventDefault` annule l'action par défaut.
+               */
+              <button
+                key="verrou-ouvrir"
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  basculerVerrou();
+                }}
+                disabled={pending}
+                title="Modifier ce marché"
+                aria-label="Modifier ce marché"
+                className="btn-ghost !p-2 hover:!text-accent"
+              >
+                <SquarePen className="h-4 w-4" />
+              </button>
+            ) : (
+              /* Les deux issues de la modification prennent la place du crayon,
+                 là où le geste a commencé : valider d'abord — c'est ce qu'on
+                 vient faire —, renoncer ensuite. Le bouton « Enregistrer » du
+                 bas de page reste, pour qui a déroulé la fiche entière.
+
+                 La coche attend qu'il y ait quelque chose à enregistrer : même
+                 règle qu'en bas de page. Offerte d'emblée, elle invitait à un
+                 geste sans effet — et un enregistrement à vide touche quand
+                 même la date de modification de la fiche. */
+              <>
+                {saisie.modifie ? (
+                  <button
+                    key="verrou-valider"
+                    type="submit"
+                    form={FORM_ID}
+                    disabled={pending}
+                    title="Enregistrer ce marché"
+                    aria-label="Enregistrer ce marché"
+                    className="btn-ghost !p-2 hover:!text-ok"
+                  >
+                    <Check className="h-4 w-4" />
+                  </button>
+                ) : null}
+                <button
+                  key="verrou-annuler"
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    basculerVerrou();
+                  }}
+                  disabled={pending}
+                  title="Annuler la modification"
+                  aria-label="Annuler la modification"
+                  className="btn-ghost !p-2 hover:!text-danger"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </>
+            )
+          }
+        >
           <ChampsMarche values={values} editeurs={editeurs} disabled={dis} />
         </Card>
       </form>

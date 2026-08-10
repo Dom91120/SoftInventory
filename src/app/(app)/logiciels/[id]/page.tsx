@@ -224,6 +224,9 @@ export default async function LogicielPage({
                   commercialContact: logiciel.editeur.commercialContact,
                   commercialTelephone: logiciel.editeur.commercialTelephone,
                   commercialEmail: logiciel.editeur.commercialEmail,
+                  commercialContact2: logiciel.editeur.commercialContact2,
+                  commercialTelephone2: logiciel.editeur.commercialTelephone2,
+                  commercialEmail2: logiciel.editeur.commercialEmail2,
                   adminContact: logiciel.editeur.adminContact,
                   adminTelephone: logiciel.editeur.adminTelephone,
                   adminEmail: logiciel.editeur.adminEmail,
@@ -527,13 +530,12 @@ async function OngletSynthese({
   logiciel: LogicielComplet;
   readOnly: boolean;
 }) {
-  const [editeurs, technologies, criticites, statuts, hebergements, seuils] = await Promise.all([
+  const [editeurs, technologies, criticites, statuts, hebergements] = await Promise.all([
     listEditeurs(),
     listTechnologies(),
     listCriticites(),
     listStatutsLogiciels(),
     listModesHebergement(),
-    seuilsRappel(),
   ]);
   return (
     <FicheForm
@@ -544,7 +546,6 @@ async function OngletSynthese({
       criticites={criticites.map((c) => ({ id: c.id, label: c.label }))}
       statuts={statuts.map((s) => ({ cle: s.cle, label: s.label }))}
       hebergements={hebergements.map((h) => ({ cle: h.cle, label: h.label }))}
-      rappelJoursAvant={seuils.contrat}
       nbPiecesJointes={compterPieces(logiciel)}
       values={{
         nom: logiciel.nom,
@@ -565,8 +566,6 @@ async function OngletSynthese({
           logiciel.nbMaxUtilisateurs === null ? "" : String(logiciel.nbMaxUtilisateurs),
         referentMetier: logiciel.referentMetier,
         referentTechnique: logiciel.referentTechnique,
-        coutAnnuel: logiciel.coutAnnuel === null ? "" : String(logiciel.coutAnnuel),
-        finContratLe: dateStr(logiciel.finContratLe),
       }}
     />
   );

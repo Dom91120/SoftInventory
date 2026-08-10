@@ -83,6 +83,20 @@ export function ModaleSociete({
     );
   };
 
+  // Sans libellé, pour la ligne qui prolonge celle du dessus — voir la fiche
+  // éditeur, dont c'est la grille. `aria-label` porte le nom que la position
+  // dit à l'œil.
+  const champNu = (name: string, label: string, opts?: { type?: string }) => (
+    <input
+      id={`soc-${name}`}
+      name={name}
+      type={opts?.type ?? "text"}
+      aria-label={label}
+      disabled={pending}
+      className="input"
+    />
+  );
+
   return (
     // Le fond ferme la modale au clic ; au clavier, Échap et le bouton Annuler
     // font le même travail.
@@ -184,6 +198,9 @@ export function ModaleSociete({
               {champ("commercialContact", "Contact commercial")}
               {champ("commercialTelephone", "Téléphone commercial", { type: "tel" })}
               {champ("commercialEmail", "Mail commercial", { type: "email" })}
+              {champNu("commercialContact2", "Contact commercial 2")}
+              {champNu("commercialTelephone2", "Téléphone commercial 2", { type: "tel" })}
+              {champNu("commercialEmail2", "Mail commercial 2", { type: "email" })}
               {champ("adminContact", "Contact administratif")}
               {champ("adminTelephone", "Téléphone administratif", { type: "tel" })}
               {champ("adminEmail", "Mail administratif", { type: "email" })}

@@ -27,7 +27,6 @@ export function GET(request: Request): Promise<Response> {
     const libelleStatut = new Map(statuts.map((s) => [s.cle as string, s.label]));
     const libelleHebergement = new Map(hebergements.map((h) => [h.cle as string, h.label]));
 
-    const date = (d: Date | null) => (d ? d.toISOString().slice(0, 10) : "");
     const rows: (string | number)[][] = [
       [
         "Nom",
@@ -45,8 +44,6 @@ export function GET(request: Request): Promise<Response> {
         "Utilisateurs",
         "Licences",
         "Plafond dépassé",
-        "Coût annuel (€)",
-        "Fin de contrat",
         "Référent métier",
         "Référent technique",
       ],
@@ -68,8 +65,6 @@ export function GET(request: Request): Promise<Response> {
         // autres colonnes nullables du fichier).
         l.nbMaxUtilisateurs === null ? "" : l.nbMaxUtilisateurs,
         depassementContrat(l.nbUtilisateurs, l.nbMaxUtilisateurs) ? "OUI" : "",
-        l.coutAnnuel === null ? "" : String(l.coutAnnuel),
-        date(l.finContratLe),
         l.referentMetier,
         l.referentTechnique,
       ]),

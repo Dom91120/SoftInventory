@@ -63,10 +63,8 @@ export async function chargerDashboard(): Promise<DonneesDashboard> {
         statut: true,
         hebergement: true,
         criticiteId: true,
-        coutAnnuel: true,
         nbUtilisateurs: true,
         nbMaxUtilisateurs: true,
-        finContratLe: true,
       },
     }),
     // Le coût vit sur le MARCHÉ, et se somme GLOBALEMENT, pas fiche par
@@ -104,13 +102,11 @@ export async function chargerDashboard(): Promise<DonneesDashboard> {
     }),
   ]);
 
-  // Coût annuel total : coût des fiches + montant annuel des marchés, ces
-  // derniers comptés une seule fois quel que soit le nombre de logiciels
-  // couverts.
-  let coutAnnuelTotal = Number(coutDesMarches._sum.montantAnnuel ?? 0);
-  for (const l of logiciels) {
-    if (l.coutAnnuel) coutAnnuelTotal += Number(l.coutAnnuel);
-  }
+  // Coût annuel total : le montant annuel des MARCHÉS, et lui seul, compté une
+  // fois quel que soit le nombre de logiciels couverts. La fiche logiciel ne
+  // porte plus de coût propre — sa colonne garde des valeurs historiques que
+  // rien ne met plus à jour, les compter fausserait le total.
+  const coutAnnuelTotal = Number(coutDesMarches._sum.montantAnnuel ?? 0);
 
   // Contrats dépassés (même règle que la liste/l'export).
   const contratsDepasses = logiciels
@@ -142,31 +138,18 @@ export async function chargerDashboard(): Promise<DonneesDashboard> {
   // Renouvellements à venir : marchés + fins de contrat des fiches. Le marché
   // renvoie vers SA fiche — il couvre parfois plusieurs logiciels, aucun ne
   // pouvant prétendre le représenter — et cite dessous ce qu'il couvre.
-  const renouvellements = [
-    ...contratsARenouveler.map((c) => ({
+  // Les MARCHÉS seuls : la fiche logiciel ne porte plus de date de fin, c'est
+  // le marché rattaché qui tient l'échéance.
+  const renouvellements = contratsARenouveler
+    .map((c) => ({
       href: `/contrats/${c.id}`,
       // Le libellé suffit quand il est là ; le préfixer donnerait « Contrat
       // Contrat VIP Adobe » pour les libellés qui disent déjà « contrat ».
       titre: c.libelle || (c.referenceMarche ? `Contrat ${c.referenceMarche}` : "Contrat"),
       detail: c.logiciels.map((l) => l.logiciel.nom).join(", ") || "Aucun logiciel rattaché",
       echeance: c.dateFin as Date,
-    })),
-    ...logiciels
-      // Même règle que pour les marchés : une fin de contrat déjà passée est de
-      // l'historique, pas un renouvellement à venir.
-      .filter(
-        (l) =>
-          l.finContratLe &&
-          l.finContratLe.getTime() >= aujourdhui.getTime() &&
-          l.finContratLe.getTime() <= fenetre.getTime(),
-      )
-      .map((l) => ({
-        href: `/logiciels/${l.id}?onglet=contrats`,
-        titre: l.nom,
-        detail: "Fin de contrat / marché",
-        echeance: l.finContratLe as Date,
-      })),
-  ].sort((a, b) => a.echeance.getTime() - b.echeance.getTime());
+    }))
+    .sort((a, b) => a.echeance.getTime() - b.echeance.getTime());
 
   // Libellés, couleurs et ordre viennent du référentiel : la barre dit la même
   // chose que la liste des logiciels, et suit ce qui y est administré.

@@ -120,10 +120,10 @@ export default async function TableauDeBordPage() {
         <Stat
           value={fmtEuros.format(d.coutAnnuelTotal)}
           label="Coût annuel"
-          hint="fiches + contrats"
+          hint="contrats et marchés"
           tone="ok"
           icon={<Euro className="h-5 w-5" />}
-          href="/logiciels"
+          href="/contrats"
         />
         <Stat
           value={d.tachesEnRetard.length}

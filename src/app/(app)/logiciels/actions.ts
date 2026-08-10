@@ -79,8 +79,6 @@ function parseFiche(formData: FormData) {
     nbMaxUtilisateurs: get("nbMaxUtilisateurs"),
     referentMetier: get("referentMetier"),
     referentTechnique: get("referentTechnique"),
-    coutAnnuel: get("coutAnnuel"),
-    finContratLe: get("finContratLe"),
   });
 }
 

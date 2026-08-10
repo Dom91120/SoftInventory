@@ -172,6 +172,7 @@ export function Field({
   htmlFor,
   required,
   hint,
+  infobulle,
   action,
   children,
 }: {
@@ -179,6 +180,17 @@ export function Field({
   htmlFor?: string;
   required?: boolean;
   hint?: string;
+  /**
+   * La même chose que `hint`, mais AU SURVOL plutôt que sous le champ. Pour
+   * une précision qui compte à la première saisie et jamais plus — elle prenait
+   * alors une ligne sous chaque champ, à toutes les visites, et creusait la
+   * carte. `hint` reste pour ce qui doit se lire sans être cherché.
+   *
+   * Portée par le bloc entier et non par le seul libellé : on survole le CHAMP
+   * quand on hésite à le remplir, pas son titre. Les descendants qui ont leur
+   * propre `title` — le raccourci d'`action` — gardent le leur.
+   */
+  infobulle?: string;
   /**
    * Petit geste accolé au LIBELLÉ — ouvrir l'adresse saisie, écrire au
    * contact. Hors du <label> et non dedans : cliquer un libellé donne le focus
@@ -188,7 +200,7 @@ export function Field({
   children: ReactNode;
 }) {
   return (
-    <div>
+    <div title={infobulle}>
       <div className="mb-0.5 flex items-center gap-1.5">
         <label className="label !mb-0" htmlFor={htmlFor}>
           {label}

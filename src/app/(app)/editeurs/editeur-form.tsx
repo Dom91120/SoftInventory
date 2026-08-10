@@ -24,6 +24,9 @@ export type EditeurValues = {
   commercialContact: string;
   commercialTelephone: string;
   commercialEmail: string;
+  commercialContact2: string;
+  commercialTelephone2: string;
+  commercialEmail2: string;
   adminContact: string;
   adminTelephone: string;
   adminEmail: string;
@@ -49,6 +52,9 @@ const VIDE: EditeurValues = {
   commercialContact: "",
   commercialTelephone: "",
   commercialEmail: "",
+  commercialContact2: "",
+  commercialTelephone2: "",
+  commercialEmail2: "",
   adminContact: "",
   adminTelephone: "",
   adminEmail: "",
@@ -196,12 +202,28 @@ export function EditeurForm({
     );
   };
 
+  /**
+   * `aussi` accroche au MÊME libellé le raccourci d'un second champ, celui de
+   * la ligne muette en dessous : elle n'a pas de libellé où le poser. Les deux
+   * enveloppes se suivent alors dans l'ordre des lignes, et leur infobulle —
+   * « Écrire à … » suivi de l'adresse — dit laquelle mène où.
+   */
   const champ = (
     name: keyof EditeurValues,
     label: string,
-    opts?: { type?: string; hint?: string; placeholder?: string },
+    opts?: { type?: string; hint?: string; placeholder?: string; aussi?: keyof EditeurValues },
   ) => (
-    <Field label={label} htmlFor={name} hint={opts?.hint} action={lienDe(name, opts?.type)}>
+    <Field
+      label={label}
+      htmlFor={name}
+      hint={opts?.hint}
+      action={
+        <>
+          {lienDe(name, opts?.type)}
+          {opts?.aussi ? lienDe(opts.aussi, opts?.type) : null}
+        </>
+      }
+    >
       <input
         id={name}
         name={name}
@@ -212,6 +234,36 @@ export function EditeurForm({
         className="input"
       />
     </Field>
+  );
+
+  /**
+   * Un champ SANS libellé, pour une ligne qui prolonge celle du dessus : le
+   * second commercial tombe sous le premier, colonne par colonne, et coiffer
+   * chaque case d'un « Contact commercial 2 » n'apprendrait rien que la
+   * position ne dise déjà — la carte y gagne trois lignes de titres en moins.
+   *
+   * `aria-label` porte quand même le nom : sans mise en page sous les yeux, la
+   * position ne se voit pas, et le champ serait annoncé sans rien dire.
+   *
+   * Son raccourci d'adresse, lui, ne peut pas vivre ici : il s'accroche à un
+   * libellé, et cette ligne n'en a pas. Il est accroché à celui du champ du
+   * dessus — voir `aussi` dans `champ`.
+   */
+  const champNu = (
+    name: keyof EditeurValues,
+    label: string,
+    opts?: { type?: string; placeholder?: string },
+  ) => (
+    <input
+      id={name}
+      name={name}
+      type={opts?.type ?? "text"}
+      aria-label={label}
+      placeholder={opts?.placeholder}
+      defaultValue={values[name]}
+      disabled={dis}
+      className="input"
+    />
   );
 
   return (
@@ -297,7 +349,13 @@ export function EditeurForm({
             </div>
             {champ("commercialContact", "Contact commercial")}
             {champ("commercialTelephone", "Téléphone commercial", { type: "tel" })}
-            {champ("commercialEmail", "Mail commercial", { type: "email" })}
+            {champ("commercialEmail", "Mail commercial", {
+              type: "email",
+              aussi: "commercialEmail2",
+            })}
+            {champNu("commercialContact2", "Contact commercial 2")}
+            {champNu("commercialTelephone2", "Téléphone commercial 2", { type: "tel" })}
+            {champNu("commercialEmail2", "Mail commercial 2", { type: "email" })}
             {champ("adminContact", "Contact administratif")}
             {champ("adminTelephone", "Téléphone administratif", { type: "tel" })}
             {champ("adminEmail", "Mail administratif", { type: "email" })}

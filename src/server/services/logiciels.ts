@@ -138,18 +138,11 @@ export function createLogiciel(data: LogicielInput) {
   return prisma.logiciel.create({ data });
 }
 
+// Plus de transaction ni de remise à zéro du marqueur de rappel : la fiche ne
+// porte plus de date de fin de contrat. C'est le MARCHÉ qui tient l'échéance,
+// et `updateContrat` fait ce travail pour lui.
 export function updateLogiciel(id: number, data: LogicielInput) {
-  // La date de fin de contrat pilote un rappel : si elle change, le marqueur
-  // anti-doublon doit être remis à zéro pour que la NOUVELLE échéance soit
-  // rappelée. On ne le remet à zéro que sur changement effectif.
-  return prisma.$transaction(async (tx) => {
-    const avant = await tx.logiciel.findUnique({ where: { id }, select: { finContratLe: true } });
-    const dateChangee = avant?.finContratLe?.getTime() !== data.finContratLe?.getTime();
-    return tx.logiciel.update({
-      where: { id },
-      data: { ...data, ...(dateChangee ? { rappelEnvoyeLe: null } : {}) },
-    });
-  });
+  return prisma.logiciel.update({ where: { id }, data });
 }
 
 export function updateLogicielRgpd(id: number, data: LogicielRgpdInput) {

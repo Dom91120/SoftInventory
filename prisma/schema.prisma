@@ -271,54 +271,60 @@ model ThrottleBucket {
 /// (portail de tickets, mail, téléphone, horaires) vit AU NIVEAU ÉDITEUR — un
 /// même fournisseur assure le support de tous ses produits.
 model Editeur {
-  id                  Int      @id @default(autoincrement())
-  nom                 String   @unique
-  adresse             String   @default("")
-  codePostal          String   @default("") @map("code_postal")
-  ville               String   @default("")
-  telephone           String   @default("")
-  email               String   @default("")
-  siteWeb             String   @default("") @map("site_web")
-  supportUrl          String   @default("") @map("support_url")
-  supportEmail        String   @default("") @map("support_email")
-  supportTelephone    String   @default("") @map("support_telephone")
+  id                   Int      @id @default(autoincrement())
+  nom                  String   @unique
+  adresse              String   @default("")
+  codePostal           String   @default("") @map("code_postal")
+  ville                String   @default("")
+  telephone            String   @default("")
+  email                String   @default("")
+  siteWeb              String   @default("") @map("site_web")
+  supportUrl           String   @default("") @map("support_url")
+  supportEmail         String   @default("") @map("support_email")
+  supportTelephone     String   @default("") @map("support_telephone")
   /// Les horaires tiennent sur DEUX lignes parce qu'ils décrivent presque
   /// toujours deux régimes — « lundi au vendredi 8h-17h » puis « samedi
   /// 8h-12h ». Une seule ligne obligeait à les coudre avec un tiret ou une
   /// barre, chaque fiche inventant sa ponctuation. La seconde reste vide quand
   /// la semaine est d'un bloc.
-  supportHoraires     String   @default("") @map("support_horaires")
-  supportHoraires2    String   @default("") @map("support_horaires_2")
+  supportHoraires      String   @default("") @map("support_horaires")
+  supportHoraires2     String   @default("") @map("support_horaires_2")
   /// Contacts hors support : le commercial pour l'offre et le renouvellement,
   /// l'administratif pour la facturation. Chacun porte le NOM de la personne
   /// puis ses coordonnées. Distincts des `telephone`/`email` du standard, qui
   /// restent ceux de la société.
-  commercialContact   String   @default("") @map("commercial_contact")
-  commercialTelephone String   @default("") @map("commercial_telephone")
-  commercialEmail     String   @default("") @map("commercial_email")
-  adminContact        String   @default("") @map("admin_contact")
-  adminTelephone      String   @default("") @map("admin_telephone")
-  adminEmail          String   @default("") @map("admin_email")
+  commercialContact    String   @default("") @map("commercial_contact")
+  commercialTelephone  String   @default("") @map("commercial_telephone")
+  commercialEmail      String   @default("") @map("commercial_email")
+  /// Un SECOND commercial, fréquent chez les éditeurs qui séparent le
+  /// renouvellement de l'avant-vente, ou qui doublent l'interlocuteur pendant
+  /// une passation. Ses trois champs restent vides sinon.
+  commercialContact2   String   @default("") @map("commercial_contact_2")
+  commercialTelephone2 String   @default("") @map("commercial_telephone_2")
+  commercialEmail2     String   @default("") @map("commercial_email_2")
+  adminContact         String   @default("") @map("admin_contact")
+  adminTelephone       String   @default("") @map("admin_telephone")
+  adminEmail           String   @default("") @map("admin_email")
   /// Le délégué à la protection des données de l'ÉDITEUR — celui à qui écrire
   /// pour une violation ou une demande d'exercice de droits sur les données
   /// qu'il héberge. Distinct du DPO de la collectivité, qui n'a pas sa place
   /// dans un annuaire de fournisseurs.
-  dpoContact          String   @default("") @map("dpo_contact")
-  dpoTelephone        String   @default("") @map("dpo_telephone")
-  dpoEmail            String   @default("") @map("dpo_email")
-  notes               String   @default("")
-  createdAt           DateTime @default(now()) @db.Timestamptz
-  updatedAt           DateTime @updatedAt @db.Timestamptz
+  dpoContact           String   @default("") @map("dpo_contact")
+  dpoTelephone         String   @default("") @map("dpo_telephone")
+  dpoEmail             String   @default("") @map("dpo_email")
+  notes                String   @default("")
+  createdAt            DateTime @default(now()) @db.Timestamptz
+  updatedAt            DateTime @updatedAt @db.Timestamptz
 
-  logiciels Logiciel[]
-  documents Document[]
+  logiciels       Logiciel[]
+  documents       Document[]
   /// Contrats où cette société est le FOURNISSEUR — celle avec qui la
   /// collectivité contractualise. C'est souvent l'éditeur du logiciel, mais un
   /// revendeur (Metsys pour Semperis, Delta Industrie Service pour TX-Visio…)
   /// a lui aussi sa fiche ici : la table est un annuaire de sociétés.
-  contratsFournis Contrat[] @relation("ContratFournisseur")
+  contratsFournis Contrat[]  @relation("ContratFournisseur")
   /// Devis remis par cette société lors des mises en concurrence.
-  devisRemis      Devis[]   @relation("DevisFournisseur")
+  devisRemis      Devis[]    @relation("DevisFournisseur")
 
   @@map("editeurs")
 }
@@ -410,13 +416,13 @@ model Logiciel {
   nom         String
   description String @default("")
 
-  editeurId Int?     @map("editeur_id")
-  editeur   Editeur? @relation(fields: [editeurId], references: [id], onDelete: SetNull)
+  editeurId            Int?     @map("editeur_id")
+  editeur              Editeur? @relation(fields: [editeurId], references: [id], onDelete: SetNull)
   /// Application faite et maintenue par la DSI : il n'y a pas d'éditeur, donc
   /// pas de fiche société, de support ni de contrat à lui rattacher. Portée par
   /// le logiciel plutôt que par un éditeur sentinelle « Développement interne »,
   /// qui polluait l'annuaire et les listes de fournisseurs.
-  developpementInterne Boolean @default(false) @map("developpement_interne")
+  developpementInterne Boolean  @default(false) @map("developpement_interne")
 
   hebergement   Hebergement  @default(on_premise)
   technologieId Int?         @map("technologie_id")
@@ -443,11 +449,6 @@ model Logiciel {
   nbMaxUtilisateurs Int?                 @map("nb_max_utilisateurs")
   referentMetier    String               @default("") @map("referent_metier")
   referentTechnique String               @default("") @map("referent_technique")
-  coutAnnuel        Decimal?             @map("cout_annuel") @db.Decimal(12, 2)
-  finContratLe      DateTime?            @map("fin_contrat_le") @db.Date
-  /// Date de fin de contrat pour laquelle le rappel a déjà été envoyé
-  /// (anti-doublon du cron ; remise à null quand la date change).
-  rappelEnvoyeLe    DateTime?            @map("rappel_envoye_le") @db.Date
 
   // ── Volet RGPD (simple) ──
   donneesPersonnelles Boolean             @default(false) @map("donnees_personnelles")
@@ -529,51 +530,51 @@ model Interconnexion {
 /// postes aux coûts et aux termes distincts, sans que leur somme ni leur
 /// échéance la plus lointaine valent engagement.
 model Contrat {
-  id              Int       @id @default(autoincrement())
+  id              Int           @id @default(autoincrement())
   /// Société avec qui la collectivité contractualise. null = l'éditeur du
   /// logiciel, cas le plus fréquent ; renseigné quand c'est un revendeur.
-  fournisseurId   Int?      @map("fournisseur_id")
+  fournisseurId   Int?          @map("fournisseur_id")
   /// Marché ou contrat. null = non renseigné : les lignes reprises de
   /// l'historique n'ont pas été dépouillées sur ce point, et rien ne permet
   /// de trancher à leur place — l'écran dit « — » plutôt qu'une supposition.
   nature          NatureMarche?
-  libelle         String    @default("") // ex. « marché 2024-12 », « pack 50 postes »
-  referenceMarche String    @default("") @map("reference_marche")
+  libelle         String        @default("") // ex. « marché 2024-12 », « pack 50 postes »
+  referenceMarche String        @default("") @map("reference_marche")
   /// Montant annuel du marché entier. null = non renseigné, à distinguer de
   /// zéro (un marché à titre gratuit se saisit, lui, à 0).
-  montantAnnuel   Decimal?  @map("montant_annuel") @db.Decimal(12, 2)
+  montantAnnuel   Decimal?      @map("montant_annuel") @db.Decimal(12, 2)
   /// Maximum ANNUEL : le plafond que le marché ne peut pas dépasser sur une
   /// année, quand l'acte en fixe un. Aucune contrainte avec `montantAnnuel`,
   /// qui dit ce qu'on paie : c'est l'acte qui fait foi, et un montant au-delà
   /// du plafond se saisit — le signaler est un autre sujet que le stocker.
-  montantMaxi     Decimal?  @map("montant_maxi") @db.Decimal(12, 2)
+  montantMaxi     Decimal?      @map("montant_maxi") @db.Decimal(12, 2)
   /// Ce que pèse le marché sur sa DURÉE ENTIÈRE, quand l'acte le chiffre.
   /// N'entre pas dans le coût du parc, qui se compte à l'année — l'y ajouter
   /// gonflerait le total d'un marché pluriannuel autant de fois qu'il dure.
-  montantTotal    Decimal?  @map("montant_total") @db.Decimal(12, 2)
+  montantTotal    Decimal?      @map("montant_total") @db.Decimal(12, 2)
   /// Début du marché : la date à laquelle il prend effet. Se lit avec dateFin,
   /// dont elle forme la période affichée (« du … au … »). Indépendante d'elle :
   /// un marché en cours a souvent un début connu et un terme qui ne l'est pas.
-  dateDebut       DateTime? @map("date_debut") @db.Date
+  dateDebut       DateTime?     @map("date_debut") @db.Date
   /// Terme du marché, et ÉCHÉANCE surveillée : c'est cette date que le cron
   /// lit pour ses rappels et le tableau de bord pour ses renouvellements. Le
   /// suivi vivait sur la pièce ; il est remonté ici, une pièce ne portant plus
   /// qu'une date de document.
-  dateFin         DateTime? @map("date_fin") @db.Date
+  dateFin         DateTime?     @map("date_fin") @db.Date
   /// Durée FERME du marché, en années (1 à 4), telle que l'acte la fixe. Ne se
   /// déduit pas des dates et n'en découle pas : la période court du début à la
   /// fin reconductions comprises, la durée ferme est l'engagement initial.
   /// null = non renseigné.
-  dureeAnnees     Int?      @map("duree_annees")
+  dureeAnnees     Int?          @map("duree_annees")
   /// Nombre de reconductions prévues (0 à 3) : « renouvelable n fois ». Zéro
   /// est une VALEUR — un marché sec, non reconductible — distinct de null, qui
   /// dit que l'acte n'a pas été dépouillé sur ce point.
   renouvellements Int?
   /// Date de fin pour laquelle le rappel a déjà été envoyé (anti-doublon du
   /// cron ; remise à null quand la date change).
-  rappelEnvoyeLe  DateTime? @map("rappel_envoye_le") @db.Date
-  notes           String    @default("")
-  createdAt       DateTime  @default(now()) @db.Timestamptz
+  rappelEnvoyeLe  DateTime?     @map("rappel_envoye_le") @db.Date
+  notes           String        @default("")
+  createdAt       DateTime      @default(now()) @db.Timestamptz
 
   // Le fournisseur n'est pas propriétaire du contrat : supprimer sa fiche ne
   // doit pas emporter le contrat, seulement le laisser sans fournisseur.
@@ -708,14 +709,14 @@ enum StatutTache {
 /// Tâche d'exploitation à refaire régulièrement sur un logiciel : mise à jour,
 /// renouvellement de contrat, purge, revue des comptes, certificat…
 model TacheRecurrente {
-  id          Int         @id @default(autoincrement())
-  logicielId  Int         @map("logiciel_id")
-  typeTacheId Int?        @map("type_tache_id")
-  titre       String
-  description String      @default("")
-  periodicite Periodicite @default(annuelle)
+  id                Int         @id @default(autoincrement())
+  logicielId        Int         @map("logiciel_id")
+  typeTacheId       Int?        @map("type_tache_id")
+  titre             String
+  description       String      @default("")
+  periodicite       Periodicite @default(annuelle)
   /// Intervalle en mois quand periodicite = personnalisee (1..120).
-  moisPersonnalises Int?  @map("mois_personnalises") @db.SmallInt
+  moisPersonnalises Int?        @map("mois_personnalises") @db.SmallInt
 
   /// Prochaine date à laquelle la tâche doit être FAITE. Recalculée à chaque
   /// complétion, ancrée sur l'échéance prévue (pas la date de complétion) —
@@ -729,7 +730,7 @@ model TacheRecurrente {
 
   /// Délai de rappel spécifique (jours avant échéance) ; null = valeur globale
   /// (app_config tache.rappelJoursAvant).
-  rappelJoursAvant Int? @map("rappel_jours_avant") @db.SmallInt
+  rappelJoursAvant Int?      @map("rappel_jours_avant") @db.SmallInt
   /// Échéance pour laquelle le rappel a déjà été envoyé (anti-doublon : un seul
   /// mail par occurrence, remis à null au recalcul de l'échéance).
   rappelEnvoyePour DateTime? @map("rappel_envoye_pour") @db.Date
@@ -780,17 +781,17 @@ model TacheExecution {
 /// par construction, et la ligne en base est la seule porte d'accès (téléchargement
 /// par id).
 model Document {
-  id          Int  @id @default(autoincrement())
-  logicielId  Int? @map("logiciel_id")
-  editeurId   Int? @map("editeur_id")
+  id             Int  @id @default(autoincrement())
+  logicielId     Int? @map("logiciel_id")
+  editeurId      Int? @map("editeur_id")
   /// Rattachement à une PIÈCE de contrat : la décision municipale et le contrat
   /// signé se lisent alors dans la pièce qu'ils attestent, sous leur marché,
   /// dans l'onglet Contrats/Marchés du logiciel.
   pieceContratId Int? @map("piece_contrat_id")
   /// Rattachement à un devis : le PDF remis par le fournisseur se lit alors
   /// sous son devis, dans l'onglet Devis du logiciel.
-  devisId     Int? @map("devis_id")
-  categorieId Int? @map("categorie_id")
+  devisId        Int? @map("devis_id")
+  categorieId    Int? @map("categorie_id")
 
   nomOriginal String @map("nom_original")
   nomStockage String @unique @map("nom_stockage")
@@ -803,11 +804,11 @@ model Document {
 
   createdAt DateTime @default(now()) @db.Timestamptz
 
-  logiciel  Logiciel?          @relation(fields: [logicielId], references: [id], onDelete: Cascade)
-  editeur   Editeur?           @relation(fields: [editeurId], references: [id], onDelete: Cascade)
-  pieceContrat PieceContrat?   @relation(fields: [pieceContratId], references: [id], onDelete: Cascade)
-  devis     Devis?             @relation(fields: [devisId], references: [id], onDelete: Cascade)
-  categorie CategorieDocument? @relation(fields: [categorieId], references: [id], onDelete: SetNull)
+  logiciel     Logiciel?          @relation(fields: [logicielId], references: [id], onDelete: Cascade)
+  editeur      Editeur?           @relation(fields: [editeurId], references: [id], onDelete: Cascade)
+  pieceContrat PieceContrat?      @relation(fields: [pieceContratId], references: [id], onDelete: Cascade)
+  devis        Devis?             @relation(fields: [devisId], references: [id], onDelete: Cascade)
+  categorie    CategorieDocument? @relation(fields: [categorieId], references: [id], onDelete: SetNull)
 
   @@index([logicielId])
   @@index([editeurId])

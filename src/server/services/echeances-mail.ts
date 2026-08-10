@@ -159,43 +159,11 @@ export async function envoyerRappelsEcheances(): Promise<{
       }
     }
 
-    // Même borne basse que pour les marchés : une fin de contrat déjà passée
-    // ne se rappelle plus. Saisir une date échue pour l'historique ne doit pas
-    // déclencher d'envoi.
-    const logiciels = await prisma.logiciel.findMany({
-      where: { finContratLe: { gte: aujourdhui, lte: fenetreContrat } },
-      select: { id: true, nom: true, finContratLe: true, rappelEnvoyeLe: true },
-    });
-    for (const l of logiciels) {
-      if (!l.finContratLe) continue;
-      if (l.rappelEnvoyeLe?.getTime() === l.finContratLe.getTime()) continue;
-      const url = appUrl ? `${appUrl}/logiciels/${l.id}` : "";
-      let auMoinsUnEnvoi = false;
-      for (const to of fallback) {
-        const res = await sendTemplatedMail({
-          to,
-          kind: "contrat_rappel",
-          vars: {
-            salutation: greeting(""),
-            objet: "Le contrat / marché",
-            logiciel: l.nom,
-            echeance: fmtDate.format(l.finContratLe),
-            details: "",
-            url,
-          },
-          rawVars: url ? { bouton: emailButton(url, "Ouvrir la fiche") } : {},
-          mode: "queue",
-        });
-        if (res.ok || res.queued) auMoinsUnEnvoi = true;
-      }
-      if (auMoinsUnEnvoi) {
-        await prisma.logiciel.update({
-          where: { id: l.id },
-          data: { rappelEnvoyeLe: l.finContratLe },
-        });
-        rappelsContrats += 1;
-      }
-    }
+    // Il y avait ici un second passage sur les FICHES LOGICIELS, qui portaient
+    // leur propre date de fin de contrat. Elles ne la portent plus : l'échéance
+    // vit sur le marché, qu'on vient de parcourir. Les colonnes
+    // `fin_contrat_le` / `rappel_envoye_le` gardent leurs valeurs historiques
+    // et ne déclenchent plus rien.
   }
 
   return { rappelsTaches, rappelsContrats };

@@ -14,6 +14,9 @@ export type SupportEditeur = {
   commercialContact: string;
   commercialTelephone: string;
   commercialEmail: string;
+  commercialContact2: string;
+  commercialTelephone2: string;
+  commercialEmail2: string;
   adminContact: string;
   adminTelephone: string;
   adminEmail: string;
@@ -166,6 +169,17 @@ export function SupportPanel({ editeur }: { editeur: SupportEditeur | null }) {
     { ...ligneContact("Contact commercial", editeur.commercialContact), separateurAvant: true },
     ligneTel("Téléphone commercial", editeur.commercialTelephone),
     ligneMail("Mail commercial", editeur.commercialEmail),
+    // Le second commercial ne prend son rang que s'il existe : la fiche éditeur
+    // le laisse sans titre parce que la position suffit, mais ici chaque valeur
+    // est nommée, et trois « Non renseigné » de plus dans une grille qui en
+    // compte déjà se lisent comme un manque plutôt que comme une absence.
+    ...(editeur.commercialContact2 || editeur.commercialTelephone2 || editeur.commercialEmail2
+      ? [
+          ligneContact("Contact commercial 2", editeur.commercialContact2),
+          ligneTel("Téléphone commercial 2", editeur.commercialTelephone2),
+          ligneMail("Mail commercial 2", editeur.commercialEmail2),
+        ]
+      : []),
     ligneContact("Contact administratif", editeur.adminContact),
     ligneTel("Téléphone administratif", editeur.adminTelephone),
     ligneMail("Mail administratif", editeur.adminEmail),
