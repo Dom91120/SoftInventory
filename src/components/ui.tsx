@@ -98,6 +98,13 @@ export function Card({
  * Tuile KPI signature : liseré coloré 4 px, gros chiffre en chasse fixe,
  * libellé micro-caps. Toute la tuile est un lien vers l'écran où l'on AGIT
  * sur le chiffre.
+ *
+ * Le cadre remplit la hauteur qu'on lui donne (`h-full` interne, sans effet
+ * tant que le parent n'en impose aucune) : une RANGÉE de tuiles se pose donc
+ * en `h-full` et s'aligne sur la plus haute, qu'il y ait ou non une mention
+ * sous le libellé et qu'un libellé passe ou non à la ligne. Sans cela chacune
+ * se dimensionnait sur son propre texte et la rangée montait en escalier. Le
+ * contenu reste centré : la hauteur gagnée se partage au-dessus et en dessous.
  */
 export function Stat({
   value,
@@ -106,6 +113,7 @@ export function Stat({
   icon,
   tone = "accent",
   href,
+  className = "",
 }: {
   value: ReactNode;
   label: string;
@@ -113,6 +121,8 @@ export function Stat({
   icon?: ReactNode;
   tone?: "accent" | "ok" | "warn" | "danger" | "info" | "muted";
   href?: string;
+  /** `h-full` pour une tuile en rangée ; rien pour une tuile isolée. */
+  className?: string;
 }) {
   const rail: Record<string, string> = {
     accent: "var(--color-accent)",
@@ -124,7 +134,7 @@ export function Stat({
   };
   const inner = (
     <div
-      className="relative flex items-center gap-4 overflow-hidden rounded-2xl border border-line bg-surface px-5 py-3 shadow-sm transition group-hover:-translate-y-0.5 group-hover:shadow-md"
+      className="relative flex h-full items-center gap-4 overflow-hidden rounded-2xl border border-line bg-surface px-5 py-3 shadow-sm transition group-hover:-translate-y-0.5 group-hover:shadow-md"
       style={{ borderLeftWidth: 0 }}
     >
       <span
@@ -155,11 +165,11 @@ export function Stat({
     </div>
   );
   return href ? (
-    <a href={href} className="group block">
+    <a href={href} className={`group block ${className}`}>
       {inner}
     </a>
   ) : (
-    <div className="group">{inner}</div>
+    <div className={`group ${className}`}>{inner}</div>
   );
 }
 

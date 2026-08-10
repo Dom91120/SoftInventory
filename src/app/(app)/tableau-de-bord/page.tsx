@@ -102,14 +102,19 @@ export default async function TableauDeBordPage() {
         </Link>
       ) : null}
 
-      {/* Tuiles KPI */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      {/* Tuiles KPI. Toutes en `h-full`, et `auto-rows-fr` pour que les DEUX
+          rangées de l'affichage étroit se valent : la rangée s'aligne alors sur
+          la tuile la plus haute au lieu de monter en escalier — « Éditeurs » n'a
+          pas de mention sous son libellé, « Tâches en retard » a un libellé qui
+          passe à la ligne. */}
+      <div className="grid auto-rows-fr grid-cols-2 gap-4 lg:grid-cols-4">
         <Stat
           value={d.nbLogiciels}
           label="Logiciels"
           hint={`${d.nbEnProduction} en production`}
           icon={<Package className="h-5 w-5" />}
           href="/logiciels"
+          className="h-full"
         />
         <Stat
           value={d.nbEditeurs}
@@ -117,6 +122,7 @@ export default async function TableauDeBordPage() {
           tone="info"
           icon={<Building2 className="h-5 w-5" />}
           href="/editeurs"
+          className="h-full"
         />
         <Stat
           value={fmtEuros.format(d.coutAnnuelTotal)}
@@ -125,6 +131,7 @@ export default async function TableauDeBordPage() {
           tone="ok"
           icon={<Euro className="h-5 w-5" />}
           href="/contrats"
+          className="h-full"
         />
         <Stat
           value={d.tachesEnRetard.length}
@@ -133,52 +140,58 @@ export default async function TableauDeBordPage() {
           tone={d.tachesEnRetard.length > 0 ? "danger" : "muted"}
           icon={<ClipboardList className="h-5 w-5" />}
           href="/taches"
+          className="h-full"
         />
       </div>
 
+      {/* Deux COLONNES, et non trois cartes posées à la suite : ce qu'il y a à
+          faire à gauche sur deux tiers, ce qui décrit le parc à droite sur un
+          tiers. Rangées côte à côte, la grille plaçait les répartitions APRÈS
+          les deux cartes de gauche, donc sur la deuxième rangée — laissant en
+          haut à droite un vide de la hauteur des renouvellements, et étirant
+          « Mes tâches » sur toute la hauteur de la colonne d'en face. */}
       <div className="mt-3 grid gap-3 lg:grid-cols-3">
-        {/* Renouvellements à venir */}
-        {/* Titre calculé : la fenêtre suit le délai de rappel réglé en
-            Administration › Messagerie, elle n'est plus figée à 60 jours. */}
-        <Card
-          title={`Renouvellements sous ${d.seuilRenouvellementJours} jours`}
-          className="lg:col-span-2"
-        >
-          {d.renouvellements.length === 0 ? (
-            <EmptyState>
-              Aucun contrat à renouveler dans les {d.seuilRenouvellementJours} prochains jours.
-            </EmptyState>
-          ) : (
-            <ul className="divide-y divide-line text-sm">
-              {d.renouvellements.map((r) => (
-                <li
-                  key={`${r.href}-${r.echeance.toISOString()}`}
-                  className="flex items-center justify-between gap-3 py-2.5"
-                >
-                  <span className="min-w-0">
-                    <Link href={r.href} className="font-medium text-strong hover:text-accent">
-                      {r.titre}
-                    </Link>
-                    <span className="block truncate text-xs text-muted">{r.detail}</span>
-                  </span>
-                  <span className="badge-warn shrink-0">
-                    <CalendarClock className="h-3.5 w-3.5" />
-                    {fmtDate.format(r.echeance)}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Card>
+        <div className="space-y-3 lg:col-span-2">
+          {/* Renouvellements à venir */}
+          {/* Titre calculé : la fenêtre suit le délai de rappel réglé en
+              Administration › Messagerie, elle n'est plus figée à 60 jours. */}
+          <Card title={`Contrats à renouveler (sous ${d.seuilRenouvellementJours} jours)`}>
+            {d.renouvellements.length === 0 ? (
+              <EmptyState>
+                Aucun contrat à renouveler dans les {d.seuilRenouvellementJours} prochains jours.
+              </EmptyState>
+            ) : (
+              <ul className="divide-y divide-line text-sm">
+                {d.renouvellements.map((r) => (
+                  <li
+                    key={`${r.href}-${r.echeance.toISOString()}`}
+                    className="flex items-center justify-between gap-3 py-2.5"
+                  >
+                    <span className="min-w-0">
+                      <Link href={r.href} className="font-medium text-strong hover:text-accent">
+                        {r.titre}
+                      </Link>
+                      <span className="block truncate text-xs text-muted">{r.detail}</span>
+                    </span>
+                    <span className="badge-warn shrink-0">
+                      <CalendarClock className="h-3.5 w-3.5" />
+                      {fmtDate.format(r.echeance)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Card>
 
-        {/* Mes tâches : la seule carte de l'écran qui change d'un compte à
-            l'autre. Elle se tait pour qui n'en porte aucune — annoncer une
-            liste vide occuperait une carte entière pour ne rien dire.
+          {/* Mes tâches : la seule carte de l'écran qui change d'un compte à
+              l'autre. Elle se tait pour qui n'en porte aucune — annoncer une
+              liste vide occuperait une carte entière pour ne rien dire.
 
-            Sous les renouvellements et de la même largeur : les deux disent ce
-            qu'il y a à FAIRE, quand les répartitions d'à côté ne font que
-            décrire le parc. */}
-        {d.mesTaches.length > 0 ? <MesTaches taches={d.mesTaches} /> : null}
+              Sous les renouvellements et de la même largeur : les deux disent ce
+              qu'il y a à FAIRE, quand les répartitions d'à côté ne font que
+              décrire le parc. */}
+          {d.mesTaches.length > 0 ? <MesTaches taches={d.mesTaches} /> : null}
+        </div>
 
         {/* Répartitions */}
         <div className="space-y-3">
