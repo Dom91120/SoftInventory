@@ -39,9 +39,12 @@ export default async function EditeursPage({
         subtitle={`${total} éditeur${total > 1 ? "s" : ""} dans l'annuaire`}
         actions={
           isAdmin ? (
-            <Link href="/editeurs/nouveau" className="btn-primary">
+            // Le « + » dit déjà qu'on ajoute : le libellé n'a plus qu'à nommer
+            // ce qu'on ajoute. Autant de gagné sur un écran de téléphone, où
+            // l'en-tête et le bouton se disputent la ligne.
+            <Link href="/editeurs/nouveau" className="btn-primary" title="Nouvel éditeur">
               <Plus className="h-4 w-4" />
-              Nouvel éditeur
+              Éditeur
             </Link>
           ) : undefined
         }
@@ -51,7 +54,7 @@ export default async function EditeursPage({
         <EmptyState>
           {params.q
             ? "Aucun éditeur ne correspond à cette recherche."
-            : `Aucun éditeur pour l'instant.${isAdmin ? " Créez le premier avec le bouton « Nouvel éditeur »." : ""}`}
+            : `Aucun éditeur pour l'instant.${isAdmin ? " Créez le premier avec le bouton « + Éditeur »." : ""}`}
         </EmptyState>
       ) : (
         <div className="card px-5 py-4">

@@ -49,9 +49,13 @@ export default async function LogicielsPage({
         subtitle={`${total} logiciel${total > 1 ? "s" : ""} dans l'inventaire`}
         actions={
           isAdmin ? (
-            <Link href="/logiciels/nouveau" className="btn-primary">
+            // Le « + » dit déjà qu'on ajoute : le libellé n'a plus qu'à nommer
+            // ce qu'on ajoute. La page d'accueil du bouton, elle, garde son
+            // titre entier — « Nouveau logiciel » y est une phrase, pas une
+            // commande.
+            <Link href="/logiciels/nouveau" className="btn-primary" title="Nouveau logiciel">
               <Plus className="h-4 w-4" />
-              Nouveau logiciel
+              Logiciel
             </Link>
           ) : undefined
         }
@@ -66,7 +70,7 @@ export default async function LogicielsPage({
       {total === 0 ? (
         <EmptyState>
           Aucun logiciel ne correspond.
-          {isAdmin ? " Ajoutez-en un avec « Nouveau logiciel », ou élargissez les filtres." : ""}
+          {isAdmin ? " Ajoutez-en un avec « + Logiciel », ou élargissez les filtres." : ""}
         </EmptyState>
       ) : (
         <div className="card px-5 py-4">

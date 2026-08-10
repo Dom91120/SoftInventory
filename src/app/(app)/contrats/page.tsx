@@ -112,9 +112,12 @@ export default async function ContratsPage({
         subtitle={`${total} contrat${total > 1 ? "s" : ""} ou marché${total > 1 ? "s" : ""}`}
         actions={
           isAdmin ? (
-            <Link href="/contrats/nouveau" className="btn-primary">
+            // Le « + » dit déjà qu'on ajoute : le libellé n'a plus qu'à nommer
+            // ce qu'on ajoute. Autant de gagné sur un écran de téléphone, où
+            // l'en-tête et le bouton se disputent la ligne.
+            <Link href="/contrats/nouveau" className="btn-primary" title="Nouveau marché">
               <Plus className="h-4 w-4" />
-              Nouveau marché
+              Marché
             </Link>
           ) : undefined
         }
@@ -134,7 +137,7 @@ export default async function ContratsPage({
         <EmptyState>
           {params.q || params.fournisseur
             ? "Aucun contrat ni marché ne correspond."
-            : `Aucun contrat ni marché pour l'instant.${isAdmin ? " Créez le premier avec le bouton « Nouveau marché »." : ""}`}
+            : `Aucun contrat ni marché pour l'instant.${isAdmin ? " Créez le premier avec le bouton « + Marché »." : ""}`}
         </EmptyState>
       ) : (
         <div className="card px-5 py-4">
