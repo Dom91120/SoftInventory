@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-import { PageHeader } from "@/components/ui";
+import { Onglets, PageHeader } from "@/components/ui";
 import { prisma } from "@/server/db";
 import { requireRole } from "@/server/guards";
 import { DEFAULT_TEMPLATES, MAIL_KINDS } from "@/server/services/mail-templates";
@@ -37,26 +36,21 @@ export default async function MessageriePage({
         title="Messagerie"
         subtitle="Serveur d'envoi, modèles d'e-mails et rappels d'échéances"
       />
-      <div className="mb-3 flex flex-wrap gap-1.5">
-        {ONGLETS.map((o) => (
-          <Link
-            key={o.key}
-            href={`/messagerie?onglet=${o.key}`}
-            className={`rounded-full px-3.5 py-1.5 text-sm font-medium transition ${
-              o.key === actif
-                ? "bg-accent text-white"
-                : "bg-inset text-muted hover:bg-line hover:text-strong"
-            }`}
-          >
-            {o.label}
-            {o.key === "echecs" && nbEchecs > 0 ? (
-              <span className="ml-1.5 rounded-full bg-warn-dim px-1.5 text-xs font-semibold text-warn-text">
+      {/* Le compte d'échecs se porte SUR son onglet : il dit qu'il y a là
+          quelque chose à traiter sans qu'on ait à y aller voir. */}
+      <Onglets
+        onglets={ONGLETS.map((o) => ({
+          ...o,
+          badge:
+            o.key === "echecs" && nbEchecs > 0 ? (
+              <span className="rounded-full bg-warn-dim px-1.5 text-xs font-semibold text-warn-text">
                 {nbEchecs}
               </span>
-            ) : null}
-          </Link>
-        ))}
-      </div>
+            ) : undefined,
+        }))}
+        actif={actif}
+        href={(key) => `/messagerie?onglet=${key}`}
+      />
 
       {actif === "reglages" ? <ReglagesPanel config={await lireConfigMessagerie()} /> : null}
       {actif === "modeles" ? <OngletModeles /> : null}

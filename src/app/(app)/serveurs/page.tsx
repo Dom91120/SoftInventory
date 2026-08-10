@@ -62,30 +62,38 @@ export default async function ServeursPage({
 
   return (
     <>
+      {/* Le sélecteur voyage dans les ACTIONS de l'en-tête, sur la ligne du
+          titre : c'est là que l'œil cherche les commandes d'une page, et une
+          rangée entière n'a pas à être dépensée pour deux liens. Il y est
+          d'office à droite, l'en-tête écartant titre et actions.
+
+          Encadré et porteur d'icônes, DÉLIBÉRÉMENT différent des onglets
+          (`components/ui.tsx`) : un onglet change ce que la page montre, ce
+          sélecteur change comment elle le montre, à contenu identique. Lui
+          donner la forme d'un onglet ferait croire qu'on quitte la page. Deux
+          liens et non deux boutons — la vue est une adresse. */}
       <PageHeader
         title="Serveurs"
         subtitle="Où les applications sont installées (association depuis la fiche de chaque logiciel)"
+        actions={
+          <div className="flex items-center gap-0.5 rounded-lg border border-sub bg-surface p-0.5">
+            {VUES.map(({ cle, label, Icone }) => (
+              <Link
+                key={cle}
+                href={`?vue=${cle}`}
+                aria-current={cle === active ? "page" : undefined}
+                title={`Affichage en ${label.toLowerCase()}`}
+                className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-sm font-medium transition ${
+                  cle === active ? "bg-inset text-strong" : "text-muted hover:text-strong"
+                }`}
+              >
+                <Icone className="h-4 w-4" />
+                {label}
+              </Link>
+            ))}
+          </div>
+        }
       />
-
-      {/* Sous l'en-tête et à gauche, là où les autres écrans posent leur barre
-          de filtres : c'est le même geste, choisir ce que la page montre. Deux
-          liens et non deux boutons — la vue est une adresse. */}
-      <div className="mb-3 flex w-fit items-center gap-0.5 rounded-lg border border-sub bg-surface p-0.5">
-        {VUES.map(({ cle, label, Icone }) => (
-          <Link
-            key={cle}
-            href={`?vue=${cle}`}
-            aria-current={cle === active ? "page" : undefined}
-            title={`Affichage en ${label.toLowerCase()}`}
-            className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-sm font-medium transition ${
-              cle === active ? "bg-inset text-strong" : "text-muted hover:text-strong"
-            }`}
-          >
-            <Icone className="h-4 w-4" />
-            {label}
-          </Link>
-        ))}
-      </div>
 
       {serveurs.length === 0 ? (
         <EmptyState>

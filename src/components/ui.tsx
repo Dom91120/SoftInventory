@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { ReactNode } from "react";
 
 /**
@@ -29,7 +30,64 @@ export function PageHeader({
         <h1 className="text-2xl font-semibold tracking-tight text-strong">{title}</h1>
         {subtitle ? <p className="mt-0.5 text-sm text-muted">{subtitle}</p> : null}
       </div>
-      {actions ? <div className="flex items-center gap-2">{actions}</div> : null}
+      {/* `ml-auto` en plus du `justify-between` : celui-ci ne range les actions
+          à droite que TANT QU'ELLES PARTAGENT la ligne du titre. Passées à la
+          ligne faute de place, elles se retrouvaient seules sur la leur, donc
+          au début — les commandes d'une page changeaient de côté avec la
+          largeur de la fenêtre. */}
+      {actions ? <div className="ml-auto flex items-center gap-2">{actions}</div> : null}
+    </div>
+  );
+}
+
+/**
+ * Onglets d'un écran : trait d'accent sous celui qu'on regarde, posé sur un
+ * filet qui court d'un bord à l'autre.
+ *
+ * Une seule forme pour tout ce qui se comporte en onglet. Trois écrans en
+ * avaient deux (souligné sur la fiche logiciel, pastilles pleines en
+ * Administration) sans qu'aucune règle ne les distingue — l'ordre d'écriture,
+ * rien de plus. Le souligné l'emporte : une pastille indigo pleine a le poids
+ * visuel d'un bouton d'action, elle donnait à un onglet, qui ne fait que
+ * déplacer le regard, le rang d'une commande. Il tient aussi mieux quand les
+ * onglets sont nombreux (huit sur la fiche, autant en Référentiels).
+ *
+ * À NE PAS confondre avec le sélecteur de vue des Serveurs, encadré et porteur
+ * d'icônes : un onglet change CE QUE la page montre (`?onglet=`), un sélecteur
+ * de vue change COMMENT elle le montre, à contenu identique (`?vue=`). Deux
+ * gestes différents, deux formes différentes.
+ *
+ * Des LIENS et non des boutons : l'onglet actif vit dans l'URL, il se recharge,
+ * se met en favori et se partage, sans un octet d'état client.
+ */
+export function Onglets<T extends string>({
+  onglets,
+  actif,
+  href,
+}: {
+  /** Dans l'ordre d'affichage. `badge` pour un compte à annoncer sur l'onglet. */
+  onglets: ReadonlyArray<{ key: T; label: string; badge?: ReactNode }>;
+  actif: T;
+  /** Fabrique l'adresse d'un onglet — chaque écran a la sienne. */
+  href: (key: T) => string;
+}) {
+  return (
+    <div className="mb-3 flex flex-wrap gap-1.5 border-b border-line pb-px">
+      {onglets.map((o) => (
+        <Link
+          key={o.key}
+          href={href(o.key)}
+          aria-current={o.key === actif ? "page" : undefined}
+          className={`inline-flex items-center gap-1.5 rounded-t-lg border-b-2 px-3.5 py-2 text-sm font-medium transition ${
+            o.key === actif
+              ? "border-accent text-accent"
+              : "border-transparent text-muted hover:text-strong"
+          }`}
+        >
+          {o.label}
+          {o.badge}
+        </Link>
+      ))}
     </div>
   );
 }

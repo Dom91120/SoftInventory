@@ -7,7 +7,7 @@ import { BoutonQuitter } from "@/components/bouton-quitter";
 import { DocumentsPanel } from "@/components/documents-panel";
 import { FlecheVoisin } from "@/components/fleche-voisin";
 import { EcheanceBadge } from "@/components/tache-badges";
-import { PageHeader } from "@/components/ui";
+import { Onglets, PageHeader } from "@/components/ui";
 import type { Role } from "@/generated/prisma/client";
 import { dateCalendaire } from "@/lib/taches-core";
 import { seuilsRappel } from "@/server/config";
@@ -185,21 +185,7 @@ export default async function LogicielPage({
         />
       </div>
 
-      <div className="mb-3 flex flex-wrap gap-1.5 border-b border-line pb-px">
-        {ONGLETS.map((o) => (
-          <Link
-            key={o.key}
-            href={`/logiciels/${id}?onglet=${o.key}`}
-            className={`rounded-t-lg border-b-2 px-3.5 py-2 text-sm font-medium transition ${
-              o.key === actif
-                ? "border-accent text-accent"
-                : "border-transparent text-muted hover:text-strong"
-            }`}
-          >
-            {o.label}
-          </Link>
-        ))}
-      </div>
+      <Onglets onglets={ONGLETS} actif={actif} href={(key) => `/logiciels/${id}?onglet=${key}`} />
 
       {actif === "synthese" ? <OngletSynthese logiciel={logiciel} readOnly={!isAdmin} /> : null}
       {actif === "support" ? (

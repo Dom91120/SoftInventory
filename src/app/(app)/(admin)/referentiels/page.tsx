@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-import { Card, PageHeader } from "@/components/ui";
+import { Card, Onglets, PageHeader } from "@/components/ui";
 import { requireRole } from "@/server/guards";
 import {
   listCategoriesDocuments,
@@ -108,21 +107,7 @@ export default async function ReferentielsPage({
         title="Référentiels"
         subtitle="Les listes de valeurs de l'inventaire, extensibles sans redéploiement"
       />
-      <div className="mb-3 flex flex-wrap gap-1.5">
-        {ONGLETS.map((o) => (
-          <Link
-            key={o.key}
-            href={`/referentiels?onglet=${o.key}`}
-            className={`rounded-full px-3.5 py-1.5 text-sm font-medium transition ${
-              o.key === actif
-                ? "bg-accent text-white"
-                : "bg-inset text-muted hover:bg-line hover:text-strong"
-            }`}
-          >
-            {o.label}
-          </Link>
-        ))}
-      </div>
+      <Onglets onglets={ONGLETS} actif={actif} href={(key) => `/referentiels?onglet=${key}`} />
       <Card title={libelle}>
         <RefTable
           entity={actif}
