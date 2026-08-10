@@ -13,6 +13,7 @@ import Link from "next/link";
 import { Card, EmptyState, PageHeader, Stat } from "@/components/ui";
 import { requireUser } from "@/server/guards";
 import { chargerDashboard, type Repartition } from "@/server/services/dashboard";
+import { MesTaches } from "./mes-taches";
 
 export const metadata: Metadata = { title: "Tableau de bord" };
 
@@ -54,8 +55,8 @@ function BarreRepartition({ data }: { data: Repartition }) {
 }
 
 export default async function TableauDeBordPage() {
-  await requireUser();
-  const d = await chargerDashboard();
+  const session = await requireUser();
+  const d = await chargerDashboard(session.user.id);
 
   return (
     <>
@@ -169,6 +170,15 @@ export default async function TableauDeBordPage() {
             </ul>
           )}
         </Card>
+
+        {/* Mes tâches : la seule carte de l'écran qui change d'un compte à
+            l'autre. Elle se tait pour qui n'en porte aucune — annoncer une
+            liste vide occuperait une carte entière pour ne rien dire.
+
+            Sous les renouvellements et de la même largeur : les deux disent ce
+            qu'il y a à FAIRE, quand les répartitions d'à côté ne font que
+            décrire le parc. */}
+        {d.mesTaches.length > 0 ? <MesTaches taches={d.mesTaches} /> : null}
 
         {/* Répartitions */}
         <div className="space-y-3">

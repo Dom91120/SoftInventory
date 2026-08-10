@@ -1,3 +1,4 @@
+import type { TacheDetail } from "@/components/modale-tache";
 import { dateCalendaire, estEnRetard, joursAvantEcheance } from "@/lib/taches-core";
 import { seuilsRappel } from "@/server/config";
 import { prisma } from "@/server/db";
@@ -22,6 +23,21 @@ export type DonneesDashboard = {
     echeance: Date;
   }>;
   tachesSous30j: number;
+  /**
+   * Les tâches actives ASSIGNÉES à celui qui regarde, la plus proche d'abord.
+   * Un tableau de bord dit l'état du parc ; celle-ci dit ce qu'on lui demande,
+   * à lui — et c'est la seule carte de l'écran qui change d'un compte à
+   * l'autre. Vide pour qui n'en porte aucune : la carte se tait alors.
+   */
+  mesTaches: Array<{
+    id: number;
+    logicielId: number;
+    logiciel: string;
+    echeance: Date;
+    enRetard: boolean;
+    /** De quoi ouvrir la fiche de la tâche sans retourner la chercher. */
+    detail: TacheDetail;
+  }>;
   /** Horizon des renouvellements, en jours — le titre de la carte l'annonce. */
   seuilRenouvellementJours: number;
   /**
@@ -39,7 +55,12 @@ export type DonneesDashboard = {
   parCriticite: Repartition;
 };
 
-export async function chargerDashboard(): Promise<DonneesDashboard> {
+/**
+ * `userId` : le compte qui regarde, pour la carte « Mes tâches ». Tout le reste
+ * de l'écran est le même pour tous — c'est un tableau de bord du PARC, pas un
+ * espace personnel.
+ */
+export async function chargerDashboard(userId: string): Promise<DonneesDashboard> {
   const aujourdhui = dateCalendaire(new Date());
   // Même horizon que les rappels par e-mail : la carte annonce la fenêtre que
   // le cron applique réellement (voir seuilsRappel).
@@ -78,13 +99,36 @@ export async function chargerDashboard(): Promise<DonneesDashboard> {
     prisma.serveur.count(),
     prisma.criticite.findMany({ orderBy: { rank: "asc" } }),
     prisma.modeHebergement.findMany({ orderBy: { position: "asc" } }),
+    // Les colonnes de détail ne servent qu'à « Mes tâches », qui ouvre la fiche
+    // d'une tâche sans aller la rechercher. Elles voyagent avec toutes les
+    // lignes plutôt que dans une seconde requête : la table en compte quelques
+    // dizaines, et deux allers-retours coûteraient plus que ces champs.
     prisma.tacheRecurrente.findMany({
       where: { statut: "active" },
       select: {
         id: true,
         titre: true,
+        description: true,
+        periodicite: true,
+        moisPersonnalises: true,
         prochaineEcheance: true,
+        statut: true,
+        assigneUserId: true,
+        assigneLibre: true,
+        rappelJoursAvant: true,
+        assigne: { select: { prenom: true, nom: true, email: true } },
+        typeTache: { select: { label: true } },
         logiciel: { select: { id: true, nom: true } },
+        executions: {
+          orderBy: { faitLe: "desc" },
+          select: {
+            id: true,
+            faitLe: true,
+            echeancePrevue: true,
+            faitParLabel: true,
+            commentaire: true,
+          },
+        },
       },
     }),
     // Le MARCHÉ porte l'échéance ; ses pièces n'ont qu'une date de document.
@@ -135,6 +179,48 @@ export async function chargerDashboard(): Promise<DonneesDashboard> {
       joursAvantEcheance(t.prochaineEcheance, aujourdhui) <= 30,
   ).length;
 
+  // Celles du compte qui regarde, TOUTES et non les seules pressantes : c'est
+  // sa liste de travail, elle vaut aussi pour ce qui vient dans six mois. La
+  // plus proche en tête, les retards donc d'abord.
+  const fmtJour = new Intl.DateTimeFormat("fr-FR", { dateStyle: "short", timeZone: "UTC" });
+  const fmtInstant = new Intl.DateTimeFormat("fr-FR", {
+    dateStyle: "short",
+    timeStyle: "short",
+    timeZone: "Europe/Paris",
+  });
+  const mesTaches = taches
+    .filter((t) => t.assigneUserId === userId)
+    .sort((a, b) => a.prochaineEcheance.getTime() - b.prochaineEcheance.getTime())
+    .map((t) => ({
+      id: t.id,
+      logicielId: t.logiciel.id,
+      logiciel: t.logiciel.nom,
+      echeance: t.prochaineEcheance,
+      enRetard: estEnRetard(t.prochaineEcheance, aujourdhui),
+      detail: {
+        titre: t.titre,
+        description: t.description,
+        typeTacheLabel: t.typeTache?.label ?? null,
+        periodicite: t.periodicite,
+        moisPersonnalises: t.moisPersonnalises === null ? "" : String(t.moisPersonnalises),
+        // La modale attend l'échéance en AAAA-MM-JJ, comme la saisie HTML la
+        // produit ; elle la met en forme elle-même.
+        prochaineEcheance: t.prochaineEcheance.toISOString().slice(0, 10),
+        statut: t.statut,
+        assigneLabel: t.assigne
+          ? `${t.assigne.prenom} ${t.assigne.nom}`.trim() || t.assigne.email
+          : t.assigneLibre,
+        rappelJoursAvant: t.rappelJoursAvant === null ? "" : String(t.rappelJoursAvant),
+        executions: t.executions.map((ex) => ({
+          id: ex.id,
+          faitLe: fmtInstant.format(ex.faitLe),
+          echeancePrevue: fmtJour.format(ex.echeancePrevue),
+          par: ex.faitParLabel,
+          commentaire: ex.commentaire,
+        })),
+      },
+    }));
+
   // Renouvellements à venir : marchés + fins de contrat des fiches. Le marché
   // renvoie vers SA fiche — il couvre parfois plusieurs logiciels, aucun ne
   // pouvant prétendre le représenter — et cite dessous ce qu'il couvre.
@@ -182,6 +268,7 @@ export async function chargerDashboard(): Promise<DonneesDashboard> {
     contratsDepasses,
     tachesEnRetard,
     tachesSous30j,
+    mesTaches,
     seuilRenouvellementJours: seuilJours,
     renouvellements,
     parHebergement,

@@ -42,7 +42,13 @@ export function Card({
   children,
   className = "",
 }: {
-  title?: string;
+  /**
+   * Une chaîne dans la quasi-totalité des cas. `ReactNode` pour la carte dont
+   * le TITRE mène quelque part — « Mes tâches » vers la liste des tâches : le
+   * lien s'habille alors de `card-title` et reste le titre de la carte, plutôt
+   * qu'une commande de plus à sa droite.
+   */
+  title?: ReactNode;
   /**
    * Mention discrète accolée au titre — une contrainte de saisie, un format
    * admis. Elle vit dans l'en-tête plutôt qu'en tête de contenu, où elle
