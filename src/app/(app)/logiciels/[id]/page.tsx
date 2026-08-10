@@ -46,8 +46,8 @@ const ONGLETS = [
   // que l'assistance depuis qu'il porte aussi le commercial et l'administratif.
   { key: "support", label: "Contacts" },
   { key: "liaisons", label: "Liaisons" },
-  // La clé reste « contrats » : elle circule dans les liens des rappels
-  // d'échéance déjà envoyés et dans les favoris. Seul le libellé change.
+  // La clé reste « contrats », elle circule dans les favoris. Seul le libellé
+  // change.
   { key: "contrats", label: "Contrats/Marchés" },
   // Les devis précèdent les tâches : ils racontent l'AVANT-contrat (mise en
   // concurrence), et se lisent juste après le contrat qui en est issu.
@@ -57,13 +57,6 @@ const ONGLETS = [
   { key: "rgpd", label: "RGPD" },
 ] as const;
 type OngletKey = (typeof ONGLETS)[number]["key"];
-
-/**
- * Anciennes valeurs de ?onglet= encore en circulation (rappels d'échéance déjà
- * envoyés, liens mis en favori) : sans cet alias elles retomberaient
- * silencieusement sur Synthèse.
- */
-const ONGLETS_ALIAS: Record<string, OngletKey> = { licences: "contrats" };
 
 /**
  * Applications faites par la DSI : le marqueur remplace l'ancien éditeur
@@ -104,9 +97,9 @@ export default async function LogicielPage({
   if (!logiciel) notFound();
 
   const { onglet } = await searchParams;
-  const demande = onglet === undefined ? undefined : (ONGLETS_ALIAS[onglet] ?? onglet);
-  const actif: OngletKey = ONGLETS.some((o) => o.key === demande)
-    ? (demande as OngletKey)
+  // Tout ce qui n'est pas une clé connue retombe sur la Synthèse.
+  const actif: OngletKey = ONGLETS.some((o) => o.key === onglet)
+    ? (onglet as OngletKey)
     : "synthese";
 
   const { precedent, suivant } = await voisinsLogiciel(id);
