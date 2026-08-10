@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, ChevronDown, Pencil, Plus, Trash2, X } from "lucide-react";
+import { Check, ChevronDown, Pencil, Plus, SquarePen, Trash2, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 import { useState, useTransition } from "react";
@@ -66,6 +66,18 @@ export function TachesPanel({
   const [formVisible, setFormVisible] = useState(false);
   const [completion, setCompletion] = useState<TacheRow | null>(null);
 
+  /**
+   * Interrupteur d'écriture, ÉTEINT d'office — le même que les mises en
+   * concurrence, et pour la même raison : cet onglet n'a rien à enregistrer,
+   * chacun de ses gestes s'applique au clic. Marquer une tâche faite avance son
+   * échéance, la supprimer emporte son historique d'exécutions ; ni l'un ni
+   * l'autre ne se rattrape. Le crayon donne le droit de toucher, un second clic
+   * le retire, sans coche ni croix.
+   */
+  const [modeEdition, setModeEdition] = useState(false);
+  /** Vrai quand rien ne doit pouvoir être touché — lecteur, ou crayon éteint. */
+  const fige = readOnly || !modeEdition;
+
   function run(fn: () => Promise<{ ok: boolean; error?: string }>, onOk?: () => void) {
     setError(null);
     startTransition(async () => {
@@ -117,22 +129,49 @@ export function TachesPanel({
         title="Tâches récurrentes"
         actions={
           readOnly ? undefined : (
-            <button
-              type="button"
-              className="btn-secondary !px-2.5 !py-1 !text-xs"
-              onClick={() => {
-                setEnEdition(null);
-                setCompletion(null);
-                setFormVisible((v) => !v);
-              }}
-            >
-              {formVisible && !enEdition ? (
-                <X className="h-3.5 w-3.5" />
-              ) : (
-                <Plus className="h-3.5 w-3.5" />
-              )}
-              {formVisible && !enEdition ? "Fermer" : "Ajouter"}
-            </button>
+            <>
+              {/* Le bouton d'ajout ne paraît qu'une fois le droit donné : offert
+                  sous le crayon éteint, il aurait ouvert un formulaire dans un
+                  onglet qui se dit en lecture. */}
+              {modeEdition ? (
+                <button
+                  type="button"
+                  className="btn-secondary !px-2.5 !py-1 !text-xs"
+                  onClick={() => {
+                    setEnEdition(null);
+                    setCompletion(null);
+                    setFormVisible((v) => !v);
+                  }}
+                >
+                  {formVisible && !enEdition ? (
+                    <X className="h-3.5 w-3.5" />
+                  ) : (
+                    <Plus className="h-3.5 w-3.5" />
+                  )}
+                  {formVisible && !enEdition ? "Fermer" : "Ajouter"}
+                </button>
+              ) : null}
+              {/* Éteindre referme ce qui était ouvert : un formulaire resté à
+                  l'écran sans son bouton d'ajout n'aurait plus de sens. */}
+              <button
+                type="button"
+                onClick={() => {
+                  if (modeEdition) {
+                    setFormVisible(false);
+                    setEnEdition(null);
+                    setCompletion(null);
+                  }
+                  setModeEdition(!modeEdition);
+                }}
+                disabled={pending}
+                aria-pressed={modeEdition}
+                title={modeEdition ? "Fermer la modification" : "Modifier les tâches"}
+                aria-label={modeEdition ? "Fermer la modification" : "Modifier les tâches"}
+                className={`btn-ghost !p-2 ${modeEdition ? "!text-accent" : "hover:!text-accent"}`}
+              >
+                <SquarePen className="h-4 w-4" />
+              </button>
+            </>
           )
         }
       >
@@ -153,7 +192,7 @@ export function TachesPanel({
                     {t.echeanceBadge}
                   </span>
                   <span className="flex shrink-0 items-center gap-1">
-                    {readOnly || t.statut === "terminee" ? null : (
+                    {fige || t.statut === "terminee" ? null : (
                       <button
                         type="button"
                         className="btn-secondary !py-1.5"
@@ -168,7 +207,7 @@ export function TachesPanel({
                         Fait
                       </button>
                     )}
-                    {readOnly ? null : (
+                    {fige ? null : (
                       <>
                         <button
                           type="button"
@@ -260,7 +299,7 @@ export function TachesPanel({
         </Card>
       ) : null}
 
-      {formVisible && !readOnly ? (
+      {formVisible && !fige ? (
         <Card title={enEdition ? "Modifier la tâche" : "Nouvelle tâche"}>
           <form
             key={enEdition ? `edit-${enEdition.id}` : "new"}

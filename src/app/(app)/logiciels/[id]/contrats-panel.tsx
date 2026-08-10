@@ -1,6 +1,6 @@
 "use client";
 
-import { Pencil, Plus, Trash2, Unlink, X } from "lucide-react";
+import { Pencil, Plus, SquarePen, Trash2, Unlink, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
@@ -202,6 +202,17 @@ export function ContratsPanel({
 
   const categorieParDefautId = categories.find((c) => c.label === CATEGORIE_PAR_DEFAUT)?.id ?? null;
 
+  /**
+   * Interrupteur d'écriture, ÉTEINT d'office — le même que les mises en
+   * concurrence et les tâches, et pour la même raison : cet onglet n'a rien à
+   * enregistrer, chacun de ses gestes s'applique au clic. Détacher un marché ou
+   * supprimer une pièce ne se rattrape pas, et on vient bien plus souvent
+   * consulter un marché que le modifier.
+   */
+  const [modeEdition, setModeEdition] = useState(false);
+  /** Vrai quand rien ne doit pouvoir être touché — lecteur, ou crayon éteint. */
+  const fige = readOnly || !modeEdition;
+
   // Formulaire de marché : ouvert en création ou en édition.
   const [marcheForm, setMarcheForm] = useState<
     { mode: "creation" } | { mode: "edition"; row: ContratRow } | null
@@ -298,6 +309,10 @@ export function ContratsPanel({
         actions={
           readOnly ? undefined : (
             <>
+              {/* Le menu et le bouton de création ne paraissent qu'une fois le
+                  droit donné : offerts sous le crayon éteint, ils auraient armé
+                  un rattachement — qui s'applique AU CHOIX — dans un onglet qui
+                  se dit en lecture. */}
               {/* Récupérer un marché plutôt que le ressaisir : le menu voisine
                   avec « Ajouter », les deux façons de garnir la carte se
                   lisant d'un seul coup d'œil. Il se tait quand il n'a rien à
@@ -309,7 +324,7 @@ export function ContratsPanel({
                   que cet en-tête n'a pas. `value=""` maintient le menu sur son
                   intitulé, qui reste ainsi une invitation et jamais le compte
                   rendu d'un choix passé. */}
-              {marchesDisponibles.length === 0 ? null : (
+              {!modeEdition || marchesDisponibles.length === 0 ? null : (
                 <select
                   // `!h-[1.6rem]` — 25.6 px — et non un interligne : les
                   // navigateurs imposent `line-height: normal` aux <select>, si
@@ -341,19 +356,40 @@ export function ContratsPanel({
                   qu'une icône et un mot n'ont pas besoin d'étaler. Le menu
                   voisin reçoit le même `!text-xs` : posés sur la même ligne, ils
                   doivent tomber à la même hauteur. */}
+              {modeEdition ? (
+                <button
+                  type="button"
+                  className="btn-secondary !gap-1.5 !px-2.5 !text-xs"
+                  onClick={() =>
+                    setMarcheForm((f) => (f?.mode === "creation" ? null : { mode: "creation" }))
+                  }
+                >
+                  {marcheForm?.mode === "creation" ? (
+                    <X className="h-3.5 w-3.5" />
+                  ) : (
+                    <Plus className="h-3.5 w-3.5" />
+                  )}
+                  {marcheForm?.mode === "creation" ? "Fermer" : "Créer"}
+                </button>
+              ) : null}
+              {/* Éteindre referme ce qui était ouvert : un formulaire resté à
+                  l'écran sans ses commandes n'aurait plus de sens. */}
               <button
                 type="button"
-                className="btn-secondary !gap-1.5 !px-2.5 !text-xs"
-                onClick={() =>
-                  setMarcheForm((f) => (f?.mode === "creation" ? null : { mode: "creation" }))
-                }
+                onClick={() => {
+                  if (modeEdition) {
+                    setMarcheForm(null);
+                    setPieceForm(null);
+                  }
+                  setModeEdition(!modeEdition);
+                }}
+                disabled={pending}
+                aria-pressed={modeEdition}
+                title={modeEdition ? "Fermer la modification" : "Modifier les marchés"}
+                aria-label={modeEdition ? "Fermer la modification" : "Modifier les marchés"}
+                className={`btn-ghost !p-2 ${modeEdition ? "!text-accent" : "hover:!text-accent"}`}
               >
-                {marcheForm?.mode === "creation" ? (
-                  <X className="h-3.5 w-3.5" />
-                ) : (
-                  <Plus className="h-3.5 w-3.5" />
-                )}
-                {marcheForm?.mode === "creation" ? "Fermer" : "Créer"}
+                <SquarePen className="h-4 w-4" />
               </button>
             </>
           )
@@ -498,9 +534,14 @@ export function ContratsPanel({
                           il ne suit pas l'éditeur. Sans nom enregistré, la
                           colonne se tait. */}
                         {c.fournisseurId ? (
+                          // Même encre que la référence et le libellé, ses
+                          // voisins de rang : les trois NOMMENT le marché, et
+                          // seul le fournisseur s'affadissait — sa colonne se
+                          // lisait comme une mention accessoire alors qu'elle
+                          // dit avec qui l'on s'est engagé.
                           <Link
                             href={`/editeurs/${c.fournisseurId}`}
-                            className="truncate text-muted hover:text-accent"
+                            className="truncate hover:text-accent"
                             title={c.fournisseurNom ?? undefined}
                           >
                             {c.fournisseurNom}
@@ -562,7 +603,7 @@ export function ContratsPanel({
                         </span>
                       </span>
                     </span>
-                    {readOnly ? null : (
+                    {fige ? null : (
                       <span className="flex shrink-0 items-center gap-1">
                         {/* Ne restent ici que les gestes qui portent sur le
                           MARCHÉ lui-même : le modifier, le détacher.
@@ -624,7 +665,7 @@ export function ContratsPanel({
                         ? ""
                         : `${c.pieces.length} Pièce${c.pieces.length > 1 ? "s" : ""}`}
                     </span>
-                    {readOnly ? null : (
+                    {fige ? null : (
                       <button
                         type="button"
                         className="btn-secondary !gap-1.5 !px-2.5 !text-xs"
@@ -673,7 +714,7 @@ export function ContratsPanel({
                             lui : la cellule s'étirait alors sur tout ce qui
                             restait, et les deux icônes flottaient à gauche d'un
                             vide. Un `colgroup` la porte désormais. */}
-                        {readOnly ? null : (
+                        {fige ? null : (
                           <colgroup>
                             <col />
                             <col className="w-20" />
@@ -683,7 +724,7 @@ export function ContratsPanel({
                           {c.pieces.map((l) =>
                             pieceForm?.row?.id === l.id ? (
                               <tr key={l.id}>
-                                <td colSpan={readOnly ? 1 : 2} className="!py-2 !pr-0">
+                                <td colSpan={fige ? 1 : 2} className="!py-2 !pr-0">
                                   <FormulairePiece
                                     key={`p-${l.id}`}
                                     row={l}
@@ -707,7 +748,7 @@ export function ContratsPanel({
                                     <LigneDocument
                                       document={l.document}
                                       categories={categories}
-                                      readOnly={readOnly}
+                                      readOnly={fige}
                                       // Le crayon de la pièce porte la catégorie
                                       // et la date : elles se lisent ici, elles
                                       // s'y modifient.
@@ -725,7 +766,7 @@ export function ContratsPanel({
                                     </span>
                                   )}
                                 </td>
-                                {readOnly ? null : (
+                                {fige ? null : (
                                   <td>
                                     <span className="flex items-center gap-1">
                                       <button

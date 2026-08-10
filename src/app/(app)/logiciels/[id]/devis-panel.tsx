@@ -1,6 +1,6 @@
 "use client";
 
-import { Pencil, Plus, Star, Trash2, Upload, X } from "lucide-react";
+import { Pencil, Plus, SquarePen, Star, Trash2, Upload, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useRef, useState, useTransition } from "react";
 import { deleteDocumentAction } from "@/app/(app)/documents/actions";
@@ -86,6 +86,20 @@ export function DevisPanel({
   const categorieDevisId = categories.find((c) => c.label === "Devis")?.id ?? null;
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+
+  /**
+   * Interrupteur d'écriture, ÉTEINT d'office. Il ne s'agit pas ici du verrou des
+   * fiches, qui gèle des champs jusqu'à un enregistrement : cet onglet n'a rien
+   * à enregistrer, chacun de ses gestes s'applique au clic — ajouter une
+   * consultation, retenir un devis, supprimer une pièce. Il n'y a donc ni coche
+   * ni croix : le crayon donne le droit de toucher, un second clic le retire.
+   *
+   * On vient ici lire l'historique des mises en concurrence bien plus souvent
+   * qu'on ne l'écrit, et ces gestes-là ne se rattrapent pas.
+   */
+  const [modeEdition, setModeEdition] = useState(false);
+  /** Vrai quand rien ne doit pouvoir être touché — lecteur, ou crayon éteint. */
+  const fige = readOnly || !modeEdition;
 
   // Formulaire de consultation : ouvert en création ou en édition.
   const [consultationForm, setConsultationForm] = useState<
@@ -227,20 +241,48 @@ export function DevisPanel({
         title="Mises en concurrence"
         actions={
           readOnly ? undefined : (
-            <button
-              type="button"
-              className="btn-secondary !px-2.5 !py-1 !text-xs"
-              onClick={() =>
-                setConsultationForm((f) => (f?.mode === "creation" ? null : { mode: "creation" }))
-              }
-            >
-              {consultationForm?.mode === "creation" ? (
-                <X className="h-3.5 w-3.5" />
-              ) : (
-                <Plus className="h-3.5 w-3.5" />
-              )}
-              {consultationForm?.mode === "creation" ? "Fermer" : "Ajouter une consultation"}
-            </button>
+            <>
+              {/* Le bouton d'ajout ne paraît qu'une fois le droit donné : offert
+                  sous le crayon éteint, il aurait ouvert un formulaire dans un
+                  onglet qui se dit en lecture. */}
+              {modeEdition ? (
+                <button
+                  type="button"
+                  className="btn-secondary !px-2.5 !py-1 !text-xs"
+                  onClick={() =>
+                    setConsultationForm((f) =>
+                      f?.mode === "creation" ? null : { mode: "creation" },
+                    )
+                  }
+                >
+                  {consultationForm?.mode === "creation" ? (
+                    <X className="h-3.5 w-3.5" />
+                  ) : (
+                    <Plus className="h-3.5 w-3.5" />
+                  )}
+                  {consultationForm?.mode === "creation" ? "Fermer" : "Ajouter une consultation"}
+                </button>
+              ) : null}
+              {/* Éteindre referme ce qui était ouvert : un formulaire resté à
+                  l'écran sans son bouton d'ajout n'aurait plus de sens. */}
+              <button
+                type="button"
+                onClick={() => {
+                  if (modeEdition) {
+                    setConsultationForm(null);
+                    setDevisForm(null);
+                  }
+                  setModeEdition(!modeEdition);
+                }}
+                disabled={pending}
+                aria-pressed={modeEdition}
+                title={modeEdition ? "Fermer la modification" : "Modifier les consultations"}
+                aria-label={modeEdition ? "Fermer la modification" : "Modifier les consultations"}
+                className={`btn-ghost !p-2 ${modeEdition ? "!text-accent" : "hover:!text-accent"}`}
+              >
+                <SquarePen className="h-4 w-4" />
+              </button>
+            </>
           )
         }
       >
@@ -335,7 +377,7 @@ export function DevisPanel({
                       );
                     })()}
                   </span>
-                  {readOnly ? null : (
+                  {fige ? null : (
                     <span className="flex shrink-0 items-center gap-1">
                       {/* Même gabarit que le « + Pièce » d'un marché : un verbe
                           court accolé à une ligne, pas une commande de page.
@@ -430,9 +472,19 @@ export function DevisPanel({
                                 « devis » est invariable. */}
                             <th className="normal-case tracking-normal">{c.devis.length} Devis</th>
                             <th>Fournisseur</th>
+                            {/* Chaque en-tête suit ses valeurs : le MONTANT à
+                                droite, où ses virgules s'alignent d'une ligne à
+                                l'autre, le FOURNISSEUR à gauche sur des raisons
+                                sociales qui n'ont pas deux fois la même largeur.
+                                La DATE fait exception et se centre en entier —
+                                ses valeurs ont toutes la même longueur, une
+                                colonne centrée s'y lit aussi droit qu'une
+                                colonne calée. Le tiret d'un montant absent se
+                                centre aussi : posé à droite, il se serait lu
+                                comme la valeur d'à côté. */}
                             <th className="text-right">Montant</th>
-                            <th>Date</th>
-                            {readOnly ? null : <th className="w-20" aria-label="Actions" />}
+                            <th className="text-center">Date</th>
+                            {fige ? null : <th className="w-20" aria-label="Actions" />}
                           </tr>
                         </thead>
                         <tbody>
@@ -441,7 +493,7 @@ export function DevisPanel({
                             // formulaire, sur toute la largeur du tableau.
                             devisForm?.row?.id === d.id ? (
                               <tr key={d.id}>
-                                <td colSpan={readOnly ? 4 : 5} className="!py-2 !pr-0">
+                                <td colSpan={fige ? 4 : 5} className="!py-2 !pr-0">
                                   <FormulaireDevis
                                     key={`d-${d.id}`}
                                     row={d}
@@ -464,7 +516,7 @@ export function DevisPanel({
                                   <PieceDevis
                                     document={d.document}
                                     categories={categories}
-                                    readOnly={readOnly}
+                                    readOnly={fige}
                                     onErreur={setError}
                                   />
                                 </td>
@@ -473,11 +525,21 @@ export function DevisPanel({
                                     <span title="Société non renseignée">—</span>
                                   )}
                                 </td>
-                                <td className="text-right tabular-nums">
+                                {/* Le tiret se centre là où la valeur ne se
+                                    centre pas : un montant se cale à droite
+                                    pour aligner ses virgules, une date à
+                                    gauche, mais un « rien » calé sur un bord
+                                    se lit comme la valeur d'à côté. Au milieu,
+                                    sous son en-tête, il ne dit que l'absence. */}
+                                <td
+                                  className={`tabular-nums ${
+                                    formatEuros(d.montant) === null ? "text-center" : "text-right"
+                                  }`}
+                                >
                                   {formatEuros(d.montant) ?? "—"}
                                 </td>
-                                <td>{d.date ? enDateFr(d.date) : "—"}</td>
-                                {readOnly ? null : (
+                                <td className="text-center">{d.date ? enDateFr(d.date) : "—"}</td>
+                                {fige ? null : (
                                   <td>
                                     <span className="flex items-center gap-1">
                                       {/* La marque « retenu » vit avec les autres

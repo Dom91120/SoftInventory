@@ -85,6 +85,36 @@ export function LiaisonsPanel({
   const casesFigees = readOnly || pending || verrouille;
 
   /**
+   * Les deux autres cartes n'ont rien à enregistrer — associer un serveur,
+   * déclarer un flux, les retirer : tout s'applique au clic. Elles reçoivent
+   * donc l'interrupteur des mises en concurrence, et non le verrou des cases :
+   * ni coche ni croix, le crayon donne le droit de toucher.
+   *
+   * UN interrupteur PAR CARTE : elles ne parlent pas de la même chose, et
+   * ouvrir les serveurs n'a pas à découvrir les interconnexions.
+   */
+  const [modeServeurs, setModeServeurs] = useState(false);
+  const [modeIntercos, setModeIntercos] = useState(false);
+  const serveursFiges = readOnly || !modeServeurs;
+  const intercosFigees = readOnly || !modeIntercos;
+
+  /** Le crayon d'une carte qui s'applique au clic : allumé, éteint, rien d'autre. */
+  const crayon = (actif: boolean, basculer: () => void, quoi: string) =>
+    readOnly ? undefined : (
+      <button
+        type="button"
+        onClick={basculer}
+        disabled={pending}
+        aria-pressed={actif}
+        title={actif ? "Fermer la modification" : `Modifier ${quoi}`}
+        aria-label={actif ? "Fermer la modification" : `Modifier ${quoi}`}
+        className={`btn-ghost !p-2 ${actif ? "!text-accent" : "hover:!text-accent"}`}
+      >
+        <SquarePen className="h-4 w-4" />
+      </button>
+    );
+
+  /**
    * Ordre alphabétique, et non celui du référentiel : on cherche ici un service
    * qu'on a en tête, ce qui suppose de savoir où le trouver. `compareAlpha`
    * plutôt que la base — la collation du serveur trierait « Élections » après
@@ -233,7 +263,19 @@ export function LiaisonsPanel({
         )}
       </Card>
 
-      <Card title="Serveurs d'installation">
+      <Card
+        title="Serveurs d'installation"
+        actions={crayon(
+          modeServeurs,
+          () => {
+            // Éteindre vide le choix en cours : un serveur sélectionné sans le
+            // bouton qui l'associe n'attend plus rien.
+            if (modeServeurs) setNouveauServeur("");
+            setModeServeurs(!modeServeurs);
+          },
+          "les serveurs",
+        )}
+      >
         {serveursLies.length === 0 ? (
           <p className="mb-3 text-sm text-faint">Aucun serveur associé.</p>
         ) : (
@@ -251,7 +293,7 @@ export function LiaisonsPanel({
                     {LIBELLES.environnement[s.environnement as keyof typeof LIBELLES.environnement]}
                   </span>
                 </span>
-                {readOnly ? null : (
+                {serveursFiges ? null : (
                   <button
                     type="button"
                     className="btn-ghost !p-2 hover:!text-danger"
@@ -268,7 +310,7 @@ export function LiaisonsPanel({
             ))}
           </ul>
         )}
-        {readOnly ? null : serveurs.length === 0 ? (
+        {serveursFiges ? null : serveurs.length === 0 ? (
           <p className="text-sm text-faint">
             Aucun serveur dans le référentiel — ajoutez-les depuis Administration › Référentiels.
           </p>
@@ -319,7 +361,20 @@ export function LiaisonsPanel({
         )}
       </Card>
 
-      <Card title="Interconnexions">
+      <Card
+        title="Interconnexions"
+        actions={crayon(
+          modeIntercos,
+          () => {
+            if (modeIntercos) {
+              setNouvelleCible("");
+              setNouvelleDesc("");
+            }
+            setModeIntercos(!modeIntercos);
+          },
+          "les interconnexions",
+        )}
+      >
         {interconnexions.length === 0 ? (
           <p className="mb-3 text-sm text-faint">
             Aucune interconnexion déclarée (échanges de données avec d'autres logiciels).
@@ -344,7 +399,7 @@ export function LiaisonsPanel({
                     <span className="truncate text-xs text-muted">— {ix.description}</span>
                   ) : null}
                 </span>
-                {readOnly ? null : (
+                {intercosFigees ? null : (
                   <button
                     type="button"
                     className="btn-ghost !p-2 hover:!text-danger"
@@ -359,7 +414,7 @@ export function LiaisonsPanel({
             ))}
           </ul>
         )}
-        {readOnly ? null : (
+        {intercosFigees ? null : (
           <div className="flex flex-wrap items-center gap-2">
             <select
               className="input !w-auto"

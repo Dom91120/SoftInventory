@@ -1,6 +1,6 @@
 "use client";
 
-import { Check } from "lucide-react";
+import { Check, SquarePen, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { type ReactNode, useEffect, useState, useTransition } from "react";
 import { useSaisieEnCours } from "@/components/saisie-en-cours";
@@ -38,7 +38,18 @@ export function RgpdPanel({
   const [saved, setSaved] = useState(false);
   const [traite, setTraite] = useState(values.donneesPersonnelles);
   const saisie = useSaisieEnCours();
-  const dis = readOnly || pending;
+
+  /**
+   * Le verrou de la carte Identité, et non l'interrupteur des onglets voisins :
+   * ce volet est un FORMULAIRE, ses valeurs attendent un enregistrement. Le
+   * crayon l'ouvre, la coche enregistre, la croix rend les valeurs enregistrées.
+   *
+   * Fermé d'office : on consulte le volet pour répondre à une question — ce
+   * logiciel traite-t-il des données ? où ? — bien plus souvent qu'on ne le
+   * corrige, et ses cases se décochent d'un clic malheureux.
+   */
+  const [verrouille, setVerrouille] = useState(true);
+  const dis = readOnly || pending || verrouille;
   /** Retour à SA liste, et non à la page précédente : arrivé par une URL collée
    *  ou un rechargement, un retour d'historique ferait sortir de l'application. */
   const quitter = () => router.push("/logiciels");
@@ -49,6 +60,25 @@ export function RgpdPanel({
     setTraite(values.donneesPersonnelles);
     saisie.annuler();
   };
+
+  /**
+   * `FormData` IGNORE les champs désactivés : l'empreinte relevée au premier
+   * rendu, volet verrouillé, ne vaut donc rien une fois les champs réveillés. On
+   * la reprend à l'ouverture — sans quoi la première frappe comparerait un
+   * formulaire complet à un formulaire vide, et la coche paraîtrait d'elle-même.
+   * En `useEffect` et non dans le clic : à ce moment-là, les champs portent
+   * encore leur `disabled`.
+   */
+  useEffect(() => {
+    if (!verrouille) saisie.enregistre();
+  }, [verrouille, saisie.enregistre]);
+
+  /** Refermer rend au volet ses valeurs enregistrées : le verrou ne garde pas
+   *  des frappes que plus rien ne montre. C'est le geste d'« Annuler ». */
+  function basculerVerrou() {
+    if (!verrouille) annuler();
+    setVerrouille(!verrouille);
+  }
 
   /** La confirmation s'efface d'elle-même : elle annonce un fait accompli, pas
    *  un état à surveiller. La laisser à l'écran, c'est laisser croire, au geste
@@ -71,6 +101,9 @@ export function RgpdPanel({
       else {
         setSaved(true);
         saisie.enregistre();
+        // Le volet se referme : la modification est faite, le laisser ouvert
+        // exposerait à nouveau ses cases à un clic malheureux.
+        setVerrouille(true);
         router.refresh();
       }
     });
@@ -78,7 +111,62 @@ export function RgpdPanel({
 
   return (
     <form ref={saisie.formRef} onSubmit={submit} onChange={saisie.surSaisie} className="space-y-3">
-      <Card title="Données personnelles">
+      <Card
+        title="Données personnelles"
+        actions={
+          readOnly ? undefined : verrouille ? (
+            /* `key` distincte et `preventDefault`, comme sur les fiches : sans
+               eux, ce clic ENREGISTRERAIT le volet. React réutilise le nœud
+               <button> pour la coche qui prend sa place et le mute en
+               `type="submit"` pendant le gestionnaire de clic. */
+            <button
+              key="verrou-ouvrir"
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                basculerVerrou();
+              }}
+              disabled={pending}
+              title="Modifier le volet RGPD"
+              aria-label="Modifier le volet RGPD"
+              className="btn-ghost !p-2 hover:!text-accent"
+            >
+              <SquarePen className="h-4 w-4" />
+            </button>
+          ) : (
+            <>
+              {/* La coche attend qu'il y ait quelque chose à enregistrer, comme
+                  le bouton du bas de carte. */}
+              {saisie.modifie ? (
+                <button
+                  key="verrou-valider"
+                  type="submit"
+                  disabled={pending}
+                  title="Enregistrer le volet RGPD"
+                  aria-label="Enregistrer le volet RGPD"
+                  className="btn-ghost !p-2 hover:!text-ok"
+                >
+                  <Check className="h-4 w-4" />
+                </button>
+              ) : null}
+              <button
+                key="verrou-annuler"
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  basculerVerrou();
+                }}
+                disabled={pending}
+                title="Annuler la modification"
+                aria-label="Annuler la modification"
+                className="btn-ghost !p-2 hover:!text-danger"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </>
+          )
+        }
+      >
         <label className="flex items-center gap-3 text-sm text-body">
           <input
             type="checkbox"
