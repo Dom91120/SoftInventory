@@ -1,4 +1,3 @@
-import type { TacheDetail } from "@/components/modale-tache";
 import { dateCalendaire, estEnRetard, joursAvantEcheance } from "@/lib/taches-core";
 import { seuilsRappel } from "@/server/config";
 import { prisma } from "@/server/db";
@@ -33,10 +32,9 @@ export type DonneesDashboard = {
     id: number;
     logicielId: number;
     logiciel: string;
+    titre: string;
     echeance: Date;
     enRetard: boolean;
-    /** De quoi ouvrir la fiche de la tâche sans retourner la chercher. */
-    detail: TacheDetail;
   }>;
   /** Horizon des renouvellements, en jours — le titre de la carte l'annonce. */
   seuilRenouvellementJours: number;
@@ -99,36 +97,17 @@ export async function chargerDashboard(userId: string): Promise<DonneesDashboard
     prisma.serveur.count(),
     prisma.criticite.findMany({ orderBy: { rank: "asc" } }),
     prisma.modeHebergement.findMany({ orderBy: { position: "asc" } }),
-    // Les colonnes de détail ne servent qu'à « Mes tâches », qui ouvre la fiche
-    // d'une tâche sans aller la rechercher. Elles voyagent avec toutes les
-    // lignes plutôt que dans une seconde requête : la table en compte quelques
-    // dizaines, et deux allers-retours coûteraient plus que ces champs.
+    // Juste de quoi nommer la tâche et la situer : les cartes du tableau de
+    // bord n'affichent que ça, et le clic va lire le reste sur la fiche du
+    // logiciel plutôt que de le faire voyager ici.
     prisma.tacheRecurrente.findMany({
       where: { statut: "active" },
       select: {
         id: true,
         titre: true,
-        description: true,
-        periodicite: true,
-        moisPersonnalises: true,
         prochaineEcheance: true,
-        statut: true,
         assigneUserId: true,
-        assigneLibre: true,
-        rappelJoursAvant: true,
-        assigne: { select: { prenom: true, nom: true, email: true } },
-        typeTache: { select: { label: true } },
         logiciel: { select: { id: true, nom: true } },
-        executions: {
-          orderBy: { faitLe: "desc" },
-          select: {
-            id: true,
-            faitLe: true,
-            echeancePrevue: true,
-            faitParLabel: true,
-            commentaire: true,
-          },
-        },
       },
     }),
     // Le MARCHÉ porte l'échéance ; ses pièces n'ont qu'une date de document.
@@ -182,12 +161,6 @@ export async function chargerDashboard(userId: string): Promise<DonneesDashboard
   // Celles du compte qui regarde, TOUTES et non les seules pressantes : c'est
   // sa liste de travail, elle vaut aussi pour ce qui vient dans six mois. La
   // plus proche en tête, les retards donc d'abord.
-  const fmtJour = new Intl.DateTimeFormat("fr-FR", { dateStyle: "short", timeZone: "UTC" });
-  const fmtInstant = new Intl.DateTimeFormat("fr-FR", {
-    dateStyle: "short",
-    timeStyle: "short",
-    timeZone: "Europe/Paris",
-  });
   const mesTaches = taches
     .filter((t) => t.assigneUserId === userId)
     .sort((a, b) => a.prochaineEcheance.getTime() - b.prochaineEcheance.getTime())
@@ -195,30 +168,9 @@ export async function chargerDashboard(userId: string): Promise<DonneesDashboard
       id: t.id,
       logicielId: t.logiciel.id,
       logiciel: t.logiciel.nom,
+      titre: t.titre,
       echeance: t.prochaineEcheance,
       enRetard: estEnRetard(t.prochaineEcheance, aujourdhui),
-      detail: {
-        titre: t.titre,
-        description: t.description,
-        typeTacheLabel: t.typeTache?.label ?? null,
-        periodicite: t.periodicite,
-        moisPersonnalises: t.moisPersonnalises === null ? "" : String(t.moisPersonnalises),
-        // La modale attend l'échéance en AAAA-MM-JJ, comme la saisie HTML la
-        // produit ; elle la met en forme elle-même.
-        prochaineEcheance: t.prochaineEcheance.toISOString().slice(0, 10),
-        statut: t.statut,
-        assigneLabel: t.assigne
-          ? `${t.assigne.prenom} ${t.assigne.nom}`.trim() || t.assigne.email
-          : t.assigneLibre,
-        rappelJoursAvant: t.rappelJoursAvant === null ? "" : String(t.rappelJoursAvant),
-        executions: t.executions.map((ex) => ({
-          id: ex.id,
-          faitLe: fmtInstant.format(ex.faitLe),
-          echeancePrevue: fmtJour.format(ex.echeancePrevue),
-          par: ex.faitParLabel,
-          commentaire: ex.commentaire,
-        })),
-      },
     }));
 
   // Renouvellements à venir : marchés + fins de contrat des fiches. Le marché
