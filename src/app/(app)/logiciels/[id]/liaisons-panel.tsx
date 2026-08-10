@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, ArrowRight, Check, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Plus, SquarePen, Trash2, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { type ReactNode, useEffect, useState, useTransition } from "react";
@@ -76,6 +76,15 @@ export function LiaisonsPanel({
   const [saved, setSaved] = useState(false);
 
   /**
+   * Les cases s'ouvrent sous clé, comme les cartes de saisie des fiches : on
+   * vient bien plus souvent lire quels services utilisent un logiciel qu'en
+   * changer la liste, et une case se décoche d'un clic malheureux sans que rien
+   * ne le signale. Le crayon de l'en-tête lève le verrou.
+   */
+  const [verrouille, setVerrouille] = useState(true);
+  const casesFigees = readOnly || pending || verrouille;
+
+  /**
    * Ordre alphabétique, et non celui du référentiel : on cherche ici un service
    * qu'on a en tête, ce qui suppose de savoir où le trouver. `compareAlpha`
    * plutôt que la base — la collation du serveur trierait « Élections » après
@@ -115,11 +124,77 @@ export function LiaisonsPanel({
     });
   }
 
+  /** Enregistre les cases puis referme : la modification est faite. */
+  function enregistrerServices() {
+    run(
+      () => setServicesAction(logicielId, [...coches]),
+      () => {
+        setSaved(true);
+        setVerrouille(true);
+      },
+    );
+  }
+
+  /** Referme en rendant aux cases leurs valeurs enregistrées — le geste
+   *  d'« Annuler », qui ne perd que des clics. */
+  function fermerServices() {
+    setCoches(new Set(servicesLies));
+    setVerrouille(true);
+  }
+
+  /**
+   * Les commandes du verrou. Pas de `preventDefault` ici, contrairement aux
+   * fiches : ces boutons ne vivent dans aucun <form>, aucune action par défaut
+   * n'est à annuler. Les `key` restent — elles interdisent à React de recycler
+   * un nœud pour son remplaçant et de lui laisser des attributs qui ne sont
+   * plus les siens.
+   */
+  const commandesServices = readOnly ? undefined : verrouille ? (
+    <button
+      key="verrou-ouvrir"
+      type="button"
+      onClick={() => setVerrouille(false)}
+      disabled={pending}
+      title="Modifier les services"
+      aria-label="Modifier les services"
+      className="btn-ghost !p-2 hover:!text-accent"
+    >
+      <SquarePen className="h-4 w-4" />
+    </button>
+  ) : (
+    <>
+      {dirtyServices ? (
+        <button
+          key="verrou-valider"
+          type="button"
+          onClick={enregistrerServices}
+          disabled={pending}
+          title="Enregistrer les services"
+          aria-label="Enregistrer les services"
+          className="btn-ghost !p-2 hover:!text-ok"
+        >
+          <Check className="h-4 w-4" />
+        </button>
+      ) : null}
+      <button
+        key="verrou-annuler"
+        type="button"
+        onClick={fermerServices}
+        disabled={pending}
+        title="Annuler la modification"
+        aria-label="Annuler la modification"
+        className="btn-ghost !p-2 hover:!text-danger"
+      >
+        <X className="h-4 w-4" />
+      </button>
+    </>
+  );
+
   return (
     <div className="space-y-3">
       {error ? <p className="alert-error">{error}</p> : null}
 
-      <Card title="Services utilisateurs">
+      <Card title="Services utilisateurs" actions={commandesServices}>
         {services.length === 0 ? (
           <p className="text-sm text-faint">
             Aucun service dans le référentiel — ajoutez-les depuis Administration › Référentiels.
@@ -143,7 +218,7 @@ export function LiaisonsPanel({
                   type="checkbox"
                   className="h-4 w-4 accent-(--color-accent)"
                   checked={coches.has(s.id)}
-                  disabled={readOnly || pending}
+                  disabled={casesFigees}
                   onChange={(e) => {
                     const next = new Set(coches);
                     if (e.target.checked) next.add(s.id);
@@ -348,12 +423,7 @@ export function LiaisonsPanel({
                 type="button"
                 className="btn-primary"
                 disabled={pending}
-                onClick={() =>
-                  run(
-                    () => setServicesAction(logicielId, [...coches]),
-                    () => setSaved(true),
-                  )
-                }
+                onClick={enregistrerServices}
               >
                 {pending ? "Enregistrement…" : "Enregistrer"}
               </button>
