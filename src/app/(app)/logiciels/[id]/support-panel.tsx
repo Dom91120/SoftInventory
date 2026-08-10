@@ -1,4 +1,4 @@
-import { Clock, LifeBuoy, Mail, Phone, User } from "lucide-react";
+import { BadgeCheck, Clock, LifeBuoy, Mail, Phone, User } from "lucide-react";
 import { Fragment, type ReactNode } from "react";
 import { Card, EmptyState } from "@/components/ui";
 import { formatTel } from "@/lib/format";
@@ -9,6 +9,7 @@ export type SupportEditeur = {
   supportUrl: string;
   supportEmail: string;
   supportTelephone: string;
+  numeroClient: string;
   supportHoraires: string;
   supportHoraires2: string;
   commercialContact: string;
@@ -29,8 +30,12 @@ type Ligne = {
   icone: ReactNode;
   label: string;
   valeur: ReactNode | null;
-  /** Occupe les trois tiers : les horaires se lisent d'un trait, pas en colonne. */
-  pleineLargeur?: boolean;
+  /**
+   * Nombre de tiers occupés. Les horaires en prennent DEUX : ils se lisent d'un
+   * trait, pas en colonne, mais laissent le premier tiers au numéro de client
+   * qui ouvre leur rang.
+   */
+  tiers?: 2 | 3;
   /** Ouvre un bloc : un filet la précède. Sépare l'assistance des contacts. */
   separateurAvant?: boolean;
 };
@@ -93,7 +98,11 @@ function CarteContacts({
               {l.separateurAvant ? (
                 <div aria-hidden className="my-1 border-t border-line sm:col-span-3" />
               ) : null}
-              <div className={`flex items-start gap-3 ${l.pleineLargeur ? "sm:col-span-3" : ""}`}>
+              <div
+                className={`flex items-start gap-3 ${
+                  l.tiers === 3 ? "sm:col-span-3" : l.tiers === 2 ? "sm:col-span-2" : ""
+                }`}
+              >
                 <span className="mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-inset text-muted">
                   {l.icone}
                 </span>
@@ -152,39 +161,49 @@ export function SupportPanel({ editeur }: { editeur: SupportEditeur | null }) {
     // Téléphone puis e-mail, comme le commercial et l'administratif plus bas et
     // comme la carte « Contacts » de la fiche éditeur : l'assistance était la
     // seule à prendre les deux à contresens.
-    ligneTel("Téléphone du support", editeur.supportTelephone),
+    ligneTel("Tél du support", editeur.supportTelephone),
     ligneMail("Mail du support", editeur.supportEmail),
+    // Le premier rang porte les trois CANAUX — par où l'on joint l'assistance.
+    // Ce qu'on lui dira une fois en ligne, numéro de client et horaires, ouvre
+    // le rang suivant : la fiche éditeur les saisit dans l'ordre inverse, mais
+    // elle sert à remplir, pas à appeler.
+    {
+      icone: <BadgeCheck className="h-4 w-4" />,
+      label: "N° de client",
+      valeur: editeur.numeroClient || null,
+    },
     {
       icone: <Clock className="h-4 w-4" />,
       label: "Horaires du support",
       // Les deux régimes sont saisis séparément — la semaine, puis le jour qui
-      // en sort — mais se lisent d'un trait sur cette ligne pleine largeur, joints
-      // par le « · » qui sépare partout ailleurs les valeurs d'une même énumération.
-      // La liste des éditeurs, elle, les empile : sa colonne est étroite.
+      // en sort — mais se lisent d'un trait, joints par le « · » qui sépare
+      // partout ailleurs les valeurs d'une même énumération. La liste des
+      // éditeurs, elle, les empile : sa colonne est étroite.
       valeur:
         [editeur.supportHoraires, editeur.supportHoraires2].filter(Boolean).join(" · ") || null,
-      pleineLargeur: true,
+      tiers: 2,
     },
     // Le filet ferme l'assistance : en dessous, on n'appelle plus pour une panne.
     { ...ligneContact("Contact commercial", editeur.commercialContact), separateurAvant: true },
-    ligneTel("Téléphone commercial", editeur.commercialTelephone),
+    ligneTel("Tél commercial", editeur.commercialTelephone),
     ligneMail("Mail commercial", editeur.commercialEmail),
     // Le second commercial ne prend son rang que s'il existe : la fiche éditeur
     // le laisse sans titre parce que la position suffit, mais ici chaque valeur
     // est nommée, et trois « Non renseigné » de plus dans une grille qui en
-    // compte déjà se lisent comme un manque plutôt que comme une absence.
+    // compte déjà se lisent comme un manque plutôt que comme une absence. La
+    // plupart des éditeurs n'ont qu'un commercial.
     ...(editeur.commercialContact2 || editeur.commercialTelephone2 || editeur.commercialEmail2
       ? [
           ligneContact("Contact commercial 2", editeur.commercialContact2),
-          ligneTel("Téléphone commercial 2", editeur.commercialTelephone2),
+          ligneTel("Tél commercial 2", editeur.commercialTelephone2),
           ligneMail("Mail commercial 2", editeur.commercialEmail2),
         ]
       : []),
     ligneContact("Contact administratif", editeur.adminContact),
-    ligneTel("Téléphone administratif", editeur.adminTelephone),
+    ligneTel("Tél administratif", editeur.adminTelephone),
     ligneMail("Mail administratif", editeur.adminEmail),
     ligneContact("DPO", editeur.dpoContact),
-    ligneTel("Téléphone DPO", editeur.dpoTelephone),
+    ligneTel("Tél DPO", editeur.dpoTelephone),
     ligneMail("Mail DPO", editeur.dpoEmail),
   ];
 

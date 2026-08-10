@@ -19,6 +19,7 @@ export type EditeurValues = {
   supportUrl: string;
   supportEmail: string;
   supportTelephone: string;
+  numeroClient: string;
   supportHoraires: string;
   supportHoraires2: string;
   commercialContact: string;
@@ -47,6 +48,7 @@ const VIDE: EditeurValues = {
   supportUrl: "",
   supportEmail: "",
   supportTelephone: "",
+  numeroClient: "",
   supportHoraires: "",
   supportHoraires2: "",
   commercialContact: "",
@@ -326,9 +328,23 @@ export function EditeurForm({
             soit le nombre de lignes du libellé. */}
         <Card title="Contacts">
           <div className="grid items-end gap-x-3 gap-y-2 sm:grid-cols-3">
-            {champ("supportUrl", "Portail de tickets", { type: "url", placeholder: "https://…" })}
-            {champ("supportTelephone", "Téléphone du support", { type: "tel" })}
-            {champ("supportEmail", "Mail du support", { type: "email" })}
+            {/* Le rang de l'assistance se coupe en SIXIÈMES : 2/1/1/2. Le
+                portail et le mail sont des adresses, qui ont besoin de la
+                largeur ; le numéro d'appel et le numéro de client tiennent en
+                dix caractères. Le second suit le premier parce que c'est dans
+                cet ordre qu'on s'en sert — on compose, puis on l'annonce.
+
+                Sous-grille, la carte étant en trois tiers : elle ne sait pas
+                couper un tiers en deux. */}
+            <div
+              className="grid items-end gap-x-3 gap-y-2 sm:col-span-3"
+              style={{ gridTemplateColumns: "2fr 1fr 1fr 2fr" }}
+            >
+              {champ("supportUrl", "Portail de tickets", { type: "url", placeholder: "https://…" })}
+              {champ("supportTelephone", "Tél du support", { type: "tel" })}
+              {champ("numeroClient", "N° de client")}
+              {champ("supportEmail", "Mail du support", { type: "email" })}
+            </div>
             {/* Deux lignes plutôt qu'une : les horaires décrivent presque
                 toujours deux régimes — la semaine, puis le jour qui en sort.
                 Cousus sur une seule ligne, chaque fiche inventait sa ponctuation
@@ -348,23 +364,23 @@ export function EditeurForm({
               })}
             </div>
             {champ("commercialContact", "Contact commercial")}
-            {champ("commercialTelephone", "Téléphone commercial", { type: "tel" })}
+            {champ("commercialTelephone", "Tél commercial", { type: "tel" })}
             {champ("commercialEmail", "Mail commercial", {
               type: "email",
               aussi: "commercialEmail2",
             })}
             {champNu("commercialContact2", "Contact commercial 2")}
-            {champNu("commercialTelephone2", "Téléphone commercial 2", { type: "tel" })}
+            {champNu("commercialTelephone2", "Tél commercial 2", { type: "tel" })}
             {champNu("commercialEmail2", "Mail commercial 2", { type: "email" })}
             {champ("adminContact", "Contact administratif")}
-            {champ("adminTelephone", "Téléphone administratif", { type: "tel" })}
+            {champ("adminTelephone", "Tél administratif", { type: "tel" })}
             {champ("adminEmail", "Mail administratif", { type: "email" })}
             {/* Le DPO de l'ÉDITEUR, sur le même rang « qui, son numéro, son
                 adresse » que le commercial et l'administratif : c'est à lui
                 qu'on écrit pour une violation de données ou une demande
                 d'exercice de droits chez ce fournisseur. */}
             {champ("dpoContact", "DPO")}
-            {champ("dpoTelephone", "Téléphone DPO", { type: "tel" })}
+            {champ("dpoTelephone", "Tél DPO", { type: "tel" })}
             {champ("dpoEmail", "Mail DPO", { type: "email" })}
           </div>
         </Card>

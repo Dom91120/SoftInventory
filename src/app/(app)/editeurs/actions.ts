@@ -33,6 +33,7 @@ function parseForm(formData: FormData) {
     supportUrl: formData.get("supportUrl") ?? "",
     supportEmail: formData.get("supportEmail") ?? "",
     supportTelephone: formData.get("supportTelephone") ?? "",
+    numeroClient: formData.get("numeroClient") ?? "",
     supportHoraires: formData.get("supportHoraires") ?? "",
     supportHoraires2: formData.get("supportHoraires2") ?? "",
     commercialContact: formData.get("commercialContact") ?? "",

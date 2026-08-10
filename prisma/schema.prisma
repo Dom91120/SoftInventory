@@ -282,6 +282,10 @@ model Editeur {
   supportUrl           String   @default("") @map("support_url")
   supportEmail         String   @default("") @map("support_email")
   supportTelephone     String   @default("") @map("support_telephone")
+  /// Le numéro que l'ÉDITEUR nous a attribué et qu'il redemande à chaque appel.
+  /// Il vit avec les canaux d'assistance parce que c'est là qu'on le cherche,
+  /// juste avant de composer le numéro.
+  numeroClient         String   @default("") @map("numero_client")
   /// Les horaires tiennent sur DEUX lignes parce qu'ils décrivent presque
   /// toujours deux régimes — « lundi au vendredi 8h-17h » puis « samedi
   /// 8h-12h ». Une seule ligne obligeait à les coudre avec un tiret ou une

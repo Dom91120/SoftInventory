@@ -68,6 +68,7 @@ export default async function EditeurPage({ params }: { params: Promise<{ id: st
           supportUrl: editeur.supportUrl,
           supportEmail: editeur.supportEmail,
           supportTelephone: editeur.supportTelephone,
+          numeroClient: editeur.numeroClient,
           supportHoraires: editeur.supportHoraires,
           supportHoraires2: editeur.supportHoraires2,
           commercialContact: editeur.commercialContact,

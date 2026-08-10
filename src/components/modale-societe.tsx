@@ -179,12 +179,20 @@ export function ModaleSociete({
               et aligner par le bas garde les champs sur la même ligne. */}
           <Card title="Contacts">
             <div className="grid items-end gap-x-3 gap-y-2 sm:grid-cols-3">
-              {champ("supportUrl", "Portail de tickets", {
-                type: "url",
-                placeholder: "https://…",
-              })}
-              {champ("supportTelephone", "Téléphone du support", { type: "tel" })}
-              {champ("supportEmail", "Mail du support", { type: "email" })}
+              {/* Sixièmes 2/1/1/2, comme sur la fiche : deux adresses larges
+                  encadrant deux numéros courts. */}
+              <div
+                className="grid items-end gap-x-3 gap-y-2 sm:col-span-3"
+                style={{ gridTemplateColumns: "2fr 1fr 1fr 2fr" }}
+              >
+                {champ("supportUrl", "Portail de tickets", {
+                  type: "url",
+                  placeholder: "https://…",
+                })}
+                {champ("supportTelephone", "Tél du support", { type: "tel" })}
+                {champ("numeroClient", "N° de client")}
+                {champ("supportEmail", "Mail du support", { type: "email" })}
+              </div>
               {/* Deux lignes, comme sur la fiche : la semaine, puis le jour qui
                   en sort. La seconde reste vide quand il n'y en a pas. */}
               <div className="grid items-end gap-x-3 gap-y-2 sm:col-span-3 sm:grid-cols-2">
@@ -196,16 +204,16 @@ export function ModaleSociete({
                 })}
               </div>
               {champ("commercialContact", "Contact commercial")}
-              {champ("commercialTelephone", "Téléphone commercial", { type: "tel" })}
+              {champ("commercialTelephone", "Tél commercial", { type: "tel" })}
               {champ("commercialEmail", "Mail commercial", { type: "email" })}
               {champNu("commercialContact2", "Contact commercial 2")}
-              {champNu("commercialTelephone2", "Téléphone commercial 2", { type: "tel" })}
+              {champNu("commercialTelephone2", "Tél commercial 2", { type: "tel" })}
               {champNu("commercialEmail2", "Mail commercial 2", { type: "email" })}
               {champ("adminContact", "Contact administratif")}
-              {champ("adminTelephone", "Téléphone administratif", { type: "tel" })}
+              {champ("adminTelephone", "Tél administratif", { type: "tel" })}
               {champ("adminEmail", "Mail administratif", { type: "email" })}
               {champ("dpoContact", "DPO")}
-              {champ("dpoTelephone", "Téléphone DPO", { type: "tel" })}
+              {champ("dpoTelephone", "Tél DPO", { type: "tel" })}
               {champ("dpoEmail", "Mail DPO", { type: "email" })}
             </div>
           </Card>
