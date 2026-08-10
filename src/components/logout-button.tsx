@@ -2,11 +2,14 @@
 
 import { LogOut } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { oublierPagesMemorisees } from "@/components/memoire-page";
 import { authClient } from "@/lib/auth-client";
 
 export function LogoutButton() {
   const router = useRouter();
   async function logout() {
+    // Les listes ne gardent leur page que le temps d'une session ouverte.
+    oublierPagesMemorisees();
     await authClient.signOut();
     router.replace("/auth/login");
     router.refresh();

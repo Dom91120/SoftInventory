@@ -1,5 +1,6 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
+import { MemoirePage } from "@/components/memoire-page";
 
 /** Éléments par page, commun aux trois listes. */
 export const PAR_PAGE = 10;
@@ -48,7 +49,12 @@ export function Pagination({
   /** Query string courante, hors `page`. */
   params: Record<string, string | undefined>;
 }) {
-  if (pages <= 1) return null;
+  // La mémoire de page vit ICI plutôt que dans chaque liste : les trois
+  // affichent déjà ce pavé, et il connaît le numéro sans qu'on le lui repasse.
+  // Rendue MÊME quand le pavé se tait (une seule page), pour qu'une liste qu'un
+  // filtre vient de réduire n'oublie pas où elle en était.
+  const memoire = <MemoirePage page={page} />;
+  if (pages <= 1) return memoire;
 
   const href = (p: number) => {
     const next = new URLSearchParams();
@@ -62,39 +68,42 @@ export function Pagination({
   const fin = Math.min(page * PAR_PAGE, total);
 
   return (
-    // Trois colonnes égales, la troisième vide : les flèches tombent au centre
-    // EXACT du tableau, quelle que soit la longueur du compte à gauche. Un
-    // simple `justify-between` les aurait décalées à droite, un `gap` centré les
-    // aurait décalées de la moitié du compte.
-    <nav className="mt-3 grid grid-cols-3 items-center" aria-label="Pagination">
-      <span className="justify-self-start text-xs text-muted tabular-nums">
-        {debut}–{fin} sur {total}
-      </span>
-      <span className="flex items-center gap-1 justify-self-center">
-        {/* Une flèche inactive reste AFFICHÉE mais n'est plus un lien : le pavé
-            ne change pas de largeur d'une page à l'autre. */}
-        {page > 1 ? (
-          <Link href={href(page - 1)} className="btn-secondary !px-2.5" title="Page précédente">
-            <ChevronLeft className="h-4 w-4" />
-          </Link>
-        ) : (
-          <span className="btn-secondary !px-2.5 opacity-40" aria-hidden>
-            <ChevronLeft className="h-4 w-4" />
-          </span>
-        )}
-        <span className="px-2 text-xs text-muted tabular-nums">
-          {page} / {pages}
+    <>
+      {memoire}
+      {/* Trois colonnes égales, la troisième vide : les flèches tombent au centre
+          EXACT du tableau, quelle que soit la longueur du compte à gauche. Un
+          simple `justify-between` les aurait décalées à droite, un `gap` centré
+          les aurait décalées de la moitié du compte. */}
+      <nav className="mt-3 grid grid-cols-3 items-center" aria-label="Pagination">
+        <span className="justify-self-start text-xs text-muted tabular-nums">
+          {debut}–{fin} sur {total}
         </span>
-        {page < pages ? (
-          <Link href={href(page + 1)} className="btn-secondary !px-2.5" title="Page suivante">
-            <ChevronRight className="h-4 w-4" />
-          </Link>
-        ) : (
-          <span className="btn-secondary !px-2.5 opacity-40" aria-hidden>
-            <ChevronRight className="h-4 w-4" />
+        <span className="flex items-center gap-1 justify-self-center">
+          {/* Une flèche inactive reste AFFICHÉE mais n'est plus un lien : le pavé
+              ne change pas de largeur d'une page à l'autre. */}
+          {page > 1 ? (
+            <Link href={href(page - 1)} className="btn-secondary !px-2.5" title="Page précédente">
+              <ChevronLeft className="h-4 w-4" />
+            </Link>
+          ) : (
+            <span className="btn-secondary !px-2.5 opacity-40" aria-hidden>
+              <ChevronLeft className="h-4 w-4" />
+            </span>
+          )}
+          <span className="px-2 text-xs text-muted tabular-nums">
+            {page} / {pages}
           </span>
-        )}
-      </span>
-    </nav>
+          {page < pages ? (
+            <Link href={href(page + 1)} className="btn-secondary !px-2.5" title="Page suivante">
+              <ChevronRight className="h-4 w-4" />
+            </Link>
+          ) : (
+            <span className="btn-secondary !px-2.5 opacity-40" aria-hidden>
+              <ChevronRight className="h-4 w-4" />
+            </span>
+          )}
+        </span>
+      </nav>
+    </>
   );
 }

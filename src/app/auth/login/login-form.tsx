@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { oublierPagesMemorisees } from "@/components/memoire-page";
 import { Field } from "@/components/ui";
 import { signIn } from "@/lib/auth-client";
 import { useFormSubmit } from "@/lib/use-form-submit";
@@ -18,6 +19,10 @@ export function LoginForm({ expired }: { expired: boolean }) {
     if (res.error) {
       return res.error.message ?? "Identifiants incorrects.";
     }
+    // Une session expirée ne passe pas par le bouton « Se déconnecter » : c'est
+    // ici qu'on s'assure que le compte qui entre n'hérite pas des pages de
+    // listes laissées par le précédent.
+    oublierPagesMemorisees();
     router.replace("/tableau-de-bord");
     router.refresh();
   });
