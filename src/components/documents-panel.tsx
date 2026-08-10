@@ -163,7 +163,13 @@ export function LigneDocument({
     <span className="flex min-w-0 items-center gap-3">
       <Icone className="h-4 w-4 shrink-0 text-faint" />
       <span className="min-w-0">
-        <span className="flex items-center gap-1">
+        {/* Un raccourci accolé au nom, comme partout ailleurs dans
+            l'application : 14 px, gris estompé virant à l'indigo au survol. Il
+            portait auparavant le gabarit d'un bouton — fond au survol, 16 px
+            d'icône, 6 px de marge —, ce qui commandait la hauteur de la ligne :
+            28 px contre 20 pour le texte, et il fallait annuler cette marge à
+            coups de `-my-1.5`. Une icône nue n'a plus ce défaut. */}
+        <span className="flex items-center gap-1.5">
           <a
             href={`/api/documents/download?id=${document.id}&inline=1`}
             target="_blank"
@@ -173,19 +179,13 @@ export function LigneDocument({
           >
             {document.nomOriginal}
           </a>
-          {/* `-my-1.5` annule EXACTEMENT le `p-1.5` vertical : la surface de
-              clic et le fond au survol restent entiers, mais le bouton cesse de
-              commander la hauteur de la ligne. Sans cela il la portait à 28 px
-              (16 d'icône + 2 × 6 de marge) contre 20 px pour le texte, et les
-              8 px de trop s'ajoutaient au `mt-0.5` d'en dessous — d'où un
-              interligne plus large qu'au panneau Documents, où ce bouton vit
-              dans la colonne d'actions et ne touche pas au nom. */}
           <a
             href={`/api/documents/download?id=${document.id}`}
-            className="btn-ghost -my-1.5 !p-1.5 shrink-0"
-            title="Télécharger"
+            title={`Télécharger ${document.nomOriginal}`}
+            aria-label={`Télécharger ${document.nomOriginal}`}
+            className="shrink-0 text-faint transition hover:text-accent"
           >
-            <Download className="h-4 w-4" />
+            <Download className="h-3.5 w-3.5" />
           </a>
         </span>
         <span className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-faint">
@@ -502,19 +502,34 @@ export function DocumentsPanel({
                         </button>
                       </span>
                     ) : (
-                      <a
-                        // Le NOM ouvre le document (nouvel onglet) ; le bouton à
-                        // droite reste là pour l'enregistrer. Les formats que le
-                        // navigateur ne sait pas afficher retombent d'eux-mêmes
-                        // sur le téléchargement, côté serveur.
-                        href={`/api/documents/download?id=${d.id}&inline=1`}
-                        target="_blank"
-                        rel="noreferrer noopener"
-                        title={`Ouvrir ${d.nomOriginal}`}
-                        className="block truncate font-medium text-strong hover:text-accent"
-                      >
-                        {d.nomOriginal}
-                      </a>
+                      // Les deux gestes que porte le nom vivent ensemble : le
+                      // NOM ouvre le document dans un onglet, la flèche accolée
+                      // l'enregistre. Elle était au bout de la ligne, à côté des
+                      // commandes d'écriture, dont elle ne relève pas — et qui
+                      // disparaissent maintenant sous le crayon éteint, la
+                      // laissant seule, loin de ce qu'elle télécharge.
+                      <span className="flex min-w-0 items-center gap-1.5">
+                        <a
+                          // Les formats que le navigateur ne sait pas afficher
+                          // retombent d'eux-mêmes sur le téléchargement, côté
+                          // serveur.
+                          href={`/api/documents/download?id=${d.id}&inline=1`}
+                          target="_blank"
+                          rel="noreferrer noopener"
+                          title={`Ouvrir ${d.nomOriginal}`}
+                          className="truncate font-medium text-strong hover:text-accent"
+                        >
+                          {d.nomOriginal}
+                        </a>
+                        <a
+                          href={`/api/documents/download?id=${d.id}`}
+                          title={`Télécharger ${d.nomOriginal}`}
+                          aria-label={`Télécharger ${d.nomOriginal}`}
+                          className="shrink-0 text-faint transition hover:text-accent"
+                        >
+                          <Download className="h-3.5 w-3.5" />
+                        </a>
+                      </span>
                     )}
                     <span className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-faint">
                       {fige ? (
@@ -551,13 +566,6 @@ export function DocumentsPanel({
                   </span>
                 </span>
                 <span className="flex shrink-0 items-center gap-1">
-                  <a
-                    href={`/api/documents/download?id=${d.id}`}
-                    className="btn-ghost !p-2"
-                    title="Télécharger"
-                  >
-                    <Download className="h-4 w-4" />
-                  </a>
                   {fige ? null : (
                     <>
                       <button
