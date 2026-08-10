@@ -4,7 +4,15 @@ import type { FiltresLogiciels } from "@/server/services/logiciels";
 // page.tsx : Next.js interdit d'exporter autre chose que ses champs réservés
 // depuis un fichier de page.
 
-/** Convertit les searchParams (URL, non fiables) en filtres typés. */
+/**
+ * Convertit les searchParams (URL, non fiables) en filtres typés.
+ *
+ * `?technologie=` n'y figure plus : la barre ne propose plus ce filtre, et le
+ * lire encore aurait laissé un tamis que seule une vieille adresse pouvait
+ * poser — invisible à l'écran, mais bien appliqué à la liste comme à l'export.
+ * Un tel lien montre désormais l'inventaire entier plutôt qu'une tranche dont
+ * rien n'annonce le critère.
+ */
 export function filtresDepuisParams(p: Record<string, string | undefined>): FiltresLogiciels {
   const num = (v?: string) => {
     const n = Number(v);
@@ -17,7 +25,6 @@ export function filtresDepuisParams(p: Record<string, string | undefined>): Filt
     editeurId: num(p.editeur),
     serviceId: num(p.service),
     criticiteId: num(p.criticite),
-    technologieId: num(p.technologie),
     hebergement: parmi(p.hebergement, ["saas", "on_premise", "hybride"] as const),
     statut: parmi(p.statut, ["evaluation", "production", "fin_de_vie", "abandonne"] as const),
   };

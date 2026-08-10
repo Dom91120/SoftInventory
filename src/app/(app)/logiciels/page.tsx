@@ -12,7 +12,6 @@ import {
   listModesHebergement,
   listServicesUtilisateurs,
   listStatutsLogiciels,
-  listTechnologies,
 } from "@/server/services/referentiels";
 import { FiltresBar } from "./filtres-bar";
 import { CriticiteBadge, filtresDepuisParams, HebergementBadge, StatutBadge } from "./shared";
@@ -29,16 +28,14 @@ export default async function LogicielsPage({
   const params = await searchParams;
   const filtres = filtresDepuisParams(params);
 
-  const [tous, editeurs, services, criticites, technologies, statuts, hebergements] =
-    await Promise.all([
-      listLogiciels(filtres),
-      listEditeurs(),
-      listServicesUtilisateurs(),
-      listCriticites(),
-      listTechnologies(),
-      listStatutsLogiciels(),
-      listModesHebergement(),
-    ]);
+  const [tous, editeurs, services, criticites, statuts, hebergements] = await Promise.all([
+    listLogiciels(filtres),
+    listEditeurs(),
+    listServicesUtilisateurs(),
+    listCriticites(),
+    listStatutsLogiciels(),
+    listModesHebergement(),
+  ]);
 
   const { page, pages, total, elements: logiciels } = paginer(tous, pageDepuisParams(params));
 
@@ -63,7 +60,6 @@ export default async function LogicielsPage({
         editeurs={opt(editeurs)}
         services={opt(services)}
         criticites={opt(criticites)}
-        technologies={opt(technologies)}
         statuts={statuts.map((s) => ({ cle: s.cle, label: s.label }))}
         hebergements={hebergements.map((h) => ({ cle: h.cle, label: h.label }))}
       />

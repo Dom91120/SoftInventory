@@ -20,7 +20,6 @@ export type FiltresLogiciels = {
   editeurId?: number;
   serviceId?: number;
   criticiteId?: number;
-  technologieId?: number;
   hebergement?: "saas" | "on_premise" | "hybride";
   statut?: "evaluation" | "production" | "fin_de_vie" | "abandonne";
 };
@@ -31,7 +30,6 @@ function buildWhere(f: FiltresLogiciels): Prisma.LogicielWhereInput {
     ...(f.editeurId ? { editeurId: f.editeurId } : {}),
     ...(f.serviceId ? { services: { some: { serviceId: f.serviceId } } } : {}),
     ...(f.criticiteId ? { criticiteId: f.criticiteId } : {}),
-    ...(f.technologieId ? { technologieId: f.technologieId } : {}),
     ...(f.hebergement ? { hebergement: f.hebergement } : {}),
     ...(f.statut ? { statut: f.statut } : {}),
   };
