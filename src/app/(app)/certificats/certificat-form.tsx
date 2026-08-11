@@ -386,12 +386,11 @@ export function CertificatForm({
                 className="input"
               />
             </Field>
-            {/* L'échéance SURVEILLÉE : c'est cette date que lit le rappel. */}
-            <Field
-              label="Fin de validité"
-              htmlFor="dateFin"
-              hint="Échéance surveillée par les rappels"
-            >
+            {/* L'échéance SURVEILLÉE : c'est cette date que lisent le rappel
+                par e-mail et la carte du tableau de bord. La mention qui le
+                disait sous le champ est retirée — un champ de date n'accueille
+                pas de placeholder, et la ligne grise décalait la grille. */}
+            <Field label="Fin de validité" htmlFor="dateFin">
               <input
                 id="dateFin"
                 name="dateFin"
