@@ -80,6 +80,7 @@ export async function saveMailConfigAction(formData: FormData): Promise<Result> 
 const rappelsSchema = z.object({
   tacheJours: z.coerce.number().int().min(0).max(365),
   contratJours: z.coerce.number().int().min(0).max(365),
+  certificatJours: z.coerce.number().int().min(0).max(365),
   destinataires: z
     .string()
     .trim()
@@ -100,6 +101,7 @@ export async function saveRappelsConfigAction(formData: FormData): Promise<Resul
   const parsed = rappelsSchema.safeParse({
     tacheJours: formData.get("tacheJours") ?? "",
     contratJours: formData.get("contratJours") ?? "",
+    certificatJours: formData.get("certificatJours") ?? "",
     destinataires: formData.get("destinataires") ?? "",
   });
   if (!parsed.success) {
@@ -109,6 +111,7 @@ export async function saveRappelsConfigAction(formData: FormData): Promise<Resul
     await setConfigMany({
       "tache.rappelJoursAvant": String(parsed.data.tacheJours),
       "contrat.rappelJoursAvant": String(parsed.data.contratJours),
+      "certificat.rappelJoursAvant": String(parsed.data.certificatJours),
       "tache.destinatairesDefaut": parsed.data.destinataires,
     });
     revalidatePath("/messagerie");
@@ -256,6 +259,7 @@ export async function lireConfigMessagerie() {
     passwordDefini: cfg["mail.password"] !== "",
     tacheJours: String(seuils.tache),
     contratJours: String(seuils.contrat),
+    certificatJours: String(seuils.certificat),
     destinataires: cfg["tache.destinatairesDefaut"],
   };
 }

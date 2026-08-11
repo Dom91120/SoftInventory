@@ -8,7 +8,8 @@ import { sendTemplatedMail } from "@/server/services/mail-send";
 /**
  * Cœur de la tâche cron « Rappels d'échéances » :
  *  1. tâches récurrentes actives entrant dans leur fenêtre de rappel ;
- *  2. renouvellements de contrat et fins de contrat sous le seuil global.
+ *  2. renouvellements de contrat et fins de contrat sous le seuil global ;
+ *  3. certificats électroniques arrivant à expiration, sous leur propre seuil.
  *
  * Un seul rappel par occurrence (marqueurs rappelEnvoyePour / rappelEnvoyeLe,
  * posés APRÈS un envoi accepté, remis à zéro quand la date change). Envois en
@@ -29,14 +30,20 @@ async function destinatairesDefaut(): Promise<string[]> {
 export async function envoyerRappelsEcheances(): Promise<{
   rappelsTaches: number;
   rappelsContrats: number;
+  rappelsCertificats: number;
 }> {
   const aujourdhui = dateCalendaire(new Date());
-  const { tache: seuilTache, contrat: seuilContrat } = await seuilsRappel();
+  const {
+    tache: seuilTache,
+    contrat: seuilContrat,
+    certificat: seuilCertificat,
+  } = await seuilsRappel();
   const fallback = await destinatairesDefaut();
   const appUrl = await getAppUrl();
 
   let rappelsTaches = 0;
   let rappelsContrats = 0;
+  let rappelsCertificats = 0;
 
   // ── 1. Tâches récurrentes ──
   // Présélection large en SQL (échéance sous le seuil MAXIMAL possible, 365 j),
@@ -166,9 +173,81 @@ export async function envoyerRappelsEcheances(): Promise<{
     // et ne déclenchent plus rien.
   }
 
-  return { rappelsTaches, rappelsContrats };
+  // ── 3. Certificats électroniques arrivant à expiration ──
+  if (fallback.length > 0) {
+    const fenetreCertificat = new Date(aujourdhui.getTime() + seuilCertificat * 86_400_000);
+
+    // Mêmes bornes que les marchés : un certificat déjà expiré ne se rappelle
+    // plus, il se constate — sans la borne basse, les dix-neuf lignes reprises
+    // de l'historique déclencheraient un rappel rétroactif au premier passage.
+    //
+    // Les certificats RÉVOQUÉS sont hors du champ : leur date court encore mais
+    // ils ne servent plus, et rien n'est à renouveler. Ceux qu'on a déjà mis en
+    // renouvellement, eux, restent surveillés : la commande peut traîner.
+    const certificats = await prisma.certificat.findMany({
+      where: {
+        dateFin: { gte: aujourdhui, lte: fenetreCertificat },
+        statut: { not: "revoque" },
+      },
+      select: {
+        id: true,
+        titulaire: true,
+        fonction: true,
+        dateFin: true,
+        rappelEnvoyeLe: true,
+        numeroSerie: true,
+        fournisseur: { select: { nom: true } },
+        service: { select: { nom: true } },
+      },
+    });
+    for (const c of certificats) {
+      if (!c.dateFin) continue;
+      if (c.rappelEnvoyeLe?.getTime() === c.dateFin.getTime()) continue;
+      const url = appUrl ? `${appUrl}/certificats/${c.id}` : "";
+      // Ce qui aide à agir, et rien de plus : chez qui commander, pour quel
+      // service, et sous quel numéro le certificat est connu de l'autorité.
+      const details = [
+        c.fournisseur ? `Autorité : ${c.fournisseur.nom}.` : "",
+        c.service ? `Service : ${c.service.nom}.` : "",
+        c.numeroSerie ? `N° de série : ${c.numeroSerie}.` : "",
+      ]
+        .filter(Boolean)
+        .join(" ");
+      let auMoinsUnEnvoi = false;
+      for (const to of fallback) {
+        const res = await sendTemplatedMail({
+          to,
+          kind: "certificat_rappel",
+          vars: {
+            salutation: greeting(""),
+            titulaire: c.titulaire,
+            fonction: c.fonction,
+            echeance: fmtDate.format(c.dateFin),
+            details,
+            url,
+          },
+          rawVars: url ? { bouton: emailButton(url, "Ouvrir le certificat") } : {},
+          mode: "queue",
+        });
+        if (res.ok || res.queued) auMoinsUnEnvoi = true;
+      }
+      if (auMoinsUnEnvoi) {
+        await prisma.certificat.update({
+          where: { id: c.id },
+          data: { rappelEnvoyeLe: c.dateFin },
+        });
+        rappelsCertificats += 1;
+      }
+    }
+  }
+
+  return { rappelsTaches, rappelsContrats, rappelsCertificats };
 }
 
-export function summarizeEcheances(r: { rappelsTaches: number; rappelsContrats: number }): string {
-  return `${r.rappelsTaches} rappel(s) de tâche, ${r.rappelsContrats} rappel(s) de contrat`;
+export function summarizeEcheances(r: {
+  rappelsTaches: number;
+  rappelsContrats: number;
+  rappelsCertificats: number;
+}): string {
+  return `${r.rappelsTaches} rappel(s) de tâche, ${r.rappelsContrats} rappel(s) de contrat, ${r.rappelsCertificats} rappel(s) de certificat`;
 }

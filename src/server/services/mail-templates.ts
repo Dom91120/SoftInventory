@@ -19,7 +19,8 @@ export type MailKind =
   | "compte_cree"
   | "tache_rappel"
   | "tache_retard"
-  | "contrat_rappel";
+  | "contrat_rappel"
+  | "certificat_rappel";
 
 export type MailTemplateDef = {
   label: string;
@@ -110,6 +111,24 @@ devait être faite pour le <strong>{{echeance}}</strong> et n'est pas marquée c
 <p>{{objet}} du logiciel <strong>{{logiciel}}</strong> arrive à échéance le
 <strong>{{echeance}}</strong>.</p>
 {{#if details}}<p>{{details}}</p>{{/if}}
+{{#if url}}<p>{{bouton}}</p>{{/if}}`,
+  },
+  certificat_rappel: {
+    label: "Expiration de certificat",
+    description:
+      "Rappel envoyé avant la fin de validité d'un certificat électronique (élu, agent ou serveur).",
+    subject: "SoftInventory — le certificat de {{titulaire}} expire le {{echeance}}",
+    position: 8,
+    // Le titulaire ET sa fonction : un certificat de Maire ne se renouvelle pas
+    // avec la même urgence que celui d'un agent, et c'est la fonction qui le
+    // dit. Le délai de commande est rappelé en clair — c'est la raison d'être
+    // de l'alerte, un certificat ne se renouvelle pas le jour où il expire.
+    html: `<p>{{salutation}}</p>
+<p>Le certificat électronique de <strong>{{titulaire}}</strong>{{#if fonction}} ({{fonction}}){{/if}}
+arrive à expiration le <strong>{{echeance}}</strong>.</p>
+{{#if details}}<p>{{details}}</p>{{/if}}
+<p>Passé cette date, les signatures et télétransmissions qui s'appuient dessus ne
+fonctionneront plus : la commande du renouvellement demande d'être engagée en amont.</p>
 {{#if url}}<p>{{bouton}}</p>{{/if}}`,
   },
 };

@@ -14,6 +14,7 @@ type Config = {
   passwordDefini: boolean;
   tacheJours: string;
   contratJours: string;
+  certificatJours: string;
   destinataires: string;
 };
 
@@ -194,6 +195,24 @@ export function ReglagesPanel({ config }: { config: Config }) {
               min={0}
               max={365}
               defaultValue={config.contratJours}
+              disabled={pending}
+              className="input"
+            />
+          </Field>
+          {/* Son propre délai, plus court que celui des marchés : un certificat
+              se commande et s'attend, il ne se remet pas en concurrence. */}
+          <Field
+            label="Rappel des certificats (jours avant)"
+            htmlFor="certificatJours"
+            hint="Le temps de faire signer le bon de commande et d'attendre la délivrance."
+          >
+            <input
+              id="certificatJours"
+              name="certificatJours"
+              type="number"
+              min={0}
+              max={365}
+              defaultValue={config.certificatJours}
               disabled={pending}
               className="input"
             />

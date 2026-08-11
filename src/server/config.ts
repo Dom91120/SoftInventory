@@ -23,9 +23,23 @@ export const APP_URL_KEY = "app.url";
  *
  * Défaut contrat à 90 j (≈ 3 mois) : le délai pour relancer une consultation
  * avant le terme d'un marché.
+ *
+ * Défaut certificat à 60 j (2 mois) : le temps de faire signer un bon de
+ * commande, de le poster en recommandé et d'attendre la délivrance — un
+ * certificat ne se renouvelle pas le jour où il expire. Son propre réglage,
+ * distinct de celui des marchés : les deux horizons n'ont pas les mêmes
+ * contraintes, et les confondre obligerait à choisir le plus long des deux.
  */
-export async function seuilsRappel(): Promise<{ tache: number; contrat: number }> {
-  const cfg = await getConfigMany(["tache.rappelJoursAvant", "contrat.rappelJoursAvant"]);
+export async function seuilsRappel(): Promise<{
+  tache: number;
+  contrat: number;
+  certificat: number;
+}> {
+  const cfg = await getConfigMany([
+    "tache.rappelJoursAvant",
+    "contrat.rappelJoursAvant",
+    "certificat.rappelJoursAvant",
+  ]);
   const lire = (raw: string, defaut: number) => {
     const n = Number(raw);
     return Number.isInteger(n) && n >= 0 && n <= 365 ? n : defaut;
@@ -33,6 +47,7 @@ export async function seuilsRappel(): Promise<{ tache: number; contrat: number }
   return {
     tache: lire(cfg["tache.rappelJoursAvant"], 14),
     contrat: lire(cfg["contrat.rappelJoursAvant"], 90),
+    certificat: lire(cfg["certificat.rappelJoursAvant"], 60),
   };
 }
 
