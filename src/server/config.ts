@@ -40,7 +40,16 @@ export async function seuilsRappel(): Promise<{
     "contrat.rappelJoursAvant",
     "certificat.rappelJoursAvant",
   ]);
+  // Le VIDE est écarté avant tout : `Number("")` vaut zéro, un zéro qui passait
+  // toutes les bornes et prenait la place du défaut. Une clé jamais écrite —
+  // celle des certificats, tant que personne n'a ouvert l'écran — annonçait
+  // ainsi un rappel « 0 jour avant », c'est-à-dire aucun rappel du tout, et le
+  // tableau de bord n'affichait rien avant le jour de l'expiration.
+  //
+  // Zéro SAISI reste une réponse : « prévenir le jour même » se demande, et se
+  // distingue d'une case qu'on n'a jamais remplie.
   const lire = (raw: string, defaut: number) => {
+    if (raw.trim() === "") return defaut;
     const n = Number(raw);
     return Number.isInteger(n) && n >= 0 && n <= 365 ? n : defaut;
   };

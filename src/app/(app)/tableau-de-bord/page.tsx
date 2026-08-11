@@ -183,6 +183,40 @@ export default async function TableauDeBordPage() {
             )}
           </Card>
 
+          {/* Les certificats, sous les contrats : deux échéances de même nature
+              — quelque chose expire et doit être commandé avant. La carte se
+              tait quand il n'y a rien dans la fenêtre, comme celle des tâches :
+              une liste vide occuperait une carte entière pour ne rien dire. */}
+          {d.certificats.length > 0 ? (
+            <Card
+              title="Certificats à renouveler"
+              hint={`sous ${d.seuilCertificatJours} jours, expirés compris`}
+            >
+              <ul className="divide-y divide-line text-sm">
+                {d.certificats.map((c) => (
+                  <li key={c.id} className="flex items-center justify-between gap-3 py-2.5">
+                    <span className="min-w-0">
+                      <Link
+                        href={`/certificats/${c.id}`}
+                        className="block truncate font-medium text-strong hover:text-accent"
+                      >
+                        {c.titulaire}
+                      </Link>
+                      <span className="block truncate text-xs text-muted">{c.detail}</span>
+                    </span>
+                    {/* Rouge pour ce qui est déjà périmé, ambre pour ce qui
+                        vient : un certificat expiré n'est plus une échéance,
+                        c'est une panne en attente. */}
+                    <span className={c.expire ? "badge-danger shrink-0" : "badge-warn shrink-0"}>
+                      <CalendarClock className="h-3.5 w-3.5" />
+                      {fmtDate.format(c.echeance)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          ) : null}
+
           {/* Mes tâches : la seule carte de l'écran qui change d'un compte à
               l'autre. Elle se tait pour qui n'en porte aucune — annoncer une
               liste vide occuperait une carte entière pour ne rien dire.

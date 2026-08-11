@@ -49,6 +49,21 @@ export type DonneesDashboard = {
     detail: string;
     echeance: Date;
   }>;
+  /** Horizon des certificats, en jours — son propre réglage, plus court. */
+  seuilCertificatJours: number;
+  /**
+   * Les certificats à renouveler, le plus pressant d'abord. Les EXPIRÉS y
+   * figurent aussi, en tête : un certificat périmé ne se constate pas, il se
+   * remplace — et rien d'autre dans l'application ne le rappellerait, le cron
+   * ayant cessé d'écrire une fois la date passée.
+   */
+  certificats: Array<{
+    id: number;
+    titulaire: string;
+    detail: string;
+    echeance: Date;
+    expire: boolean;
+  }>;
   parHebergement: Repartition;
   parCriticite: Repartition;
 };
@@ -62,8 +77,9 @@ export async function chargerDashboard(userId: string): Promise<DonneesDashboard
   const aujourdhui = dateCalendaire(new Date());
   // Même horizon que les rappels par e-mail : la carte annonce la fenêtre que
   // le cron applique réellement (voir seuilsRappel).
-  const { contrat: seuilJours } = await seuilsRappel();
+  const { contrat: seuilJours, certificat: seuilCertificat } = await seuilsRappel();
   const fenetre = new Date(aujourdhui.getTime() + seuilJours * 86_400_000);
+  const fenetreCertificat = new Date(aujourdhui.getTime() + seuilCertificat * 86_400_000);
 
   const [
     logiciels,
@@ -74,6 +90,7 @@ export async function chargerDashboard(userId: string): Promise<DonneesDashboard
     modesHebergement,
     taches,
     contratsARenouveler,
+    certificatsARenouveler,
   ] = await Promise.all([
     prisma.logiciel.findMany({
       select: {
@@ -121,6 +138,21 @@ export async function chargerDashboard(userId: string): Promise<DonneesDashboard
         referenceMarche: true,
         dateFin: true,
         logiciels: { select: { logiciel: { select: { nom: true } } } },
+      },
+    }),
+    // PAS de borne basse ici, à la différence des marchés : un certificat
+    // périmé reste à remplacer, et personne d'autre ne le dirait — le cron
+    // cesse d'écrire une fois la date passée. Les révoqués sont hors du champ,
+    // il n'y a rien à renouveler.
+    prisma.certificat.findMany({
+      where: { dateFin: { lte: fenetreCertificat }, statut: { not: "revoque" } },
+      select: {
+        id: true,
+        titulaire: true,
+        fonction: true,
+        dateFin: true,
+        fournisseur: { select: { nom: true } },
+        service: { select: { nom: true } },
       },
     }),
   ]);
@@ -199,6 +231,22 @@ export async function chargerDashboard(userId: string): Promise<DonneesDashboard
     }))
     .filter((r) => r.nb > 0);
 
+  // Le plus pressant d'abord, expirés en tête puisque leur date est la plus
+  // ancienne. Le détail dit à qui et chez qui : de quoi décider s'il faut
+  // relancer aujourd'hui sans ouvrir la fiche.
+  const certificats = certificatsARenouveler
+    .filter((c) => c.dateFin !== null)
+    .map((c) => ({
+      id: c.id,
+      titulaire: c.titulaire,
+      detail:
+        [c.fonction || c.service?.nom, c.fournisseur?.nom].filter(Boolean).join(" · ") ||
+        "Certificat électronique",
+      echeance: c.dateFin as Date,
+      expire: (c.dateFin as Date).getTime() < aujourdhui.getTime(),
+    }))
+    .sort((a, b) => a.echeance.getTime() - b.echeance.getTime());
+
   const nonEvalues = logiciels.filter((l) => l.criticiteId === null).length;
   const parCriticite: Repartition = [
     ...criticites
@@ -223,6 +271,8 @@ export async function chargerDashboard(userId: string): Promise<DonneesDashboard
     mesTaches,
     seuilRenouvellementJours: seuilJours,
     renouvellements,
+    seuilCertificatJours: seuilCertificat,
+    certificats,
     parHebergement,
     parCriticite,
   };
