@@ -1,6 +1,7 @@
 import type { Prisma } from "@/generated/prisma/client";
 import type { CertificatInput, CodesCertificatInput } from "@/schemas/certificat";
 import { prisma } from "@/server/db";
+import { deleteDocument } from "@/server/services/documents";
 
 /**
  * Certificats électroniques — couche données. Fonctions fines, non gardées :
@@ -67,7 +68,7 @@ export async function listCertificats(filtres: FiltresCertificats = {}) {
   });
 }
 
-/** Fiche d'un certificat, codes exclus. */
+/** Fiche d'un certificat, codes exclus, avec ses pièces jointes. */
 export async function getCertificat(id: number) {
   return prisma.certificat.findUnique({
     where: { id },
@@ -76,6 +77,9 @@ export async function getCertificat(id: number) {
       fournisseur: { select: { id: true, nom: true } },
       service: { select: { id: true, nom: true } },
       serveur: { select: { id: true, nom: true } },
+      // Les plus récentes en tête : sur une fiche, c'est la dernière pièce
+      // déposée qu'on vient chercher.
+      documents: { include: { categorie: true }, orderBy: { createdAt: "desc" } },
     },
   });
 }
@@ -119,7 +123,19 @@ export async function updateCodesCertificat(id: number, data: CodesCertificatInp
   await prisma.certificat.update({ where: { id }, data });
 }
 
+/**
+ * Supprime le certificat ET ses pièces jointes, FICHIERS DU DISQUE COMPRIS.
+ *
+ * La cascade de la base emporterait les lignes, jamais les fichiers : ils
+ * resteraient sur le disque sans plus rien pour les nommer ni les atteindre.
+ * On passe donc par `deleteDocument`, qui efface les deux.
+ */
 export async function deleteCertificat(id: number) {
+  const documents = await prisma.document.findMany({
+    where: { certificatId: id },
+    select: { id: true },
+  });
+  for (const d of documents) await deleteDocument(d.id);
   await prisma.certificat.delete({ where: { id } });
 }
 

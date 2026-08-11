@@ -27,7 +27,8 @@ export type ParentDocument =
   | { logicielId: number }
   | { editeurId: number }
   | { pieceContratId: number }
-  | { devisId: number };
+  | { devisId: number }
+  | { certificatId: number };
 
 /**
  * Enregistre une pièce jointe : vérifie la liste blanche, écrit le fichier
@@ -64,6 +65,12 @@ export async function saveDocument(opts: {
       select: { id: true },
     });
     if (!c) return { ok: false, error: "Pièce de contrat introuvable." };
+  } else if ("certificatId" in opts.parent) {
+    const c = await prisma.certificat.findUnique({
+      where: { id: opts.parent.certificatId },
+      select: { id: true },
+    });
+    if (!c) return { ok: false, error: "Certificat introuvable." };
   } else {
     const d = await prisma.devis.findUnique({
       where: { id: opts.parent.devisId },

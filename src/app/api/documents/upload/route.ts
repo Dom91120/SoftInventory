@@ -9,9 +9,9 @@ export const dynamic = "force-dynamic";
 
 /**
  * Dépôt d'une pièce jointe (multipart/form-data) : fichier + parent
- * (logicielId, editeurId, pieceContratId OU devisId) + catégorie optionnelle. Réservé aux
- * admins. Route API plutôt que server action : flux binaire + FormData
- * volumineux.
+ * (logicielId, editeurId, pieceContratId, devisId OU certificatId) + catégorie
+ * optionnelle. Réservé aux admins. Route API plutôt que server action : flux
+ * binaire + FormData volumineux.
  */
 export function POST(request: Request): Promise<Response> {
   return reponseApi(async () => {
@@ -38,6 +38,7 @@ export function POST(request: Request): Promise<Response> {
     const editeurId = id("editeurId");
     const pieceContratId = id("pieceContratId");
     const devisId = id("devisId");
+    const certificatId = id("certificatId");
     const parent = logicielId
       ? { logicielId }
       : editeurId
@@ -46,7 +47,9 @@ export function POST(request: Request): Promise<Response> {
           ? { pieceContratId }
           : devisId
             ? { devisId }
-            : null;
+            : certificatId
+              ? { certificatId }
+              : null;
     if (!parent) {
       return NextResponse.json({ error: "Parent du document manquant." }, { status: 400 });
     }

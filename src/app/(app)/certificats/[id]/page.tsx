@@ -1,15 +1,26 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { DocumentsPanel } from "@/components/documents-panel";
 import { PageHeader } from "@/components/ui";
 import type { Role } from "@/generated/prisma/client";
 import { requireUser } from "@/server/guards";
 import { getCertificat } from "@/server/services/certificats";
 import { listEditeurs } from "@/server/services/editeurs";
-import { listServeurs, listServicesUtilisateurs } from "@/server/services/referentiels";
+import {
+  listCategoriesDocuments,
+  listServeurs,
+  listServicesUtilisateurs,
+} from "@/server/services/referentiels";
 import { CertificatForm } from "../certificat-form";
 import { CodesPanel } from "../codes-panel";
 
 export const metadata: Metadata = { title: "Certificat" };
+
+/** Horodatage d'un dépôt : une heure locale, pas une date de calendrier. */
+const FMT_DEPOT = new Intl.DateTimeFormat("fr-FR", {
+  dateStyle: "short",
+  timeZone: "Europe/Paris",
+});
 
 /** Les <input type="date"> attendent AAAA-MM-JJ ; la base rend des dates UTC. */
 const jour = (d: Date | null) => (d === null ? "" : d.toISOString().slice(0, 10));
@@ -23,11 +34,12 @@ export default async function CertificatPage({ params }: { params: Promise<{ id:
   const id = Number(idStr);
   if (!Number.isInteger(id) || id < 1) notFound();
 
-  const [certificat, editeurs, services, serveurs] = await Promise.all([
+  const [certificat, editeurs, services, serveurs, categories] = await Promise.all([
     getCertificat(id),
     listEditeurs(),
     listServicesUtilisateurs(),
     listServeurs(),
+    listCategoriesDocuments(),
   ]);
   if (!certificat) notFound();
 
@@ -68,6 +80,23 @@ export default async function CertificatPage({ params }: { params: Promise<{ id:
           notes: certificat.notes,
         }}
       >
+        {/* L'attestation de l'autorité, le bon de commande signé, le recueil
+            d'identité : les pièces se lisent sous la fiche qu'elles attestent. */}
+        <DocumentsPanel
+          parent={{ certificatId: id }}
+          readOnly={!isAdmin}
+          categories={categories.map((c) => ({ id: c.id, label: c.label }))}
+          documents={certificat.documents.map((d) => ({
+            id: d.id,
+            nomOriginal: d.nomOriginal,
+            categorieId: d.categorieId,
+            categorie: d.categorie?.label ?? null,
+            taille: d.taille,
+            deposeParLabel: d.deposeParLabel,
+            createdAt: FMT_DEPOT.format(d.createdAt),
+          }))}
+        />
+
         {/* La carte des codes n'est pas rendue au lecteur — et l'action qu'elle
             appelle exige de toute façon le rôle admin. */}
         {isAdmin ? <CodesPanel id={id} /> : null}

@@ -253,7 +253,8 @@ export function DocumentsPanel({
     | { logicielId: number }
     | { editeurId: number }
     | { contratId: number }
-    | { devisId: number };
+    | { devisId: number }
+    | { certificatId: number };
   documents: DocumentRow[];
   categories: CategorieOption[];
   readOnly: boolean;
@@ -301,6 +302,7 @@ export function DocumentsPanel({
       if ("logicielId" in parent) form.set("logicielId", String(parent.logicielId));
       else if ("editeurId" in parent) form.set("editeurId", String(parent.editeurId));
       else if ("contratId" in parent) form.set("contratId", String(parent.contratId));
+      else if ("certificatId" in parent) form.set("certificatId", String(parent.certificatId));
       else form.set("devisId", String(parent.devisId));
       if (categorieId) form.set("categorieId", categorieId);
       const r = await fetch("/api/documents/upload", { method: "POST", body: form });

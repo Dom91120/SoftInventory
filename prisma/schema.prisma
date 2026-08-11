@@ -813,6 +813,8 @@ model Certificat {
   fournisseur Editeur?            @relation("CertificatFournisseur", fields: [fournisseurId], references: [id], onDelete: SetNull)
   service     ServiceUtilisateur? @relation(fields: [serviceId], references: [id], onDelete: SetNull)
   serveur     Serveur?            @relation(fields: [serveurId], references: [id], onDelete: SetNull)
+  /// Attestation de l'autorité, bon de commande signé, recueil d'identité.
+  documents   Document[]
 
   @@index([fournisseurId])
   @@index([serviceId])
@@ -927,6 +929,9 @@ model Document {
   /// Rattachement à un devis : le PDF remis par le fournisseur se lit alors
   /// sous son devis, dans l'onglet Devis du logiciel.
   devisId        Int? @map("devis_id")
+  /// Rattachement à un certificat : l'attestation de l'autorité, le bon de
+  /// commande signé, le formulaire de recueil d'identité.
+  certificatId   Int? @map("certificat_id")
   categorieId    Int? @map("categorie_id")
 
   nomOriginal String @map("nom_original")
@@ -944,12 +949,14 @@ model Document {
   editeur      Editeur?           @relation(fields: [editeurId], references: [id], onDelete: Cascade)
   pieceContrat PieceContrat?      @relation(fields: [pieceContratId], references: [id], onDelete: Cascade)
   devis        Devis?             @relation(fields: [devisId], references: [id], onDelete: Cascade)
+  certificat   Certificat?        @relation(fields: [certificatId], references: [id], onDelete: Cascade)
   categorie    CategorieDocument? @relation(fields: [categorieId], references: [id], onDelete: SetNull)
 
   @@index([logicielId])
   @@index([editeurId])
   @@index([pieceContratId])
   @@index([devisId])
+  @@index([certificatId])
   @@index([categorieId])
   @@map("documents")
 }
