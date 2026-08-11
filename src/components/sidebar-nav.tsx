@@ -3,6 +3,7 @@
 import {
   Building2,
   CalendarClock,
+  ChartColumn,
   ClipboardList,
   FileSignature,
   KeyRound,
@@ -37,6 +38,9 @@ const INVENTAIRE: Item[] = [
   // plus à tenir, et comme les tâches, ils ont une échéance qui court.
   { href: "/certificats", label: "Certificats", icon: <ShieldCheck className={ICON} /> },
   { href: "/taches", label: "Tâches", icon: <ClipboardList className={ICON} /> },
+  // En dernier : les statistiques ne se consultent pas pour travailler sur une
+  // fiche, elles regardent le parc entier une fois qu'il est tenu.
+  { href: "/statistiques", label: "Statistiques", icon: <ChartColumn className={ICON} /> },
 ];
 
 const ADMINISTRATION: Item[] = [
