@@ -350,10 +350,11 @@ export function CertificatForm({
                 className="input"
               />
             </Field>
-            <Field label="Niveau" htmlFor="niveau" hint="Ex. RGS**, eIDAS qualifié">
+            <Field label="Niveau" htmlFor="niveau">
               <input
                 id="niveau"
                 name="niveau"
+                placeholder="Ex. RGS**, eIDAS qualifié"
                 defaultValue={values.niveau}
                 disabled={dis}
                 className="input"
@@ -416,10 +417,11 @@ export function CertificatForm({
                 className="input"
               />
             </Field>
-            <Field label="Imputation" htmlFor="imputation" hint="Article budgétaire, ex. 60632">
+            <Field label="Imputation" htmlFor="imputation">
               <input
                 id="imputation"
                 name="imputation"
+                placeholder="Ex. 60632"
                 defaultValue={values.imputation}
                 disabled={dis}
                 className="input"
