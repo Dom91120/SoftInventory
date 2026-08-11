@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { DocumentsPanel } from "@/components/documents-panel";
 import { FlecheVoisin } from "@/components/fleche-voisin";
@@ -60,12 +61,24 @@ export default async function CertificatPage({ params }: { params: Promise<{ id:
           entite="Certificat"
         />
         <div className="min-w-0 flex-1">
+          {/* Le sous-titre dit QUI, les actions disent CHEZ QUI. L'autorité n'y
+              est pas qu'un mot : c'est chez elle qu'on renouvelle et qu'on
+              révoque, sa fiche porte l'adresse et les contacts, elle mérite donc
+              d'être un lien plutôt qu'une mention accolée à la fonction. */}
           <PageHeader
             className=""
             title={certificat.titulaire}
-            subtitle={
-              [certificat.fonction, certificat.fournisseur?.nom].filter(Boolean).join(" · ") ||
-              "Certificat électronique"
+            subtitle={certificat.fonction || "Certificat électronique"}
+            actions={
+              certificat.fournisseur ? (
+                <Link
+                  href={`/editeurs/${certificat.fournisseur.id}`}
+                  title={`Ouvrir la fiche de ${certificat.fournisseur.nom}`}
+                  className="text-sm font-medium text-muted hover:text-accent"
+                >
+                  {certificat.fournisseur.nom}
+                </Link>
+              ) : undefined
             }
           />
         </div>
