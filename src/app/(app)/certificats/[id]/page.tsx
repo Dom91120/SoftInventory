@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { DocumentsPanel } from "@/components/documents-panel";
+import { FlecheVoisin } from "@/components/fleche-voisin";
 import { PageHeader } from "@/components/ui";
 import type { Role } from "@/generated/prisma/client";
 import { requireUser } from "@/server/guards";
-import { getCertificat } from "@/server/services/certificats";
+import { getCertificat, voisinsCertificat } from "@/server/services/certificats";
 import { listEditeurs } from "@/server/services/editeurs";
 import {
   listCategoriesDocuments,
@@ -34,24 +35,47 @@ export default async function CertificatPage({ params }: { params: Promise<{ id:
   const id = Number(idStr);
   if (!Number.isInteger(id) || id < 1) notFound();
 
-  const [certificat, editeurs, services, serveurs, categories] = await Promise.all([
+  const [certificat, editeurs, services, serveurs, categories, voisins] = await Promise.all([
     getCertificat(id),
     listEditeurs(),
     listServicesUtilisateurs(),
     listServeurs(),
     listCategoriesDocuments(),
+    voisinsCertificat(id),
   ]);
   if (!certificat) notFound();
 
   return (
     <>
-      <PageHeader
-        title={certificat.titulaire}
-        subtitle={
-          [certificat.fonction, certificat.fournisseur?.nom].filter(Boolean).join(" · ") ||
-          "Certificat électronique"
-        }
-      />
+      {/* L'en-tête est encadré des flèches de navigation : on parcourt ainsi
+          les certificats sans repasser par la liste, DANS SON ORDRE — du plus
+          pressant au plus lointain, puisque c'est par échéance qu'elle est
+          rangée. La fiche logiciel, elle, se parcourt alphabétiquement : chaque
+          liste impose son ordre à ses flèches. */}
+      <div className="mb-4 flex items-start gap-2">
+        <FlecheVoisin
+          voisin={voisins.precedent}
+          sens="precedent"
+          hrefBase="/certificats"
+          entite="Certificat"
+        />
+        <div className="min-w-0 flex-1">
+          <PageHeader
+            className=""
+            title={certificat.titulaire}
+            subtitle={
+              [certificat.fonction, certificat.fournisseur?.nom].filter(Boolean).join(" · ") ||
+              "Certificat électronique"
+            }
+          />
+        </div>
+        <FlecheVoisin
+          voisin={voisins.suivant}
+          sens="suivant"
+          hrefBase="/certificats"
+          entite="Certificat"
+        />
+      </div>
       <CertificatForm
         id={id}
         readOnly={!isAdmin}

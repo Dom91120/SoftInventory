@@ -139,6 +139,33 @@ export async function deleteCertificat(id: number) {
   await prisma.certificat.delete({ where: { id } });
 }
 
+/**
+ * Fiches voisines, pour les flèches de l'en-tête.
+ *
+ * Dans l'ORDRE DE LA LISTE, c'est-à-dire par échéance croissante — et non par
+ * ordre alphabétique comme les logiciels. C'est le seul choix cohérent : la
+ * flèche « suivant » doit mener où le regard irait en descendant la liste, et
+ * celle-ci n'est pas rangée par nom. Parcourir les certificats du plus pressant
+ * au plus lointain est d'ailleurs le geste qu'on vient faire ici.
+ *
+ * Le tri est refait EN MÉMOIRE sur les mêmes clés que `listCertificats` : la
+ * liste étant courte, cela évite de dupliquer un `orderBy` qui divergerait.
+ */
+export async function voisinsCertificat(id: number): Promise<{
+  precedent: { id: number; nom: string } | null;
+  suivant: { id: number; nom: string } | null;
+}> {
+  const tous = await prisma.certificat.findMany({
+    orderBy: [{ dateFin: { sort: "asc", nulls: "last" } }, { titulaire: "asc" }, { id: "asc" }],
+    select: { id: true, titulaire: true },
+  });
+  const i = tous.findIndex((c) => c.id === id);
+  if (i === -1) return { precedent: null, suivant: null };
+  const nommer = (c?: { id: number; titulaire: string }) =>
+    c ? { id: c.id, nom: c.titulaire } : null;
+  return { precedent: nommer(tous[i - 1]), suivant: nommer(tous[i + 1]) };
+}
+
 /** Les sociétés qui ont délivré au moins un certificat — options du filtre. */
 export async function listAutoritesCertification() {
   return prisma.editeur.findMany({
