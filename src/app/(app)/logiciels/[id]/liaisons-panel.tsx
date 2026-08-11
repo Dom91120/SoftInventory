@@ -432,7 +432,7 @@ export function LiaisonsPanel({
             </select>
             <input
               className="input !w-72"
-              placeholder="Description du flux (ex. export paie mensuel)"
+              placeholder="Description du flux (ex : export paie mensuel)"
               value={nouvelleDesc}
               onChange={(e) => setNouvelleDesc(e.target.value)}
               disabled={pending}

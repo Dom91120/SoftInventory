@@ -298,7 +298,7 @@ export function DevisPanel({
                   id="objet"
                   name="objet"
                   required
-                  placeholder="Ex. Renouvellement 2026, migration vers la version web"
+                  placeholder="Ex : Renouvellement 2026, migration vers la version web"
                   maxLength={150}
                   defaultValue={
                     consultationForm.mode === "edition" ? consultationForm.row.objet : ""

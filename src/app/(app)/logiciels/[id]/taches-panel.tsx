@@ -342,7 +342,7 @@ export function TachesPanel({
                 defaultValue={enEdition?.titre ?? ""}
                 disabled={pending}
                 className="input"
-                placeholder="Ex. Mise à jour de version, purge annuelle…"
+                placeholder="Ex : Mise à jour de version, purge annuelle…"
               />
             </Field>
             <Field label="Type" htmlFor="typeTacheId">

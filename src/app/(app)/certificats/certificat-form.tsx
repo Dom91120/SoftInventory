@@ -255,7 +255,7 @@ export function CertificatForm({
                 id="titulaire"
                 name="titulaire"
                 required
-                placeholder="Ex. Mme AZZAZ, SRV-CHORUS"
+                placeholder="Ex : Mme AZZAZ, SRV-CHORUS"
                 defaultValue={values.titulaire}
                 disabled={dis}
                 className="input"
@@ -267,7 +267,7 @@ export function CertificatForm({
               <input
                 id="fonction"
                 name="fonction"
-                placeholder="Ex. Maire, Adjoint, Agent"
+                placeholder="Ex : Maire, Adjoint, Agent"
                 defaultValue={values.fonction}
                 disabled={dis}
                 className="input"
@@ -354,7 +354,7 @@ export function CertificatForm({
               <input
                 id="niveau"
                 name="niveau"
-                placeholder="Ex. RGS**, eIDAS qualifié"
+                placeholder="Ex : RGS**, eIDAS qualifié"
                 defaultValue={values.niveau}
                 disabled={dis}
                 className="input"
@@ -420,7 +420,7 @@ export function CertificatForm({
               <input
                 id="imputation"
                 name="imputation"
-                placeholder="Ex. 60632"
+                placeholder="Ex : 60632"
                 defaultValue={values.imputation}
                 disabled={dis}
                 className="input"
@@ -441,7 +441,7 @@ export function CertificatForm({
                 <input
                   id="bonCommandeNote"
                   name="bonCommandeNote"
-                  placeholder="Ex. envoyé par courrier en AR"
+                  placeholder="Ex : envoyé par courrier en AR"
                   defaultValue={values.bonCommandeNote}
                   disabled={dis}
                   className="input"

@@ -131,7 +131,7 @@ export function ChampsMarche({
         <input
           id="libelle"
           name="libelle"
-          placeholder="Ex. marché 2024-12, pack 50 postes"
+          placeholder="Ex : marché 2024-12, pack 50 postes"
           defaultValue={values.libelle}
           disabled={disabled}
           className="input"

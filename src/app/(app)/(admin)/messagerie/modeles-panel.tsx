@@ -74,7 +74,7 @@ export function ModelesPanel({ modeles }: { modeles: ModeleRow[] }) {
               <Field
                 label="Corps (HTML)"
                 htmlFor={`html-${m.key}`}
-                hint="Variables {{…}} : elles sont remplacées à l'envoi (ex. {{logiciel}}, {{echeance}}, {{bouton}}). {{#if variable}}…{{/if}} n'affiche le bloc que si la variable est renseignée."
+                hint="Variables {{…}} : elles sont remplacées à l'envoi (ex : {{logiciel}}, {{echeance}}, {{bouton}}). {{#if variable}}…{{/if}} n'affiche le bloc que si la variable est renseignée."
               >
                 <textarea
                   id={`html-${m.key}`}

@@ -185,7 +185,7 @@ export function RgpdPanel({
                 <textarea
                   id="categoriesDonnees"
                   name="categoriesDonnees"
-                  placeholder="Ex. état civil, coordonnées, données financières, données de santé…"
+                  placeholder="Ex : état civil, coordonnées, données financières, données de santé…"
                   rows={3}
                   defaultValue={values.categoriesDonnees}
                   disabled={dis}
