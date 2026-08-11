@@ -178,7 +178,13 @@ export function Stat({
   className = "",
 }: {
   value: ReactNode;
-  label: string;
+  /**
+   * Un texte, presque toujours. `ReactNode` pour le libellé qu'il faut savoir
+   * COUPER : « Contrats/Marchés » n'a pas d'espace, ne se replie donc nulle
+   * part, et se faisait rogner par le cadre. Un `<wbr />` posé sur la barre
+   * oblique lui donne l'endroit où céder.
+   */
+  label: ReactNode;
   hint?: string;
   icon?: ReactNode;
   tone?: "accent" | "ok" | "warn" | "danger" | "info" | "muted";
@@ -196,7 +202,11 @@ export function Stat({
   };
   const inner = (
     <div
-      className="relative flex h-full items-center gap-4 overflow-hidden rounded-2xl border border-line bg-surface px-5 py-3 shadow-sm transition group-hover:-translate-y-0.5 group-hover:shadow-md"
+      // `px-3 gap-3` sur un téléphone, `px-5 gap-4` au-delà : deux tuiles par
+      // rangée sur 375 px ne laissaient que 67 px au libellé une fois l'icône et
+      // les retraits posés, et « CONTRATS » — 81 px — s'y faisait rogner. Les
+      // vingt pixels rendus ici lui suffisent.
+      className="relative flex h-full items-center gap-3 overflow-hidden rounded-2xl border border-line bg-surface px-3 py-3 shadow-sm transition group-hover:-translate-y-0.5 group-hover:shadow-md sm:gap-4 sm:px-5"
       style={{ borderLeftWidth: 0 }}
     >
       <span
@@ -215,7 +225,12 @@ export function Stat({
           {icon}
         </span>
       ) : null}
-      <div className="min-w-0">
+      {/* `@container` + `flex-1` : le bloc de texte occupe la place restante, et
+          un libellé peut alors interroger CETTE place pour décider de sa forme
+          — « Contrats/Marchés » sur une ligne, ou en deux mots empilés quand la
+          tuile est trop étroite. Sans `flex-1`, le conteneur se mesurerait sur
+          son propre contenu, et la question n'aurait plus de sens. */}
+      <div className="@container min-w-0 flex-1">
         <div className="font-mono text-[1.7rem] font-semibold leading-tight text-strong tabular-nums">
           {value}
         </div>

@@ -2,6 +2,7 @@ import {
   AlertTriangle,
   Building2,
   CalendarClock,
+  FileSignature,
   Package,
   Server,
   ShieldCheck,
@@ -9,9 +10,11 @@ import {
 } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
+import type { ReactNode } from "react";
+import { BarresCategories } from "@/components/graphiques";
 import { Card, EmptyState, PageHeader, Stat } from "@/components/ui";
 import { requireUser } from "@/server/guards";
-import { chargerDashboard, type Repartition } from "@/server/services/dashboard";
+import { chargerDashboard } from "@/server/services/dashboard";
 import { TachesAFaire } from "./taches-a-faire";
 
 export const metadata: Metadata = { title: "Tableau de bord" };
@@ -24,66 +27,38 @@ const fmtEuros = new Intl.NumberFormat("fr-FR", {
 });
 
 /**
- * Répartition en BARRES, une par catégorie. Rendue côté serveur, sans
- * bibliothèque : quelques div et des pourcentages suffisent.
+ * Une carte de statistique, cliquable EN ENTIER vers l'écran Statistiques : ce
+ * qu'elle résume y est développé, et c'est la suite naturelle du regard — on
+ * voit une répartition, on veut la voir en entier.
  *
- * Une barre empilée occupait cette place. Elle convient à une composition de
- * deux à quatre postes équilibrés ; elle échouait ici, où la criticité met 87 %
- * sur un seul poste et laisse quatre miettes à 2 %, réduites à des traits de
- * sept pixels qu'on ne pouvait ni voir ni comparer entre eux. Le camembert
- * aurait fait pire : l'œil compare mal les angles.
+ * La cible est la carte et non son seul titre : ces trois cartes n'ont qu'une
+ * destination, et viser un mot de quatorze pixels pour y aller n'a pas de sens
+ * quand tout ce qui l'entoure mène au même endroit. Les cartes de gauche, elles,
+ * gardent leur titre-lien : leurs lignes mènent chacune ailleurs, une carte
+ * entière cliquable y entrerait en concurrence avec elles.
  *
- * Et l'information s'écrivait DEUX FOIS — la barre, puis la légende qui la
- * traduisait. Ici la légende EST le graphique : chaque catégorie porte son
- * libellé, sa valeur et sa barre sur sa propre ligne. Un poste à 1 % s'y lit
- * aussi bien qu'un poste à 87 %.
- *
- * Le rail gris derrière chaque barre figure le total : on lit donc les deux
- * choses à la fois, la comparaison entre catégories (longueurs entre elles) et
- * la part de chacune dans l'ensemble (longueur sur son rail).
- *
- * L'ordre reste celui du RÉFÉRENTIEL et n'est pas trié par valeur : la
- * criticité est une échelle — faible, modérée, élevée, critique — et la ranger
- * par effectif ferait perdre la progression qu'elle porte.
+ * Le survol reprend celui des tuiles du haut — la carte se soulève : c'est ce
+ * qui la dit cliquable, faute d'un libellé qui l'annonce.
  */
-function BarreRepartition({ data }: { data: Repartition }) {
-  const total = data.reduce((s, d) => s + d.nb, 0);
-  if (total === 0) return <p className="text-sm text-faint">Aucune donnée.</p>;
-  const part = (nb: number) => (nb / total) * 100;
+function CarteStats({
+  title,
+  hint,
+  children,
+}: {
+  title: string;
+  hint?: string;
+  children: ReactNode;
+}) {
   return (
-    <ul className="space-y-2">
-      {data.map((d) => (
-        <li key={d.label}>
-          {/* Libellé et valeur au-dessus de la barre, et non à ses côtés : la
-              colonne ne fait qu'un tiers de l'écran, et les trois sur une même
-              ligne n'auraient laissé à la barre que quelques dizaines de
-              pixels — trop peu pour qu'une longueur veuille dire quelque
-              chose. */}
-          {/* Le POURCENTAGE se range avec le libellé, le COMPTE reste seul à
-              droite. Les deux nombres côte à côte formaient un bloc où l'œil
-              devait trancher lequel était lequel ; séparés, la droite devient
-              une colonne de comptes alignés qu'on balaie d'un regard, et le
-              pourcentage redevient ce qu'il est — une précision sur la
-              catégorie, pas une donnée à comparer. */}
-          <div className="flex items-baseline justify-between gap-2">
-            <span className="min-w-0 truncate text-xs text-muted">
-              {d.label}
-              <span className="text-faint"> · {Math.round(part(d.nb))} %</span>
-            </span>
-            <span className="shrink-0 text-sm font-semibold text-strong tabular-nums">{d.nb}</span>
-          </div>
-          <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-inset">
-            {/* `min-width` : un poste à une unité sur cent ferait moins d'un
-                pixel et disparaîtrait, alors que sa ligne l'annonce juste
-                au-dessus — la barre mentirait par omission. */}
-            <div
-              className="h-full min-w-[3px] rounded-full"
-              style={{ width: `${part(d.nb)}%`, background: d.couleur }}
-            />
-          </div>
-        </li>
-      ))}
-    </ul>
+    <Link href="/statistiques" title="Voir les statistiques" className="group block">
+      <Card
+        title={title}
+        hint={hint}
+        className="transition group-hover:-translate-y-0.5 group-hover:shadow-md"
+      >
+        {children}
+      </Card>
+    </Link>
   );
 }
 
@@ -139,8 +114,9 @@ export default async function TableauDeBordPage() {
 
       {/* Tuiles KPI, les CINQ sur une rangée à parts égales : COMBIEN de quoi
           la collectivité dispose. Rien d'autre : ni échéance, ni montant, ni
-          moyenne — QUATRE inventaires, quatre nombres d'objets, et un clic vers
-          la liste de chacun.
+          moyenne — CINQ inventaires, cinq nombres d'objets, et un clic vers la
+          liste de chacun. L'ordre est celui du menu, pour qu'on retrouve ici ce
+          qu'on y cherche là.
 
           Deux tuiles ont occupé cette rangée avant de la quitter, chacune pour
           sa raison. « Tâches en retard » disait la même chose que la carte des
@@ -150,11 +126,18 @@ export default async function TableauDeBordPage() {
           statistique : sa place est avec les répartitions, dans la colonne de
           droite.
 
-          Toutes en `h-full`, et `auto-rows-fr` pour que les rangées de
-          l'affichage étroit se valent : chacune s'aligne alors sur la tuile la
-          plus haute au lieu de monter en escalier — trois d'entre elles n'ont
-          pas de mention sous leur libellé. */}
-      <div className="grid auto-rows-fr grid-cols-2 gap-4 lg:grid-cols-4">
+          Trois largeurs, trois découpes : les CINQ de front quand la place le
+          permet, puis TROIS PUIS DEUX — et non deux, deux, une : cinq tuiles
+          tiennent mieux sur deux rangées que sur trois, et la seconde reste
+          pleine à moitié plutôt que de laisser une tuile seule au bas. Sur un
+          téléphone, deux par rangée : à trois, il ne resterait pas cinquante
+          pixels au libellé une fois l'icône posée.
+
+          Toutes en `h-full`, et `auto-rows-fr` pour que les rangées se valent :
+          chacune s'aligne alors sur la tuile la plus haute au lieu de monter en
+          escalier — une seule porte une mention sous son libellé, et
+          « Contrats/Marchés » passe à la ligne. */}
+      <div className="grid auto-rows-fr grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
         <Stat
           value={d.nbLogiciels}
           label="Logiciels"
@@ -169,6 +152,29 @@ export default async function TableauDeBordPage() {
           tone="info"
           icon={<Building2 className="h-5 w-5" />}
           href="/editeurs"
+          className="h-full"
+        />
+        {/* Le libellé porte la barre oblique du menu et du titre de l'écran :
+            trois façons de nommer la même chose auraient fait douter qu'il
+            s'agisse de la même.
+
+            Mais « Contrats/Marchés » n'a pas d'espace : le mot est insécable et
+            le cadre le rognait au dernier caractère. Il interroge donc la place
+            dont il dispose et change de forme — sur une ligne quand elle suffit,
+            en DEUX MOTS EMPILÉS sinon, et la barre oblique s'efface alors : elle
+            ne sépare plus rien, c'est le retour à la ligne qui s'en charge. */}
+        <Stat
+          value={d.nbContrats}
+          label={
+            <>
+              <span className="block @[7.5rem]:inline">Contrats</span>
+              <span className="hidden @[7.5rem]:inline">/</span>
+              <span className="block @[7.5rem]:inline">Marchés</span>
+            </>
+          }
+          tone="ok"
+          icon={<FileSignature className="h-5 w-5" />}
+          href="/contrats"
           className="h-full"
         />
         <Stat
@@ -196,7 +202,11 @@ export default async function TableauDeBordPage() {
           haut à droite un vide de la hauteur des renouvellements, et étirant
           « Mes tâches » sur toute la hauteur de la colonne d'en face. */}
       <div className="mt-3 grid gap-3 lg:grid-cols-3">
-        <div className="space-y-3 lg:col-span-2">
+        {/* `min-w-0` sur les DEUX colonnes : une piste de grille se laisse
+            déborder par le contenu minimal de son item — une date qu'on empêche
+            de se couper, un libellé long — et les colonnes poussaient la page de
+            seize pixels sur un téléphone. */}
+        <div className="min-w-0 space-y-3 lg:col-span-2">
           {/* Renouvellements à venir */}
           {/* Titre calculé : la fenêtre suit le délai de rappel réglé en
               Administration › Messagerie, elle n'est plus figée à 60 jours. */}
@@ -282,22 +292,20 @@ export default async function TableauDeBordPage() {
             et il appartient désormais à celui-ci. Seul le chiffre garde la
             typographie des tuiles, pour que les montants de l'écran se lisent
             tous de la même façon. */}
-        <div className="space-y-3">
-          <Card title="Coût annuel" hint="contrats et marchés">
-            <Link
-              href="/contrats"
-              title="Voir les contrats et marchés"
-              className="block font-mono text-[1.7rem] font-semibold leading-tight text-strong tabular-nums transition hover:text-accent"
-            >
+        <div className="min-w-0 space-y-3">
+          {/* Les trois cartes mènent aux Statistiques, chacune EN ENTIER —
+              voir `CarteStats`. */}
+          <CarteStats title="Coût annuel" hint="contrats et marchés">
+            <p className="font-mono text-[1.7rem] font-semibold leading-tight text-strong tabular-nums">
               {fmtEuros.format(d.coutAnnuelTotal)}
-            </Link>
-          </Card>
-          <Card title="Criticité">
-            <BarreRepartition data={d.parCriticite} />
-          </Card>
-          <Card title="Hébergement">
-            <BarreRepartition data={d.parHebergement} />
-          </Card>
+            </p>
+          </CarteStats>
+          <CarteStats title="Criticité">
+            <BarresCategories data={d.parCriticite} />
+          </CarteStats>
+          <CarteStats title="Hébergement">
+            <BarresCategories data={d.parHebergement} />
+          </CarteStats>
         </div>
       </div>
     </>

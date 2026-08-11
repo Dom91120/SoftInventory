@@ -11,6 +11,8 @@ export type DonneesDashboard = {
   nbLogiciels: number;
   nbEnProduction: number;
   nbEditeurs: number;
+  /** Marchés et contrats, tous confondus — l'engagement en cours comme le passé. */
+  nbContrats: number;
   nbServeurs: number;
   /** Certificats non révoqués : ce dont la collectivité dispose. */
   nbCertificats: number;
@@ -89,6 +91,7 @@ export async function chargerDashboard(): Promise<DonneesDashboard> {
     logiciels,
     coutDesMarches,
     nbEditeurs,
+    nbContrats,
     nbServeurs,
     nbCertificats,
     criticites,
@@ -116,6 +119,7 @@ export async function chargerDashboard(): Promise<DonneesDashboard> {
     // ressaisi le serait deux fois.)
     prisma.contrat.aggregate({ _sum: { montantAnnuel: true } }),
     prisma.editeur.count(),
+    prisma.contrat.count(),
     prisma.serveur.count(),
     // Les RÉVOQUÉS ne comptent pas : le parc, c'est ce dont on dispose, et un
     // certificat révoqué ne sert plus à rien même si sa date court encore.
@@ -272,6 +276,7 @@ export async function chargerDashboard(): Promise<DonneesDashboard> {
     nbLogiciels: logiciels.length,
     nbEnProduction: logiciels.filter((l) => l.statut === "production").length,
     nbEditeurs,
+    nbContrats,
     nbServeurs,
     nbCertificats,
     coutAnnuelTotal,
