@@ -23,6 +23,8 @@ export type ValeursMarche = {
    */
   nature: string;
   referenceMarche: string;
+  /** Celle du fournisseur pour le même acte — son numéro de commande. */
+  referenceFournisseur: string;
   libelle: string;
   fournisseurId: string;
   montantAnnuel: string;
@@ -40,6 +42,7 @@ export type ValeursMarche = {
 export const MARCHE_VIDE: ValeursMarche = {
   nature: "",
   referenceMarche: "",
+  referenceFournisseur: "",
   libelle: "",
   fournisseurId: "",
   montantAnnuel: "",
@@ -89,12 +92,27 @@ export function ChampsMarche({
   }, [aRetenir]);
 
   return (
-    <div className="grid items-end gap-x-3 gap-y-2 sm:grid-cols-3">
-      {/* La nature ouvre la ligne, à gauche de la référence et dans SA colonne :
-          l'acte se nomme avant de se numéroter. Largeur fixe pour la liste,
-          contre le `w-full` de `.input` ; la référence prend le reste, elle en
-          a davantage besoin. */}
-      <div className="flex items-end gap-3">
+    /**
+     * TROIS RANGÉES, chacune avec sa propre découpe — et non une grille unique
+     * de trois colonnes à laquelle tout devait se plier. Les champs d'un marché
+     * n'ont pas tous la même largeur naturelle : une date se lit en 150 px, un
+     * libellé en réclame le double, une durée tient en 100. Une grille unique
+     * les alignait au prix de champs trop larges pour ce qu'ils portent.
+     *
+     * Les largeurs ne s'appliquent qu'à partir de `sm` : en dessous, chaque
+     * champ prend la ligne entière, seule mise en page tenable sur un téléphone.
+     */
+    <div className="space-y-2">
+      {/* Rangée 1 — l'IDENTITÉ de l'acte : ce qu'il est, son numéro chez nous,
+          ce qu'il couvre, son numéro chez le fournisseur.
+
+          Les deux références portent la même sorte de chose — un code, jamais
+          une phrase — mais pas la même largeur : 100 px pour la nôtre, 180 pour
+          celle du fournisseur, dont le LIBELLÉ est le plus long de la rangée et
+          se replierait sur trois lignes plus court. Le libellé du marché prend
+          tout ce qui reste, étant le seul champ dont la longueur soit
+          imprévisible. */}
+      <div className="flex flex-wrap items-end gap-3">
         <Field label="Nature" htmlFor="nature">
           {/* Deux choix, pas de « — » : un acte est l'un ou l'autre, il n'y a
               pas de troisième état à proposer. Les lignes reprises de
@@ -112,7 +130,7 @@ export function ChampsMarche({
             <option value="contrat">Contrat</option>
           </select>
         </Field>
-        <div className="min-w-0 flex-1">
+        <div className="w-full sm:w-[100px]">
           {/* « Référence » seule : la liste d'à côté dit déjà si c'est un
               marché ou un contrat, et le libellé entier ne tenait plus dans la
               colonne une fois la nature posée devant. */}
@@ -126,173 +144,217 @@ export function ChampsMarche({
             />
           </Field>
         </div>
-      </div>
-      <Field label="Libellé" htmlFor="libelle">
-        <input
-          id="libelle"
-          name="libelle"
-          placeholder="Ex : marché 2024-12, pack 50 postes"
-          defaultValue={values.libelle}
-          disabled={disabled}
-          className="input"
-        />
-      </Field>
-      <Field label="Fournisseur" htmlFor="fournisseurId">
-        {/* Le « + » ouvre la fiche éditeur entière, sans quitter le marché en
-            cours de saisie : on découvre qu'une société manque au moment de la
-            désigner. Même geste et même modale qu'au champ « Éditeur » d'un
-            logiciel ou au fournisseur d'un devis. */}
-        <span className="flex items-center gap-1">
-          <select
-            id="fournisseurId"
-            name="fournisseurId"
-            defaultValue={values.fournisseurId}
-            disabled={disabled}
-            className="input min-w-0 flex-1"
-          >
-            {/* « — non précisé — » et NON « l'éditeur du logiciel » : un marché
-                est signé avec la société du jour de la signature. Laisser le
-                champ vide vouloir dire « l'éditeur, quel qu'il soit » faisait
-                changer de fournisseur un acte de 2019 le jour où le logiciel
-                changeait de main — l'écran réécrivait le passé. Le vide ne dit
-                donc plus que « on ne l'a pas encore dépouillé ». */}
-            <option value="">— non précisé —</option>
-            {annuaire.map((e) => (
-              <option key={e.id} value={String(e.id)}>
-                {e.nom}
-              </option>
-            ))}
-          </select>
-          {disabled ? null : (
-            <button
-              type="button"
-              // Carré de 29.6 px, la hauteur de la liste. Les DEUX dimensions
-              // sont posées : privé de texte, le bouton n'a plus qu'un glyphe
-              // pour se tenir et retomberait quatre pixels plus bas.
-              className="btn-secondary !h-[1.85rem] !w-[1.85rem] shrink-0 !p-0"
-              title="Créer un fournisseur absent de l'annuaire"
-              aria-label="Créer un fournisseur absent de l'annuaire"
-              onClick={() => setModaleSociete(true)}
-            >
-              <span aria-hidden className="text-sm leading-none">
-                ➕
-              </span>
-            </button>
-          )}
-        </span>
-      </Field>
-
-      <Field label="Montant annuel (€)" htmlFor="montantAnnuel">
-        <input
-          id="montantAnnuel"
-          name="montantAnnuel"
-          inputMode="decimal"
-          defaultValue={values.montantAnnuel}
-          disabled={disabled}
-          className="input"
-        />
-      </Field>
-      <Field label="Maximum annuel (€)" htmlFor="montantMaxi">
-        <input
-          id="montantMaxi"
-          name="montantMaxi"
-          inputMode="decimal"
-          defaultValue={values.montantMaxi}
-          disabled={disabled}
-          className="input"
-        />
-      </Field>
-      <Field label="Montant total du marché (€)" htmlFor="montantTotal">
-        <input
-          id="montantTotal"
-          name="montantTotal"
-          inputMode="decimal"
-          defaultValue={values.montantTotal}
-          disabled={disabled}
-          className="input"
-        />
-      </Field>
-
-      <Field label="Date de début" htmlFor="dateDebut" hint="Prise d'effet du marché.">
-        <input
-          id="dateDebut"
-          name="dateDebut"
-          type="date"
-          defaultValue={values.dateDebut}
-          disabled={disabled}
-          className="input"
-        />
-      </Field>
-      <Field label="Date de fin" htmlFor="dateFin" hint="Cette date déclenche le rappel.">
-        <input
-          id="dateFin"
-          name="dateFin"
-          type="date"
-          defaultValue={values.dateFin}
-          disabled={disabled}
-          className="input"
-        />
-      </Field>
-      {/* Le troisième tiers de la ligne des dates, resté vide jusqu'ici. La
-          durée ferme et les reconductions se lisent AVEC la période, pas
-          ailleurs : elles disent ce que « du … au … » ne dit pas — l'acte
-          engage n années, et prévoit de se reconduire n fois. Les deux tiennent
-          dans une seule colonne, la liste prenant la place qui reste et le
-          compteur la sienne. */}
-      {/* `self-start` : la grille aligne ses cellules par le BAS, et les deux
-          dates portent une aide sous leur champ. Sans cela, cette colonne
-          descendrait au niveau de ces aides au lieu de s'aligner sur les
-          champs eux-mêmes. */}
-      <div className="flex items-end gap-3 self-start">
-        <Field label="Durée" htmlFor="dureeAnnees">
-          {/* Largeur fixe, contre le `w-full` de `.input` : « 4 ans » et sa
-              flèche tiennent dans 100 px, et la liste garde la même largeur
-              quelle que soit l'option choisie — elle ne se met pas à respirer
-              au fil des sélections. */}
-          <select
-            id="dureeAnnees"
-            name="dureeAnnees"
-            defaultValue={values.dureeAnnees}
-            disabled={disabled}
-            className="input w-[100px]"
-          >
-            <option value="">—</option>
-            <option value="1">1 an</option>
-            <option value="2">2 ans</option>
-            <option value="3">3 ans</option>
-            <option value="4">4 ans</option>
-          </select>
-        </Field>
-        <Field label="Renouvelable" htmlFor="renouvellements">
-          <div className="flex items-center gap-2">
+        <div className="w-full min-w-0 sm:w-auto sm:flex-1">
+          <Field label="Libellé" htmlFor="libelle">
             <input
-              id="renouvellements"
-              name="renouvellements"
-              type="number"
-              min={0}
-              max={3}
-              step={1}
-              defaultValue={values.renouvellements}
+              id="libelle"
+              name="libelle"
+              placeholder="Ex : marché 2024-12, pack 50 postes"
+              defaultValue={values.libelle}
               disabled={disabled}
-              className="input w-16"
+              className="input"
             />
-            <span className="text-sm text-muted">fois</span>
-          </div>
-        </Field>
+          </Field>
+        </div>
+        {/* La référence du FOURNISSEUR pour le même acte : les deux se lisent
+            ensemble le jour où l'on appelle, l'une pour se situer, l'autre pour
+            se faire reconnaître. */}
+        <div className="w-full sm:w-[180px]">
+          <Field label="Référence fournisseur" htmlFor="referenceFournisseur">
+            <input
+              id="referenceFournisseur"
+              name="referenceFournisseur"
+              placeholder="Ex : n° de commande chez le fournisseur"
+              defaultValue={values.referenceFournisseur}
+              disabled={disabled}
+              className="input"
+            />
+          </Field>
+        </div>
       </div>
 
-      <div className="sm:col-span-3">
-        <Field label="Notes" htmlFor="notes">
-          <textarea
-            id="notes"
-            name="notes"
-            defaultValue={values.notes}
+      {/* Rangée 2 — l'ARGENT : chez qui, et combien. Neuf parts : le
+          fournisseur en prend trois, les trois montants deux chacun. Le nom
+          d'une société est plus long qu'un montant, et les trois montants se
+          comparent d'autant mieux qu'ils ont la même largeur. */}
+      <div className="grid items-end gap-x-3 gap-y-2 sm:grid-cols-9">
+        <div className="sm:col-span-3">
+          <Field label="Fournisseur" htmlFor="fournisseurId">
+            {/* Le « + » ouvre la fiche éditeur entière, sans quitter le marché en
+                cours de saisie : on découvre qu'une société manque au moment de
+                la désigner. Même geste et même modale qu'au champ « Éditeur »
+                d'un logiciel ou au fournisseur d'un devis. */}
+            <span className="flex items-center gap-1">
+              <select
+                id="fournisseurId"
+                name="fournisseurId"
+                defaultValue={values.fournisseurId}
+                disabled={disabled}
+                className="input min-w-0 flex-1"
+              >
+                {/* « — non précisé — » et NON « l'éditeur du logiciel » : un
+                    marché est signé avec la société du jour de la signature.
+                    Laisser le champ vide vouloir dire « l'éditeur, quel qu'il
+                    soit » faisait changer de fournisseur un acte de 2019 le jour
+                    où le logiciel changeait de main — l'écran réécrivait le
+                    passé. Le vide ne dit donc plus que « on ne l'a pas encore
+                    dépouillé ». */}
+                <option value="">— non précisé —</option>
+                {annuaire.map((e) => (
+                  <option key={e.id} value={String(e.id)}>
+                    {e.nom}
+                  </option>
+                ))}
+              </select>
+              {disabled ? null : (
+                <button
+                  type="button"
+                  // Carré de 29.6 px, la hauteur de la liste. Les DEUX dimensions
+                  // sont posées : privé de texte, le bouton n'a plus qu'un glyphe
+                  // pour se tenir et retomberait quatre pixels plus bas.
+                  className="btn-secondary !h-[1.85rem] !w-[1.85rem] shrink-0 !p-0"
+                  title="Créer un fournisseur absent de l'annuaire"
+                  aria-label="Créer un fournisseur absent de l'annuaire"
+                  onClick={() => setModaleSociete(true)}
+                >
+                  <span aria-hidden className="text-sm leading-none">
+                    ➕
+                  </span>
+                </button>
+              )}
+            </span>
+          </Field>
+        </div>
+        <div className="sm:col-span-2">
+          <Field label="Montant annuel" htmlFor="montantAnnuel">
+            <input
+              id="montantAnnuel"
+              name="montantAnnuel"
+              inputMode="decimal"
+              defaultValue={values.montantAnnuel}
+              disabled={disabled}
+              className="input"
+            />
+          </Field>
+        </div>
+        <div className="sm:col-span-2">
+          <Field label="Maximum annuel" htmlFor="montantMaxi">
+            <input
+              id="montantMaxi"
+              name="montantMaxi"
+              inputMode="decimal"
+              defaultValue={values.montantMaxi}
+              disabled={disabled}
+              className="input"
+            />
+          </Field>
+        </div>
+        <div className="sm:col-span-2">
+          <Field label="Montant total du marché" htmlFor="montantTotal">
+            <input
+              id="montantTotal"
+              name="montantTotal"
+              inputMode="decimal"
+              defaultValue={values.montantTotal}
+              disabled={disabled}
+              className="input"
+            />
+          </Field>
+        </div>
+      </div>
+
+      {/* Rangée 3 — le TEMPS : de quand à quand, pour combien d'années fermes,
+          reconductible combien de fois.
+
+          En FLUX LIBRE et non en grille : aucun de ces quatre champs ne gagne à
+          s'étirer, et une grille leur réservait une part de rangée qu'ils
+          n'occupaient pas — les dates tenaient en 130 px dans une cellule de
+          161. Chacun prend ici sa largeur propre, et la rangée s'arrête où ils
+          s'arrêtent. */}
+      <div className="flex flex-wrap items-end gap-3">
+        {/* « Début » et non « Date de début » : le champ est une date, son
+            format le dit, et le mot volait un tiers de la largeur au libellé.
+
+            Sans mention d'aide : « Prise d'effet du marché » paraphrasait le
+            libellé, et « Cette date déclenche le rappel » décrivait une
+            mécanique interne sous un champ qu'on vient lire, pas régler. Les
+            deux tenaient sur deux lignes à cette largeur et poussaient la
+            rangée d'autant. */}
+        <Field label="Début" htmlFor="dateDebut">
+          {/* 130 px : « 31/12/2030 » et son calendrier, pas un pixel de plus.
+              Contre le `w-full` de `.input`, qui étirerait la date sur toute la
+              place offerte et laisserait un vide entre le nombre et l'icône. */}
+          <input
+            id="dateDebut"
+            name="dateDebut"
+            type="date"
+            defaultValue={values.dateDebut}
             disabled={disabled}
-            rows={2}
-            className="input"
+            className="input !w-[130px]"
           />
         </Field>
+        <Field label="Fin" htmlFor="dateFin">
+          <input
+            id="dateFin"
+            name="dateFin"
+            type="date"
+            defaultValue={values.dateFin}
+            disabled={disabled}
+            className="input !w-[130px]"
+          />
+        </Field>
+        {/* La durée ferme et les reconductions se lisent AVEC la période, pas
+            ailleurs : elles disent ce que « du … au … » ne dit pas — l'acte
+            engage n années, et prévoit de se reconduire n fois. */}
+        <div className="flex items-end gap-3">
+          <Field label="Durée" htmlFor="dureeAnnees">
+            {/* Largeur fixe, contre le `w-full` de `.input` : « 4 ans » et sa
+                flèche tiennent dans 100 px, et la liste garde la même largeur
+                quelle que soit l'option choisie — elle ne se met pas à respirer
+                au fil des sélections. */}
+            <select
+              id="dureeAnnees"
+              name="dureeAnnees"
+              defaultValue={values.dureeAnnees}
+              disabled={disabled}
+              className="input w-[100px]"
+            >
+              <option value="">—</option>
+              <option value="1">1 an</option>
+              <option value="2">2 ans</option>
+              <option value="3">3 ans</option>
+              <option value="4">4 ans</option>
+            </select>
+          </Field>
+          <Field label="Renouvelable" htmlFor="renouvellements">
+            <div className="flex items-center gap-2">
+              <input
+                id="renouvellements"
+                name="renouvellements"
+                type="number"
+                min={0}
+                max={3}
+                step={1}
+                defaultValue={values.renouvellements}
+                disabled={disabled}
+                className="input w-16"
+              />
+              <span className="text-sm text-muted">fois</span>
+            </div>
+          </Field>
+        </div>
       </div>
+
+      <Field label="Notes" htmlFor="notes">
+        <textarea
+          id="notes"
+          name="notes"
+          defaultValue={values.notes}
+          disabled={disabled}
+          rows={2}
+          className="input"
+        />
+      </Field>
 
       {modaleSociete ? (
         <ModaleSociete

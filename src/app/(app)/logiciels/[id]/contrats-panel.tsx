@@ -25,6 +25,7 @@ export type ContratRow = {
   fournisseurId: string;
   fournisseurNom: string | null;
   referenceMarche: string;
+  referenceFournisseur: string;
   /** Montant annuel du marché entier (Decimal sérialisé ; "" si null). */
   montantAnnuel: string;
   /** Maximum annuel, quand l'acte en fixe un (Decimal sérialisé ; "" si null). */

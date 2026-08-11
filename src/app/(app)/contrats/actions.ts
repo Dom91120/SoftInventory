@@ -32,6 +32,7 @@ function parse(formData: FormData) {
     libelle: get("libelle"),
     fournisseurId: get("fournisseurId"),
     referenceMarche: get("referenceMarche"),
+    referenceFournisseur: get("referenceFournisseur"),
     montantAnnuel: get("montantAnnuel"),
     montantMaxi: get("montantMaxi"),
     montantTotal: get("montantTotal"),

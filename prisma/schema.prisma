@@ -539,51 +539,56 @@ model Interconnexion {
 /// postes aux coûts et aux termes distincts, sans que leur somme ni leur
 /// échéance la plus lointaine valent engagement.
 model Contrat {
-  id              Int           @id @default(autoincrement())
+  id                   Int           @id @default(autoincrement())
   /// Société avec qui la collectivité contractualise. null = l'éditeur du
   /// logiciel, cas le plus fréquent ; renseigné quand c'est un revendeur.
-  fournisseurId   Int?          @map("fournisseur_id")
+  fournisseurId        Int?          @map("fournisseur_id")
   /// Marché ou contrat. null = non renseigné : les lignes reprises de
   /// l'historique n'ont pas été dépouillées sur ce point, et rien ne permet
   /// de trancher à leur place — l'écran dit « — » plutôt qu'une supposition.
-  nature          NatureMarche?
-  libelle         String        @default("") // ex. « marché 2024-12 », « pack 50 postes »
-  referenceMarche String        @default("") @map("reference_marche")
+  nature               NatureMarche?
+  libelle              String        @default("") // ex. « marché 2024-12 », « pack 50 postes »
+  referenceMarche      String        @default("") @map("reference_marche")
+  /// La référence que LE FOURNISSEUR donne au même acte — son numéro de
+  /// commande, de contrat ou de client pour cette affaire. Distincte de
+  /// `referenceMarche`, qui est celle de la collectivité : c'est celle-ci qu'il
+  /// faut citer quand on l'appelle, et personne ne la retrouvait.
+  referenceFournisseur String        @default("") @map("reference_fournisseur")
   /// Montant annuel du marché entier. null = non renseigné, à distinguer de
   /// zéro (un marché à titre gratuit se saisit, lui, à 0).
-  montantAnnuel   Decimal?      @map("montant_annuel") @db.Decimal(12, 2)
+  montantAnnuel        Decimal?      @map("montant_annuel") @db.Decimal(12, 2)
   /// Maximum ANNUEL : le plafond que le marché ne peut pas dépasser sur une
   /// année, quand l'acte en fixe un. Aucune contrainte avec `montantAnnuel`,
   /// qui dit ce qu'on paie : c'est l'acte qui fait foi, et un montant au-delà
   /// du plafond se saisit — le signaler est un autre sujet que le stocker.
-  montantMaxi     Decimal?      @map("montant_maxi") @db.Decimal(12, 2)
+  montantMaxi          Decimal?      @map("montant_maxi") @db.Decimal(12, 2)
   /// Ce que pèse le marché sur sa DURÉE ENTIÈRE, quand l'acte le chiffre.
   /// N'entre pas dans le coût du parc, qui se compte à l'année — l'y ajouter
   /// gonflerait le total d'un marché pluriannuel autant de fois qu'il dure.
-  montantTotal    Decimal?      @map("montant_total") @db.Decimal(12, 2)
+  montantTotal         Decimal?      @map("montant_total") @db.Decimal(12, 2)
   /// Début du marché : la date à laquelle il prend effet. Se lit avec dateFin,
   /// dont elle forme la période affichée (« du … au … »). Indépendante d'elle :
   /// un marché en cours a souvent un début connu et un terme qui ne l'est pas.
-  dateDebut       DateTime?     @map("date_debut") @db.Date
+  dateDebut            DateTime?     @map("date_debut") @db.Date
   /// Terme du marché, et ÉCHÉANCE surveillée : c'est cette date que le cron
   /// lit pour ses rappels et le tableau de bord pour ses renouvellements. Le
   /// suivi vivait sur la pièce ; il est remonté ici, une pièce ne portant plus
   /// qu'une date de document.
-  dateFin         DateTime?     @map("date_fin") @db.Date
+  dateFin              DateTime?     @map("date_fin") @db.Date
   /// Durée FERME du marché, en années (1 à 4), telle que l'acte la fixe. Ne se
   /// déduit pas des dates et n'en découle pas : la période court du début à la
   /// fin reconductions comprises, la durée ferme est l'engagement initial.
   /// null = non renseigné.
-  dureeAnnees     Int?          @map("duree_annees")
+  dureeAnnees          Int?          @map("duree_annees")
   /// Nombre de reconductions prévues (0 à 3) : « renouvelable n fois ». Zéro
   /// est une VALEUR — un marché sec, non reconductible — distinct de null, qui
   /// dit que l'acte n'a pas été dépouillé sur ce point.
-  renouvellements Int?
+  renouvellements      Int?
   /// Date de fin pour laquelle le rappel a déjà été envoyé (anti-doublon du
   /// cron ; remise à null quand la date change).
-  rappelEnvoyeLe  DateTime?     @map("rappel_envoye_le") @db.Date
-  notes           String        @default("")
-  createdAt       DateTime      @default(now()) @db.Timestamptz
+  rappelEnvoyeLe       DateTime?     @map("rappel_envoye_le") @db.Date
+  notes                String        @default("")
+  createdAt            DateTime      @default(now()) @db.Timestamptz
 
   // Le fournisseur n'est pas propriétaire du contrat : supprimer sa fiche ne
   // doit pas emporter le contrat, seulement le laisser sans fournisseur.

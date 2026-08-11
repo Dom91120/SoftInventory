@@ -141,6 +141,7 @@ export default async function ContratPage({
         values={{
           nature: contrat.nature ?? "",
           referenceMarche: contrat.referenceMarche,
+          referenceFournisseur: contrat.referenceFournisseur,
           libelle: contrat.libelle,
           fournisseurId: contrat.fournisseurId === null ? "" : String(contrat.fournisseurId),
           montantAnnuel: contrat.montantAnnuel === null ? "" : String(contrat.montantAnnuel),

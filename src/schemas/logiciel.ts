@@ -190,6 +190,12 @@ export const contratSchema = z
       .string()
       .trim()
       .max(120, "Référence marché/contrat trop longue (120 caractères max)."),
+    // Celle du FOURNISSEUR pour le même acte : son numéro de commande ou de
+    // contrat, celui qu'il redemande au téléphone.
+    referenceFournisseur: z
+      .string()
+      .trim()
+      .max(120, "Référence fournisseur trop longue (120 caractères max)."),
     montantAnnuel: montantOptionnel,
     // Maximum ANNUEL, sans contrainte avec le montant annuel : c'est l'acte qui
     // fait foi, l'outil enregistre ce qu'il dit.

@@ -52,6 +52,7 @@ export function GET(request: Request): Promise<Response> {
       [
         "Nature",
         "Référence",
+        "Référence fournisseur",
         "Libellé",
         "Fournisseur",
         "Logiciels couverts",
@@ -69,6 +70,7 @@ export function GET(request: Request): Promise<Response> {
       ...contrats.map((c) => [
         nature(c.nature),
         c.referenceMarche,
+        c.referenceFournisseur,
         c.libelle,
         c.fournisseur?.nom ?? "",
         c.logiciels.map((l) => l.logiciel.nom).join(", "),
