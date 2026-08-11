@@ -12,6 +12,7 @@ import {
   Package,
   ScrollText,
   Server,
+  ShieldCheck,
   Users,
 } from "lucide-react";
 import Link from "next/link";
@@ -32,6 +33,9 @@ const INVENTAIRE: Item[] = [
   { href: "/editeurs", label: "Éditeurs", icon: <Building2 className={ICON} /> },
   { href: "/contrats", label: "Contrats/Marchés", icon: <FileSignature className={ICON} /> },
   { href: "/serveurs", label: "Serveurs", icon: <Server className={ICON} /> },
+  // Après les serveurs et avant les tâches : les certificats sont un parc de
+  // plus à tenir, et comme les tâches, ils ont une échéance qui court.
+  { href: "/certificats", label: "Certificats", icon: <ShieldCheck className={ICON} /> },
   { href: "/taches", label: "Tâches", icon: <ClipboardList className={ICON} /> },
 ];
 

@@ -326,9 +326,12 @@ model Editeur {
   /// collectivité contractualise. C'est souvent l'éditeur du logiciel, mais un
   /// revendeur (Metsys pour Semperis, Delta Industrie Service pour TX-Visio…)
   /// a lui aussi sa fiche ici : la table est un annuaire de sociétés.
-  contratsFournis Contrat[]  @relation("ContratFournisseur")
+  contratsFournis Contrat[]    @relation("ContratFournisseur")
   /// Devis remis par cette société lors des mises en concurrence.
-  devisRemis      Devis[]    @relation("DevisFournisseur")
+  devisRemis      Devis[]      @relation("DevisFournisseur")
+  /// Certificats délivrés par cette société — les autorités de certification
+  /// (Certinomis, ChamberSign) sont des fournisseurs comme les autres.
+  certificats     Certificat[] @relation("CertificatFournisseur")
 
   @@map("editeurs")
 }
@@ -343,7 +346,8 @@ model ServiceUtilisateur {
   contactTelephone String @default("") @map("contact_telephone")
   position         Int    @default(0) @db.SmallInt
 
-  logiciels LogicielService[]
+  logiciels   LogicielService[]
+  certificats Certificat[]
 
   @@map("services_utilisateurs")
 }
@@ -356,7 +360,8 @@ model Serveur {
   localisation String @default("") // salle serveur, datacenter, hébergeur…
   notes        String @default("")
 
-  logiciels LogicielServeur[]
+  logiciels   LogicielServeur[]
+  certificats Certificat[]
 
   @@map("serveurs")
 }
@@ -687,6 +692,133 @@ model Devis {
   @@index([consultationId])
   @@index([fournisseurId])
   @@map("devis")
+}
+
+// ============================================================
+//  Certificats électroniques
+// ============================================================
+
+/// Ce que le certificat permet de faire. Un même titulaire en porte parfois
+/// deux — un pour signer, un pour s'authentifier — d'où une fiche par
+/// certificat et non par personne.
+enum UsageCertificat {
+  signature
+  authentification
+  cachet
+  autre
+}
+
+/// Ce qui porte la clé privée. La distinction n'est pas cosmétique : une carte
+/// ou une clé USB se restituent en fin de vie et se perdent, un fichier logiciel
+/// se copie et ne se rend pas.
+enum SupportCertificat {
+  carte
+  cle_usb
+  logiciel
+  autre
+}
+
+/// Où en est le certificat, INDÉPENDAMMENT de sa date de fin : celle-ci dit
+/// s'il est périmé, le statut dit ce qu'on en fait. Un certificat révoqué avant
+/// terme n'est plus utilisable alors que sa date court encore ; un certificat
+/// périmé dont le remplaçant est commandé se marque « en renouvellement ».
+enum StatutCertificat {
+  actif
+  en_renouvellement
+  revoque
+}
+
+/// Certificat électronique nominatif (élu, agent) ou de serveur.
+///
+/// Ni un logiciel ni un contrat, mais un peu des deux : il se renouvelle comme
+/// un marché, il porte une échéance à surveiller comme une tâche, et il se
+/// rattache à un service comme une application. D'où sa propre table, avec la
+/// même mécanique de rappel que les contrats (`rappelEnvoyeLe`).
+model Certificat {
+  id            Int  @id @default(autoincrement())
+  /// L'autorité de certification, prise dans l'annuaire des sociétés — c'est
+  /// bien un fournisseur, avec son adresse et ses contacts, et rien ne justifie
+  /// un second annuaire pour Certinomis et ChamberSign.
+  fournisseurId Int? @map("fournisseur_id")
+  /// Le service auquel le certificat est rattaché. Renseigné pour les agents,
+  /// souvent vide pour les élus, qui n'en relèvent pas.
+  serviceId     Int? @map("service_id")
+  /// Le serveur qu'il équipe, pour un certificat de machine (cachet, TLS).
+  /// null pour un certificat nominatif, le cas courant.
+  serveurId     Int? @map("serveur_id")
+
+  /// Qui le porte : une personne (« Mme AZZAZ ») ou une machine (« SERVEUR
+  /// CLIENT RGS »). Texte libre et non un compte de l'application : les élus
+  /// n'en ont pas, et un certificat survit au compte de son titulaire.
+  titulaire String
+  /// La qualité au titre de laquelle il signe — Maire, Adjoint, DGA, Agent.
+  /// C'est elle qui donne sa portée juridique à la signature, pas le service.
+  fonction  String @default("")
+  email     String @default("")
+
+  usage       UsageCertificat?
+  support     SupportCertificat?
+  /// Niveau de garantie tel que l'atteste l'autorité : « RGS** », « eIDAS
+  /// qualifié »… Texte libre plutôt qu'énuméré, les appellations changeant au
+  /// rythme des référentiels et non à celui de l'application.
+  niveau      String             @default("")
+  /// Numéro de série porté par le certificat lui-même : ce qui l'identifie
+  /// auprès de l'autorité, à citer pour une révocation ou une réclamation.
+  numeroSerie String             @default("") @map("numero_serie")
+
+  /// Début et fin de validité. La FIN est l'échéance surveillée : c'est elle
+  /// que le cron lit pour ses rappels. Le fichier d'origine les tenait dans une
+  /// seule colonne de texte (« du … au … »), qui n'a permis ni tri ni alerte —
+  /// et où quatre coquilles s'étaient glissées.
+  dateDebut   DateTime? @map("date_debut") @db.Date
+  dateFin     DateTime? @map("date_fin") @db.Date
+  /// Durée de validité en années (1 à 5). Ne se déduit pas des dates : elle dit
+  /// ce qui a été commandé, quand les dates disent ce qui a été délivré.
+  dureeAnnees Int?      @map("duree_annees")
+
+  montantTtc Decimal? @map("montant_ttc") @db.Decimal(12, 2)
+  /// Imputation budgétaire (« 60632 »), telle que la comptabilité la réclame
+  /// pour le bon de commande.
+  imputation String   @default("")
+
+  /// Bon de commande : la date de signature et, à côté, la façon dont il est
+  /// parti (« par courrier en AR »). Deux champs et non un seul texte, pour que
+  /// la date se trie et se relise.
+  bonCommandeLe   DateTime? @map("bon_commande_le") @db.Date
+  bonCommandeNote String    @default("") @map("bon_commande_note")
+
+  /// Codes remis par l'autorité, à garder sous la main le jour où il faut agir
+  /// vite : le code de RÉVOCATION invalide le certificat (perte, vol, départ du
+  /// titulaire), le code de RETRAIT sert à le récupérer et l'activer.
+  ///
+  /// Ce sont des SECRETS OPÉRATOIRES : révoquer le certificat d'un élu bloque
+  /// ses signatures. Ils ne sont donc ni lus ni écrits pour un compte lecteur —
+  /// la garde est côté serveur (le service ne les met pas dans son `select`),
+  /// pas seulement dans l'affichage.
+  codeRevocation String @default("") @map("code_revocation")
+  codeRetrait    String @default("") @map("code_retrait")
+
+  statut         StatutCertificat @default(actif)
+  /// Date de fin pour laquelle le rappel a déjà été envoyé (anti-doublon du
+  /// cron ; remise à null quand la date change). Même mécanique que les marchés.
+  rappelEnvoyeLe DateTime?        @map("rappel_envoye_le") @db.Date
+  notes          String           @default("")
+
+  createdAt DateTime @default(now()) @db.Timestamptz
+  updatedAt DateTime @updatedAt @db.Timestamptz
+
+  // Aucun de ces trois rattachements n'est propriétaire du certificat :
+  // supprimer un service ou un serveur ne doit pas emporter la trace d'un
+  // certificat qui, lui, a bel et bien été payé et délivré.
+  fournisseur Editeur?            @relation("CertificatFournisseur", fields: [fournisseurId], references: [id], onDelete: SetNull)
+  service     ServiceUtilisateur? @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+  serveur     Serveur?            @relation(fields: [serveurId], references: [id], onDelete: SetNull)
+
+  @@index([fournisseurId])
+  @@index([serviceId])
+  @@index([serveurId])
+  @@index([dateFin])
+  @@map("certificats")
 }
 
 // ============================================================
