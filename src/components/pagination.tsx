@@ -74,7 +74,9 @@ export function Pagination({
           EXACT du tableau, quelle que soit la longueur du compte à gauche. Un
           simple `justify-between` les aurait décalées à droite, un `gap` centré
           les aurait décalées de la moitié du compte. */}
-      <nav className="mt-3 grid grid-cols-3 items-center" aria-label="Pagination">
+      {/* `mt-2` : le pavé appartient au tableau qu'il feuillette, il se tient
+          donc plus près de lui que de ce qui viendrait après. */}
+      <nav className="mt-2 grid grid-cols-3 items-center" aria-label="Pagination">
         <span className="justify-self-start text-xs text-muted tabular-nums">
           {debut}–{fin} sur {total}
         </span>

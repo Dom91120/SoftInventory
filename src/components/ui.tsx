@@ -11,12 +11,16 @@ import type { ReactNode } from "react";
  * En-tête de page : titre + sous-titre + actions à droite.
  * `className` remplace la marge par défaut, pour les cas où l'en-tête est
  * imbriqué dans une autre disposition (flèches de navigation, par exemple).
+ *
+ * `mb-4` et non `mb-3` : l'en-tête annonce l'écran, il lui faut un peu plus
+ * d'air que ce qui sépare deux blocs de contenu — sans quoi le titre paraît
+ * appartenir à ce qui suit.
  */
 export function PageHeader({
   title,
   subtitle,
   actions,
-  className = "mb-3",
+  className = "mb-4",
 }: {
   /** Texte, ou composition quand le titre porte une action (icône d'ouverture…). */
   title: ReactNode;
