@@ -1,4 +1,4 @@
-import { dateCalendaire, estEnRetard, joursAvantEcheance } from "@/lib/taches-core";
+import { dateCalendaire, estEnRetard } from "@/lib/taches-core";
 import { seuilsRappel } from "@/server/config";
 import { prisma } from "@/server/db";
 
@@ -12,6 +12,8 @@ export type DonneesDashboard = {
   nbEnProduction: number;
   nbEditeurs: number;
   nbServeurs: number;
+  /** Certificats non révoqués : ce dont la collectivité dispose. */
+  nbCertificats: number;
   coutAnnuelTotal: number;
   contratsDepasses: Array<{ id: number; nom: string }>;
   tachesEnRetard: Array<{
@@ -21,18 +23,18 @@ export type DonneesDashboard = {
     logiciel: string;
     echeance: Date;
   }>;
-  tachesSous30j: number;
   /**
-   * Les tâches actives ASSIGNÉES à celui qui regarde, la plus proche d'abord.
-   * Un tableau de bord dit l'état du parc ; celle-ci dit ce qu'on lui demande,
-   * à lui — et c'est la seule carte de l'écran qui change d'un compte à
-   * l'autre. Vide pour qui n'en porte aucune : la carte se tait alors.
+   * Les tâches actives du parc, la plus proche d'abord — donc les retards
+   * d'abord. Celles de TOUT LE MONDE, et non les seules du compte connecté :
+   * l'écran décrit le parc, et une tâche en retard chez un collègue absent est
+   * un problème pour tous. Chacune dit qui s'en charge.
    */
-  mesTaches: Array<{
+  taches: Array<{
     id: number;
     logicielId: number;
     logiciel: string;
     titre: string;
+    assigne: string;
     echeance: Date;
     enRetard: boolean;
   }>;
@@ -69,11 +71,13 @@ export type DonneesDashboard = {
 };
 
 /**
- * `userId` : le compte qui regarde, pour la carte « Mes tâches ». Tout le reste
- * de l'écran est le même pour tous — c'est un tableau de bord du PARC, pas un
- * espace personnel.
+ * L'écran est le MÊME pour tous : c'est un tableau de bord du parc, pas un
+ * espace personnel. Il a un temps porté une carte « Mes tâches », filtrée sur
+ * le compte connecté — d'où le paramètre `userId` que cette fonction prenait —
+ * mais une tâche en retard chez un collègue absent est un problème pour tous,
+ * et la carte les montre désormais toutes.
  */
-export async function chargerDashboard(userId: string): Promise<DonneesDashboard> {
+export async function chargerDashboard(): Promise<DonneesDashboard> {
   const aujourdhui = dateCalendaire(new Date());
   // Même horizon que les rappels par e-mail : la carte annonce la fenêtre que
   // le cron applique réellement (voir seuilsRappel).
@@ -86,6 +90,7 @@ export async function chargerDashboard(userId: string): Promise<DonneesDashboard
     coutDesMarches,
     nbEditeurs,
     nbServeurs,
+    nbCertificats,
     criticites,
     modesHebergement,
     taches,
@@ -112,6 +117,9 @@ export async function chargerDashboard(userId: string): Promise<DonneesDashboard
     prisma.contrat.aggregate({ _sum: { montantAnnuel: true } }),
     prisma.editeur.count(),
     prisma.serveur.count(),
+    // Les RÉVOQUÉS ne comptent pas : le parc, c'est ce dont on dispose, et un
+    // certificat révoqué ne sert plus à rien même si sa date court encore.
+    prisma.certificat.count({ where: { statut: { not: "revoque" } } }),
     prisma.criticite.findMany({ orderBy: { rank: "asc" } }),
     prisma.modeHebergement.findMany({ orderBy: { position: "asc" } }),
     // Juste de quoi nommer la tâche et la situer : les cartes du tableau de
@@ -123,7 +131,8 @@ export async function chargerDashboard(userId: string): Promise<DonneesDashboard
         id: true,
         titre: true,
         prochaineEcheance: true,
-        assigneUserId: true,
+        assigneLibre: true,
+        assigne: { select: { prenom: true, nom: true, email: true } },
         logiciel: { select: { id: true, nom: true } },
       },
     }),
@@ -184,23 +193,23 @@ export async function chargerDashboard(userId: string): Promise<DonneesDashboard
       echeance: t.prochaineEcheance,
     }));
 
-  const tachesSous30j = taches.filter(
-    (t) =>
-      !estEnRetard(t.prochaineEcheance, aujourdhui) &&
-      joursAvantEcheance(t.prochaineEcheance, aujourdhui) <= 30,
-  ).length;
-
-  // Celles du compte qui regarde, TOUTES et non les seules pressantes : c'est
-  // sa liste de travail, elle vaut aussi pour ce qui vient dans six mois. La
-  // plus proche en tête, les retards donc d'abord.
-  const mesTaches = taches
-    .filter((t) => t.assigneUserId === userId)
+  // TOUTES les tâches actives, et non les seules pressantes : la carte vaut
+  // aussi pour ce qui vient dans six mois. La plus proche en tête, les retards
+  // donc d'abord.
+  //
+  // L'assigné est DÉNORMALISÉ ici en une chaîne : un compte de l'application
+  // (prénom + nom, à défaut l'adresse) ou le nom libre saisi pour quelqu'un qui
+  // n'en a pas. La carte n'a qu'à l'afficher.
+  const tachesAFaire = taches
     .sort((a, b) => a.prochaineEcheance.getTime() - b.prochaineEcheance.getTime())
     .map((t) => ({
       id: t.id,
       logicielId: t.logiciel.id,
       logiciel: t.logiciel.nom,
       titre: t.titre,
+      assigne: t.assigne
+        ? `${t.assigne.prenom} ${t.assigne.nom}`.trim() || t.assigne.email
+        : t.assigneLibre,
       echeance: t.prochaineEcheance,
       enRetard: estEnRetard(t.prochaineEcheance, aujourdhui),
     }));
@@ -264,11 +273,11 @@ export async function chargerDashboard(userId: string): Promise<DonneesDashboard
     nbEnProduction: logiciels.filter((l) => l.statut === "production").length,
     nbEditeurs,
     nbServeurs,
+    nbCertificats,
     coutAnnuelTotal,
     contratsDepasses,
     tachesEnRetard,
-    tachesSous30j,
-    mesTaches,
+    taches: tachesAFaire,
     seuilRenouvellementJours: seuilJours,
     renouvellements,
     seuilCertificatJours: seuilCertificat,
