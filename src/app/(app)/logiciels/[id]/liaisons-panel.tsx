@@ -243,7 +243,16 @@ export function LiaisonsPanel({
                 className="flex items-center justify-between gap-3 py-2"
               >
                 <span>
-                  <span className="font-medium text-strong">{s.nom}</span>
+                  {/* Le nom mène à la FICHE du serveur — son système, sa
+                      localisation, le reste de ce qu'il porte. Comme les
+                      interconnexions mènent à la fiche du logiciel d'en face :
+                      un nom d'objet de l'inventaire est un lien vers cet objet. */}
+                  <Link
+                    href={`/serveurs/${s.serveurId}`}
+                    className="font-medium text-strong hover:text-accent"
+                  >
+                    {s.nom}
+                  </Link>
                   <span
                     className={`ml-2 ${s.environnement === "production" ? "badge-ok" : "badge-muted"}`}
                   >
@@ -269,7 +278,11 @@ export function LiaisonsPanel({
         )}
         {serveursFiges ? null : serveurs.length === 0 ? (
           <p className="text-sm text-faint">
-            Aucun serveur dans le référentiel — ajoutez-les depuis Administration › Référentiels.
+            Aucun serveur dans l'inventaire — créez-en un depuis l'écran{" "}
+            <Link href="/serveurs" className="text-accent hover:underline">
+              Serveurs
+            </Link>
+            .
           </p>
         ) : (
           <div className="flex flex-wrap items-center gap-2">

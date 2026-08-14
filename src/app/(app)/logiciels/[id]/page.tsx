@@ -22,12 +22,12 @@ import {
   listCategoriesDocuments,
   listCriticites,
   listModesHebergement,
-  listServeurs,
   listServicesUtilisateurs,
   listStatutsLogiciels,
   listTechnologies,
   listTypesTaches,
 } from "@/server/services/referentiels";
+import { listServeurs } from "@/server/services/serveurs";
 import { listTachesDuLogiciel } from "@/server/services/taches";
 import { BoutonSupprimerLogiciel } from "../bouton-supprimer";
 import { FicheForm } from "../fiche-form";

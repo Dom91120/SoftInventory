@@ -2,7 +2,6 @@ import type {
   CategorieDocumentInput,
   CriticiteInput,
   ModeHebergementInput,
-  ServeurInput,
   ServiceUtilisateurInput,
   StatutLogicielInput,
   TechnologieInput,
@@ -27,19 +26,9 @@ export function deleteServiceUtilisateur(id: number) {
   return prisma.serviceUtilisateur.delete({ where: { id } });
 }
 
-// ── Serveurs ──
-export function listServeurs() {
-  return prisma.serveur.findMany({ orderBy: { nom: "asc" } });
-}
-export function createServeur(data: ServeurInput) {
-  return prisma.serveur.create({ data });
-}
-export function updateServeur(id: number, data: ServeurInput) {
-  return prisma.serveur.update({ where: { id }, data });
-}
-export function deleteServeur(id: number) {
-  return prisma.serveur.delete({ where: { id } });
-}
+// Les SERVEURS ont quitté ce fichier : ils ne sont plus une liste de valeurs
+// mais une entité à part entière, avec sa fiche et son écran — voir
+// `services/serveurs.ts`.
 
 // ── Technologies ──
 export function listTechnologies() {

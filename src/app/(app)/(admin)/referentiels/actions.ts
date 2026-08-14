@@ -6,7 +6,6 @@ import {
   categorieDocumentSchema,
   criticiteSchema,
   modeHebergementSchema,
-  serveurSchema,
   serviceUtilisateurSchema,
   statutLogicielSchema,
   technologieSchema,
@@ -42,12 +41,9 @@ const REGISTRY = {
     update: refs.updateServiceUtilisateur,
     remove: refs.deleteServiceUtilisateur,
   },
-  serveurs: {
-    schema: serveurSchema,
-    create: refs.createServeur,
-    update: refs.updateServeur,
-    remove: refs.deleteServeur,
-  },
+  // Pas de « serveurs » ici : le registre est la garde côté serveur, et une
+  // entité qui a sa fiche ne doit plus être modifiable par la porte des
+  // référentiels — voir `app/(app)/serveurs/actions.ts`.
   technologies: {
     schema: technologieSchema,
     create: refs.createTechnologie,

@@ -9,11 +9,8 @@ import type { Role } from "@/generated/prisma/client";
 import { requireUser } from "@/server/guards";
 import { getCertificat, voisinsCertificat } from "@/server/services/certificats";
 import { listEditeurs } from "@/server/services/editeurs";
-import {
-  listCategoriesDocuments,
-  listServeurs,
-  listServicesUtilisateurs,
-} from "@/server/services/referentiels";
+import { listCategoriesDocuments, listServicesUtilisateurs } from "@/server/services/referentiels";
+import { listServeurs } from "@/server/services/serveurs";
 import { CertificatForm } from "../certificat-form";
 import { CodesPanel } from "../codes-panel";
 import { ongletCertificat } from "../onglets";

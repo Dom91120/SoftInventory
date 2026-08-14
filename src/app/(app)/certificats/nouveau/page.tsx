@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import { PageHeader } from "@/components/ui";
 import { requireRole } from "@/server/guards";
 import { listEditeurs } from "@/server/services/editeurs";
-import { listServeurs, listServicesUtilisateurs } from "@/server/services/referentiels";
+import { listServicesUtilisateurs } from "@/server/services/referentiels";
+import { listServeurs } from "@/server/services/serveurs";
 import { CertificatForm } from "../certificat-form";
 
 export const metadata: Metadata = { title: "Nouveau certificat" };

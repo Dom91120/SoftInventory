@@ -5,7 +5,6 @@ import {
   listCategoriesDocuments,
   listCriticites,
   listModesHebergement,
-  listServeurs,
   listServicesUtilisateurs,
   listStatutsLogiciels,
   listTechnologies,
@@ -16,9 +15,12 @@ import { type RefColumn, RefTable } from "./ref-table";
 export const metadata: Metadata = { title: "Référentiels" };
 
 // Onglets pilotés par l'URL (?onglet=…) : rechargeables, partageables, sans état client.
+//
+// Les SERVEURS n'y sont plus : une machine porte un système, une localisation,
+// des logiciels et des certificats — c'est une fiche, pas une ligne de liste de
+// valeurs. Elle se crée et se modifie depuis l'écran Serveurs.
 const ONGLETS = [
   { key: "services", label: "Services utilisateurs" },
-  { key: "serveurs", label: "Serveurs" },
   { key: "technologies", label: "Technologies" },
   { key: "criticites", label: "Criticités" },
   { key: "statuts", label: "Statuts" },
@@ -43,12 +45,6 @@ const COLONNES: Record<OngletKey, RefColumn[]> = {
     { key: "contactNom", label: "Contact" },
     { key: "contactEmail", label: "E-mail" },
     { key: "contactTelephone", label: "Téléphone", width: "10rem" },
-  ],
-  serveurs: [
-    { key: "nom", label: "Nom" },
-    { key: "os", label: "Système" },
-    { key: "localisation", label: "Localisation" },
-    { key: "notes", label: "Notes" },
   ],
   technologies: [{ key: "label", label: "Libellé" }],
   criticites: [
@@ -85,19 +81,17 @@ export default async function ReferentielsPage({
   const rows =
     actif === "services"
       ? await listServicesUtilisateurs()
-      : actif === "serveurs"
-        ? await listServeurs()
-        : actif === "technologies"
-          ? await listTechnologies()
-          : actif === "criticites"
-            ? await listCriticites()
-            : actif === "statuts"
-              ? await listStatutsLogiciels()
-              : actif === "hebergements"
-                ? await listModesHebergement()
-                : actif === "types-taches"
-                  ? await listTypesTaches()
-                  : await listCategoriesDocuments();
+      : actif === "technologies"
+        ? await listTechnologies()
+        : actif === "criticites"
+          ? await listCriticites()
+          : actif === "statuts"
+            ? await listStatutsLogiciels()
+            : actif === "hebergements"
+              ? await listModesHebergement()
+              : actif === "types-taches"
+                ? await listTypesTaches()
+                : await listCategoriesDocuments();
 
   const libelle = ONGLETS.find((o) => o.key === actif)?.label ?? "";
 

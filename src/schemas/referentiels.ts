@@ -22,13 +22,8 @@ export const serviceUtilisateurSchema = z.object({
 });
 export type ServiceUtilisateurInput = z.infer<typeof serviceUtilisateurSchema>;
 
-export const serveurSchema = z.object({
-  nom: label(120),
-  os: z.string().trim().max(80, "OS trop long (80 caractères max)."),
-  localisation: z.string().trim().max(120, "Localisation trop longue (120 caractères max)."),
-  notes: z.string().trim().max(2000, "Notes trop longues (2000 caractères max)."),
-});
-export type ServeurInput = z.infer<typeof serveurSchema>;
+// Le SERVEUR a son schéma à lui (`schemas/serveur.ts`) : il a cessé d'être une
+// liste de valeurs le jour où il a eu sa fiche.
 
 export const technologieSchema = z.object({ label: label(80) });
 export type TechnologieInput = z.infer<typeof technologieSchema>;

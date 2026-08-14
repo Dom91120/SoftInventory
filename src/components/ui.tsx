@@ -56,10 +56,11 @@ export function PageHeader({
  * déplacer le regard, le rang d'une commande. Il tient aussi mieux quand les
  * onglets sont nombreux (huit sur la fiche, autant en Référentiels).
  *
- * À NE PAS confondre avec le sélecteur de vue des Serveurs, encadré et porteur
- * d'icônes : un onglet change CE QUE la page montre (`?onglet=`), un sélecteur
- * de vue change COMMENT elle le montre, à contenu identique (`?vue=`). Deux
- * gestes différents, deux formes différentes.
+ * À NE PAS confondre avec le sélecteur de vue des Serveurs, qui se tient sur la
+ * MÊME ligne mais reste encadré et porteur d'icônes : un onglet change CE QUE la
+ * page montre (`?onglet=`), un sélecteur de vue change COMMENT elle le montre, à
+ * contenu identique (`?vue=`). Deux gestes différents, deux formes différentes —
+ * et c'est bien pourquoi cet écran-là ne passe pas par ce composant.
  *
  * Des LIENS et non des boutons : l'onglet actif vit dans l'URL, il se recharge,
  * se met en favori et se partage, sans un octet d'état client.
