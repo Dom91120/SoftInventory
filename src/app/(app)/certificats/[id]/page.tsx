@@ -1,11 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ID_COMMANDES_ONGLET } from "@/components/commandes-onglet";
 import { DocumentsPanel } from "@/components/documents-panel";
 import { FlecheVoisin } from "@/components/fleche-voisin";
 import { ModeFicheProvider } from "@/components/mode-fiche";
-import { Onglets, PageHeader } from "@/components/ui";
+import { PageHeader } from "@/components/ui";
 import type { Role } from "@/generated/prisma/client";
 import { requireUser } from "@/server/guards";
 import { getCertificat, voisinsCertificat } from "@/server/services/certificats";
@@ -17,6 +16,7 @@ import {
 } from "@/server/services/referentiels";
 import { CertificatForm } from "../certificat-form";
 import { CodesPanel } from "../codes-panel";
+import { ongletCertificat } from "../onglets";
 
 export const metadata: Metadata = { title: "Certificat" };
 
@@ -30,7 +30,13 @@ const FMT_DEPOT = new Intl.DateTimeFormat("fr-FR", {
 const jour = (d: Date | null) => (d === null ? "" : d.toISOString().slice(0, 10));
 const texte = (v: number | string | null) => (v === null ? "" : String(v));
 
-export default async function CertificatPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function CertificatPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ onglet?: string }>;
+}) {
   const session = await requireUser();
   const isAdmin = (session.user as { role?: Role }).role === "admin";
 
@@ -48,18 +54,23 @@ export default async function CertificatPage({ params }: { params: Promise<{ id:
   ]);
   if (!certificat) notFound();
 
+  const { onglet } = await searchParams;
+  const actif = ongletCertificat(onglet);
+
   return (
     <>
       {/* L'en-tête est encadré des flèches de navigation : on parcourt ainsi
           les certificats sans repasser par la liste, DANS SON ORDRE — du plus
           pressant au plus lointain, puisque c'est par échéance qu'elle est
           rangée. La fiche logiciel, elle, se parcourt alphabétiquement : chaque
-          liste impose son ordre à ses flèches. */}
+          liste impose son ordre à ses flèches. On reste sur le MÊME onglet en
+          changeant de certificat. */}
       <div className="mb-4 flex items-start gap-2">
         <FlecheVoisin
           voisin={voisins.precedent}
           sens="precedent"
           hrefBase="/certificats"
+          query={`?onglet=${actif}`}
           entite="Certificat"
         />
         <div className="min-w-0 flex-1">
@@ -88,26 +99,20 @@ export default async function CertificatPage({ params }: { params: Promise<{ id:
           voisin={voisins.suivant}
           sens="suivant"
           hrefBase="/certificats"
+          query={`?onglet=${actif}`}
           entite="Certificat"
         />
       </div>
-      {/* Un onglet unique : cette fiche n'en a pas plusieurs à proposer, mais
-          la barre est ce qui porte le crayon, au même bout de ligne que sur la
-          fiche logiciel. */}
-      <Onglets
-        onglets={[{ key: "fiche", label: "Certificat" }]}
-        actif="fiche"
-        href={() => `/certificats/${id}`}
-        idActions={ID_COMMANDES_ONGLET}
-      />
 
-      {/* UN mode de modification pour la fiche ENTIÈRE : le crayon de la barre
-          ouvre les trois cartes du certificat, mais aussi ses documents et la
-          saisie des codes de l'autorité — les LIRE reste hors du mode. */}
+      {/* UN mode de modification pour la fiche ENTIÈRE, et TROIS onglets tous
+          montés — la barre vit dans CertificatForm. Le crayon ouvre les trois
+          cartes du certificat, mais aussi ses documents et la saisie des codes
+          de l'autorité — les LIRE reste hors du mode. */}
       <ModeFicheProvider readOnly={!isAdmin} objet="ce certificat">
         <CertificatForm
           id={id}
           readOnly={!isAdmin}
+          onglet={actif}
           editeurs={editeurs.map((e) => ({ id: e.id, nom: e.nom }))}
           services={services.map((s) => ({ id: s.id, nom: s.nom }))}
           serveurs={serveurs.map((s) => ({ id: s.id, nom: s.nom }))}
@@ -132,28 +137,33 @@ export default async function CertificatPage({ params }: { params: Promise<{ id:
             statut: certificat.statut,
             notes: certificat.notes,
           }}
-        >
-          {/* L'attestation de l'autorité, le bon de commande signé, le recueil
-            d'identité : les pièces se lisent sous la fiche qu'elles attestent. */}
-          <DocumentsPanel
-            parent={{ certificatId: id }}
-            readOnly={!isAdmin}
-            categories={categories.map((c) => ({ id: c.id, label: c.label }))}
-            documents={certificat.documents.map((d) => ({
-              id: d.id,
-              nomOriginal: d.nomOriginal,
-              categorieId: d.categorieId,
-              categorie: d.categorie?.label ?? null,
-              taille: d.taille,
-              deposeParLabel: d.deposeParLabel,
-              createdAt: FMT_DEPOT.format(d.createdAt),
-            }))}
-          />
-
-          {/* La carte des codes n'est pas rendue au lecteur — et l'action qu'elle
-            appelle exige de toute façon le rôle admin. */}
-          {isAdmin ? <CodesPanel id={id} /> : null}
-        </CertificatForm>
+          // L'attestation de l'autorité, le bon de commande signé, le recueil
+          // d'identité : les pièces d'un certificat, sous leur propre onglet.
+          documents={
+            // `key` sur les éléments-slots, comme sur les autres fiches :
+            // désérialisés du flux RSC au rendu serveur, React les tient pour
+            // les membres d'une liste et réclame sinon une clé.
+            <DocumentsPanel
+              key="documents"
+              parent={{ certificatId: id }}
+              readOnly={!isAdmin}
+              categories={categories.map((c) => ({ id: c.id, label: c.label }))}
+              documents={certificat.documents.map((d) => ({
+                id: d.id,
+                nomOriginal: d.nomOriginal,
+                categorieId: d.categorieId,
+                categorie: d.categorie?.label ?? null,
+                taille: d.taille,
+                deposeParLabel: d.deposeParLabel,
+                createdAt: FMT_DEPOT.format(d.createdAt),
+              }))}
+            />
+          }
+          // La carte des codes n'est pas rendue au lecteur — l'onglet Révocation
+          // disparaît avec elle, et l'action qu'elle appelle exige de toute
+          // façon le rôle admin.
+          codes={isAdmin ? <CodesPanel key="codes" id={id} /> : undefined}
+        />
       </ModeFicheProvider>
     </>
   );

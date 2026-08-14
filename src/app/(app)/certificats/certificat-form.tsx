@@ -4,6 +4,7 @@ import { Check } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { type ReactNode, useEffect, useState, useTransition } from "react";
 import { useConfirmation } from "@/components/confirmation";
+import { FicheOnglets } from "@/components/fiche-onglets";
 import { useInscriptionModeFiche } from "@/components/mode-fiche";
 import { useSaisieEnCours } from "@/components/saisie-en-cours";
 import { Card, Field } from "@/components/ui";
@@ -14,6 +15,7 @@ import {
   USAGES_CERTIFICAT,
 } from "@/schemas/certificat";
 import { createCertificatAction, deleteCertificatAction, updateCertificatAction } from "./actions";
+import { ONGLETS_CERTIFICAT, type OngletCertificat } from "./onglets";
 
 /** Le formulaire est NON CONTRÔLÉ : des chaînes, que le DOM rend au `reset()`. */
 export type CertificatValues = {
@@ -66,15 +68,26 @@ const FORM_ID = "certificat-form";
 type Option = { id: number; nom: string };
 
 /**
- * Fiche d'un certificat électronique.
+ * Fiche d'un certificat électronique en TROIS ONGLETS — Synthèse (titulaire,
+ * certificat, commande), Documents (ses pièces), Révocation (les codes de
+ * l'autorité) — sur le modèle des autres fiches : tous les panneaux montés,
+ * masqués et non démontés au changement d'onglet, pour qu'une saisie commencée
+ * survive à un détour.
  *
- * `id` absent = création (redirige vers la fiche créée). Le lecteur reçoit
- * `readOnly` : champs désactivés, aucun bouton — la protection réelle reste
- * dans les server actions (requireRole admin).
+ * Comme sur la fiche marché, le <form> ne s'étend PAS aux onglets : ses trois
+ * cartes tiennent toutes sur la Synthèse, et la carte des codes porte son
+ * propre <form> — que HTML interdit d'imbriquer. Masqué avec son onglet mais
+ * toujours monté, il reste joignable par l'attribut `form` des boutons
+ * « Enregistrer ». Les codes gardent ainsi leur écriture séparée : un
+ * enregistrement de la fiche ne peut jamais les effacer par omission.
  *
- * `children` reçoit la carte des codes de l'autorité, qui n'est rendue qu'aux
- * admins et vit hors de ce formulaire : elle a sa propre écriture, pour qu'un
- * enregistrement de la fiche ne puisse jamais effacer les codes par omission.
+ * L'onglet Révocation n'existe que si `codes` est fourni — la carte n'est
+ * rendue qu'aux admins, et un onglet vide n'apprendrait rien au lecteur.
+ *
+ * `id` absent = création (redirige vers la fiche créée) : pas d'onglets, les
+ * trois cartes empilées. Le lecteur reçoit `readOnly` : champs désactivés,
+ * aucun bouton — la protection réelle reste dans les server actions
+ * (requireRole admin).
  */
 export function CertificatForm({
   id,
@@ -83,7 +96,9 @@ export function CertificatForm({
   services,
   serveurs,
   readOnly = false,
-  children,
+  onglet = "synthese",
+  documents,
+  codes,
 }: {
   id?: number;
   values?: CertificatValues;
@@ -92,7 +107,12 @@ export function CertificatForm({
   services: Option[];
   serveurs: Option[];
   readOnly?: boolean;
-  children?: ReactNode;
+  /** L'onglet demandé par l'URL au chargement. */
+  onglet?: OngletCertificat;
+  /** Le panneau des pièces jointes, rendu côté serveur — onglet Documents. */
+  documents?: ReactNode;
+  /** La carte des codes de l'autorité — onglet Révocation, admins seulement. */
+  codes?: ReactNode;
 }) {
   const router = useRouter();
   const confirmer = useConfirmation();
@@ -234,295 +254,347 @@ export function CertificatForm({
     </Field>
   );
 
-  return (
-    <div className="space-y-3">
-      <form
-        id={FORM_ID}
-        ref={saisie.formRef}
-        onSubmit={submit}
-        onChange={saisie.surSaisie}
-        className="space-y-3"
-      >
-        {/* Qui le porte. */}
-        <Card title="Titulaire">
-          <div className="grid items-end gap-x-3 gap-y-2 sm:grid-cols-3">
-            <Field label="Titulaire" htmlFor="titulaire" required>
-              <input
-                id="titulaire"
-                name="titulaire"
-                required
-                placeholder="Ex : Mme AZZAZ, SRV-CHORUS"
-                defaultValue={values.titulaire}
-                disabled={dis}
-                className="input"
-              />
-            </Field>
-            {/* La FONCTION et non le grade : c'est elle qui donne sa portée à
+  /* Le <form>, refermé sur les trois cartes de saisie : elles tiennent toutes
+     sur la Synthèse, et la carte des codes de l'onglet Révocation porte son
+     propre <form>, qu'il est interdit d'imbriquer. */
+  const formulaireCertificat = (
+    <form
+      id={FORM_ID}
+      ref={saisie.formRef}
+      onSubmit={submit}
+      onChange={saisie.surSaisie}
+      className="space-y-3"
+    >
+      {/* Qui le porte. */}
+      <Card title="Titulaire">
+        <div className="grid items-end gap-x-3 gap-y-2 sm:grid-cols-3">
+          <Field label="Titulaire" htmlFor="titulaire" required>
+            <input
+              id="titulaire"
+              name="titulaire"
+              required
+              placeholder="Ex : Mme AZZAZ, SRV-CHORUS"
+              defaultValue={values.titulaire}
+              disabled={dis}
+              className="input"
+            />
+          </Field>
+          {/* La FONCTION et non le grade : c'est elle qui donne sa portée à
                 la signature (« Maire », « Adjoint à la Maire », « DGA »). */}
-            <Field label="Fonction" htmlFor="fonction">
-              <input
-                id="fonction"
-                name="fonction"
-                placeholder="Ex : Maire, Adjoint, Agent"
-                defaultValue={values.fonction}
-                disabled={dis}
-                className="input"
-              />
-            </Field>
-            <Field label="Adresse e-mail" htmlFor="email">
-              <input
-                id="email"
-                name="email"
-                type="email"
-                defaultValue={values.email}
-                disabled={dis}
-                className="input"
-              />
-            </Field>
-            {selectOption("serviceId", "Service", services, "— aucun —")}
-            {/* Un certificat de machine désigne SA machine ; le laisser vide est
+          <Field label="Fonction" htmlFor="fonction">
+            <input
+              id="fonction"
+              name="fonction"
+              placeholder="Ex : Maire, Adjoint, Agent"
+              defaultValue={values.fonction}
+              disabled={dis}
+              className="input"
+            />
+          </Field>
+          <Field label="Adresse e-mail" htmlFor="email">
+            <input
+              id="email"
+              name="email"
+              type="email"
+              defaultValue={values.email}
+              disabled={dis}
+              className="input"
+            />
+          </Field>
+          {selectOption("serviceId", "Service", services, "— aucun —")}
+          {/* Un certificat de machine désigne SA machine ; le laisser vide est
                 le cas courant, celui d'un certificat nominatif. */}
-            {selectOption("serveurId", "Serveur équipé", serveurs, "— aucun (nominatif) —")}
-            <Field label="Statut" htmlFor="statut">
-              <select
-                id="statut"
-                name="statut"
-                defaultValue={values.statut || "actif"}
-                disabled={dis}
-                className="input"
-              >
-                {STATUTS_CERTIFICAT.map((s) => (
-                  <option key={s} value={s}>
-                    {LIBELLES_CERTIFICAT.statut[s]}
-                  </option>
-                ))}
-              </select>
-            </Field>
-          </div>
-        </Card>
+          {selectOption("serveurId", "Serveur équipé", serveurs, "— aucun (nominatif) —")}
+          <Field label="Statut" htmlFor="statut">
+            <select
+              id="statut"
+              name="statut"
+              defaultValue={values.statut || "actif"}
+              disabled={dis}
+              className="input"
+            >
+              {STATUTS_CERTIFICAT.map((s) => (
+                <option key={s} value={s}>
+                  {LIBELLES_CERTIFICAT.statut[s]}
+                </option>
+              ))}
+            </select>
+          </Field>
+        </div>
+      </Card>
 
-        {/* Ce qu'il est et jusqu'à quand il vaut. */}
-        <Card title="Certificat">
-          <div className="grid items-end gap-x-3 gap-y-2 sm:grid-cols-3">
-            {selectOption("fournisseurId", "Autorité de certification", editeurs, "— aucune —")}
-            <Field label="Usage" htmlFor="usage">
-              <select
-                id="usage"
-                name="usage"
-                defaultValue={values.usage}
-                disabled={dis}
-                className="input"
-              >
-                <option value="">— non renseigné —</option>
-                {USAGES_CERTIFICAT.map((u) => (
-                  <option key={u} value={u}>
-                    {LIBELLES_CERTIFICAT.usage[u]}
-                  </option>
-                ))}
-              </select>
-            </Field>
-            <Field label="Support" htmlFor="support">
-              <select
-                id="support"
-                name="support"
-                defaultValue={values.support}
-                disabled={dis}
-                className="input"
-              >
-                <option value="">— non renseigné —</option>
-                {SUPPORTS_CERTIFICAT.map((s) => (
-                  <option key={s} value={s}>
-                    {LIBELLES_CERTIFICAT.support[s]}
-                  </option>
-                ))}
-              </select>
-            </Field>
-            <Field label="N° de série" htmlFor="numeroSerie">
-              <input
-                id="numeroSerie"
-                name="numeroSerie"
-                defaultValue={values.numeroSerie}
-                disabled={dis}
-                className="input"
-              />
-            </Field>
-            <Field label="Niveau" htmlFor="niveau">
-              <input
-                id="niveau"
-                name="niveau"
-                placeholder="Ex : RGS**, eIDAS qualifié"
-                defaultValue={values.niveau}
-                disabled={dis}
-                className="input"
-              />
-            </Field>
-            <Field label="Durée (années)" htmlFor="dureeAnnees">
-              <select
-                id="dureeAnnees"
-                name="dureeAnnees"
-                defaultValue={values.dureeAnnees}
-                disabled={dis}
-                className="input"
-              >
-                <option value="">—</option>
-                {[1, 2, 3, 4, 5].map((n) => (
-                  <option key={n} value={n}>
-                    {n} an{n > 1 ? "s" : ""}
-                  </option>
-                ))}
-              </select>
-            </Field>
-            <Field label="Début de validité" htmlFor="dateDebut">
-              <input
-                id="dateDebut"
-                name="dateDebut"
-                type="date"
-                defaultValue={values.dateDebut}
-                disabled={dis}
-                className="input"
-              />
-            </Field>
-            {/* L'échéance SURVEILLÉE : c'est cette date que lisent le rappel
+      {/* Ce qu'il est et jusqu'à quand il vaut. */}
+      <Card title="Certificat">
+        <div className="grid items-end gap-x-3 gap-y-2 sm:grid-cols-3">
+          {selectOption("fournisseurId", "Autorité de certification", editeurs, "— aucune —")}
+          <Field label="Usage" htmlFor="usage">
+            <select
+              id="usage"
+              name="usage"
+              defaultValue={values.usage}
+              disabled={dis}
+              className="input"
+            >
+              <option value="">— non renseigné —</option>
+              {USAGES_CERTIFICAT.map((u) => (
+                <option key={u} value={u}>
+                  {LIBELLES_CERTIFICAT.usage[u]}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Support" htmlFor="support">
+            <select
+              id="support"
+              name="support"
+              defaultValue={values.support}
+              disabled={dis}
+              className="input"
+            >
+              <option value="">— non renseigné —</option>
+              {SUPPORTS_CERTIFICAT.map((s) => (
+                <option key={s} value={s}>
+                  {LIBELLES_CERTIFICAT.support[s]}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label="N° de série" htmlFor="numeroSerie">
+            <input
+              id="numeroSerie"
+              name="numeroSerie"
+              defaultValue={values.numeroSerie}
+              disabled={dis}
+              className="input"
+            />
+          </Field>
+          <Field label="Niveau" htmlFor="niveau">
+            <input
+              id="niveau"
+              name="niveau"
+              placeholder="Ex : RGS**, eIDAS qualifié"
+              defaultValue={values.niveau}
+              disabled={dis}
+              className="input"
+            />
+          </Field>
+          <Field label="Durée (années)" htmlFor="dureeAnnees">
+            <select
+              id="dureeAnnees"
+              name="dureeAnnees"
+              defaultValue={values.dureeAnnees}
+              disabled={dis}
+              className="input"
+            >
+              <option value="">—</option>
+              {[1, 2, 3, 4, 5].map((n) => (
+                <option key={n} value={n}>
+                  {n} an{n > 1 ? "s" : ""}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Début de validité" htmlFor="dateDebut">
+            <input
+              id="dateDebut"
+              name="dateDebut"
+              type="date"
+              defaultValue={values.dateDebut}
+              disabled={dis}
+              className="input"
+            />
+          </Field>
+          {/* L'échéance SURVEILLÉE : c'est cette date que lisent le rappel
                 par e-mail et la carte du tableau de bord. La mention qui le
                 disait sous le champ est retirée — un champ de date n'accueille
                 pas de placeholder, et la ligne grise décalait la grille. */}
-            <Field label="Fin de validité" htmlFor="dateFin">
+          <Field label="Fin de validité" htmlFor="dateFin">
+            <input
+              id="dateFin"
+              name="dateFin"
+              type="date"
+              defaultValue={values.dateFin}
+              disabled={dis}
+              className="input"
+            />
+          </Field>
+        </div>
+      </Card>
+
+      {/* Ce qu'il a coûté et comment il a été commandé. */}
+      <Card title="Commande">
+        <div className="grid items-end gap-x-3 gap-y-2 sm:grid-cols-3">
+          <Field label="Montant TTC" htmlFor="montantTtc">
+            <input
+              id="montantTtc"
+              name="montantTtc"
+              inputMode="decimal"
+              defaultValue={values.montantTtc}
+              disabled={dis}
+              className="input"
+            />
+          </Field>
+          <Field label="Imputation" htmlFor="imputation">
+            <input
+              id="imputation"
+              name="imputation"
+              placeholder="Ex : 60632"
+              defaultValue={values.imputation}
+              disabled={dis}
+              className="input"
+            />
+          </Field>
+          <Field label="Bon de commande signé le" htmlFor="bonCommandeLe">
+            <input
+              id="bonCommandeLe"
+              name="bonCommandeLe"
+              type="date"
+              defaultValue={values.bonCommandeLe}
+              disabled={dis}
+              className="input"
+            />
+          </Field>
+          <div className="sm:col-span-3">
+            <Field label="Mention du bon de commande" htmlFor="bonCommandeNote">
               <input
-                id="dateFin"
-                name="dateFin"
-                type="date"
-                defaultValue={values.dateFin}
+                id="bonCommandeNote"
+                name="bonCommandeNote"
+                placeholder="Ex : envoyé par courrier en AR"
+                defaultValue={values.bonCommandeNote}
                 disabled={dis}
                 className="input"
               />
             </Field>
           </div>
-        </Card>
-
-        {/* Ce qu'il a coûté et comment il a été commandé. */}
-        <Card title="Commande">
-          <div className="grid items-end gap-x-3 gap-y-2 sm:grid-cols-3">
-            <Field label="Montant TTC" htmlFor="montantTtc">
-              <input
-                id="montantTtc"
-                name="montantTtc"
-                inputMode="decimal"
-                defaultValue={values.montantTtc}
+          <div className="sm:col-span-3">
+            <Field label="Observations" htmlFor="notes">
+              <textarea
+                id="notes"
+                name="notes"
+                rows={3}
+                defaultValue={values.notes}
                 disabled={dis}
                 className="input"
               />
             </Field>
-            <Field label="Imputation" htmlFor="imputation">
-              <input
-                id="imputation"
-                name="imputation"
-                placeholder="Ex : 60632"
-                defaultValue={values.imputation}
-                disabled={dis}
-                className="input"
-              />
-            </Field>
-            <Field label="Bon de commande signé le" htmlFor="bonCommandeLe">
-              <input
-                id="bonCommandeLe"
-                name="bonCommandeLe"
-                type="date"
-                defaultValue={values.bonCommandeLe}
-                disabled={dis}
-                className="input"
-              />
-            </Field>
-            <div className="sm:col-span-3">
-              <Field label="Mention du bon de commande" htmlFor="bonCommandeNote">
-                <input
-                  id="bonCommandeNote"
-                  name="bonCommandeNote"
-                  placeholder="Ex : envoyé par courrier en AR"
-                  defaultValue={values.bonCommandeNote}
-                  disabled={dis}
-                  className="input"
-                />
-              </Field>
-            </div>
-            <div className="sm:col-span-3">
-              <Field label="Observations" htmlFor="notes">
-                <textarea
-                  id="notes"
-                  name="notes"
-                  rows={3}
-                  defaultValue={values.notes}
-                  disabled={dis}
-                  className="input"
-                />
-              </Field>
-            </div>
           </div>
-        </Card>
-      </form>
+        </div>
+      </Card>
+    </form>
+  );
 
-      {children}
-
+  /**
+   * La ligne d'actions, SOUS CHAQUE ONGLET : les deux issues du mode portent la
+   * fiche entière. Son « Enregistrer » désigne le formulaire par l'attribut
+   * `form` — il vit hors de lui, parfois sur un autre onglet.
+   */
+  const ligneActions = readOnly ? null : (
+    <>
       {error ? <p className="alert-error">{error}</p> : null}
-
-      {readOnly ? null : (
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            {/* La ligne suit l'état du MODE : fiche fermée, il n'y a rien à
-                enregistrer et le seul geste qui reste est de partir ; le crayon
-                l'ouvre, et les deux issues de la modification paraissent
-                aussitôt. */}
-            {id !== undefined && !ouvert ? (
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          {/* La ligne suit l'état du MODE : fiche fermée, il n'y a rien à
+              enregistrer et le seul geste qui reste est de partir ; le crayon
+              l'ouvre, et les deux issues de la modification paraissent
+              aussitôt. */}
+          {id !== undefined && !ouvert ? (
+            <button
+              type="button"
+              onClick={quitter}
+              disabled={pending}
+              className="btn-secondary"
+              title="Revenir à la liste des certificats"
+            >
+              Quitter
+            </button>
+          ) : (
+            <>
+              <button
+                type="submit"
+                form={FORM_ID}
+                disabled={pending || mode?.occupe}
+                className="btn-primary"
+              >
+                {pending || mode?.occupe
+                  ? "Enregistrement…"
+                  : id === undefined
+                    ? "Créer le certificat"
+                    : "Enregistrer"}
+              </button>
               <button
                 type="button"
-                onClick={quitter}
-                disabled={pending}
-                className="btn-secondary"
-                title="Revenir à la liste des certificats"
+                onClick={id === undefined ? quitterCreation : () => void mode?.annulerTout()}
+                disabled={pending || mode?.occupe}
+                className="btn-warn"
+                title={id === undefined ? "Quitter sans créer le certificat" : undefined}
               >
-                Quitter
+                Annuler
               </button>
-            ) : (
-              <>
-                <button
-                  type="submit"
-                  form={FORM_ID}
-                  disabled={pending || mode?.occupe}
-                  className="btn-primary"
-                >
-                  {pending || mode?.occupe
-                    ? "Enregistrement…"
-                    : id === undefined
-                      ? "Créer le certificat"
-                      : "Enregistrer"}
-                </button>
-                <button
-                  type="button"
-                  onClick={id === undefined ? quitterCreation : () => void mode?.annulerTout()}
-                  disabled={pending || mode?.occupe}
-                  className="btn-warn"
-                  title={id === undefined ? "Quitter sans créer le certificat" : undefined}
-                >
-                  Annuler
-                </button>
-              </>
-            )}
-            {saved ? (
-              <span
-                className="flex items-center gap-1.5 text-sm"
-                style={{ color: "var(--color-ok-text)" }}
-              >
-                <Check className="h-4 w-4" />
-                Certificat enregistré.
-              </span>
-            ) : null}
-          </div>
-          {id === undefined ? null : (
-            <button type="button" onClick={supprimer} disabled={pending} className="btn-danger">
-              Supprimer
-            </button>
+            </>
           )}
+          {saved ? (
+            <span
+              className="flex items-center gap-1.5 text-sm"
+              style={{ color: "var(--color-ok-text)" }}
+            >
+              <Check className="h-4 w-4" />
+              Certificat enregistré.
+            </span>
+          ) : null}
         </div>
-      )}
-    </div>
+        {id === undefined ? null : (
+          <button type="button" onClick={supprimer} disabled={pending} className="btn-danger">
+            Supprimer
+          </button>
+        )}
+      </div>
+    </>
+  );
+
+  /* En CRÉATION, pas d'onglets : les trois cartes empilées — les pièces et les
+     codes s'ajoutent après création. */
+  if (id === undefined) {
+    return (
+      <div className="space-y-3">
+        {formulaireCertificat}
+        {ligneActions}
+      </div>
+    );
+  }
+
+  /* L'onglet Révocation n'est offert que si la carte des codes est là — elle
+     n'est rendue qu'aux admins. Un lecteur qui colle une URL ?onglet=revocation
+     retombe sur la Synthèse. */
+  const onglets = codes
+    ? ONGLETS_CERTIFICAT
+    : ONGLETS_CERTIFICAT.filter((o) => o.key !== "revocation");
+  const initial = !codes && onglet === "revocation" ? "synthese" : onglet;
+
+  return (
+    <FicheOnglets
+      onglets={onglets}
+      initial={initial}
+      base={`/certificats/${id}`}
+      panneaux={{
+        synthese: (
+          <div className="space-y-3">
+            {formulaireCertificat}
+            {ligneActions}
+          </div>
+        ),
+        documents: (
+          <div className="space-y-3">
+            {documents}
+            {ligneActions}
+          </div>
+        ),
+        revocation: (
+          <div className="space-y-3">
+            {codes}
+            {ligneActions}
+          </div>
+        ),
+      }}
+    />
   );
 }
