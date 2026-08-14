@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { ID_COMMANDES_ONGLET } from "@/components/commandes-onglet";
 import { DocumentsPanel } from "@/components/documents-panel";
 import { FlecheVoisin } from "@/components/fleche-voisin";
-import { PageHeader } from "@/components/ui";
+import { ModeFicheProvider } from "@/components/mode-fiche";
+import { Onglets, PageHeader } from "@/components/ui";
 import type { Role } from "@/generated/prisma/client";
 import { requireUser } from "@/server/guards";
 import { getCertificat, voisinsCertificat } from "@/server/services/certificats";
@@ -89,55 +91,70 @@ export default async function CertificatPage({ params }: { params: Promise<{ id:
           entite="Certificat"
         />
       </div>
-      <CertificatForm
-        id={id}
-        readOnly={!isAdmin}
-        editeurs={editeurs.map((e) => ({ id: e.id, nom: e.nom }))}
-        services={services.map((s) => ({ id: s.id, nom: s.nom }))}
-        serveurs={serveurs.map((s) => ({ id: s.id, nom: s.nom }))}
-        values={{
-          titulaire: certificat.titulaire,
-          fonction: certificat.fonction,
-          email: certificat.email,
-          fournisseurId: texte(certificat.fournisseurId),
-          serviceId: texte(certificat.serviceId),
-          serveurId: texte(certificat.serveurId),
-          usage: certificat.usage ?? "",
-          support: certificat.support ?? "",
-          niveau: certificat.niveau,
-          numeroSerie: certificat.numeroSerie,
-          dateDebut: jour(certificat.dateDebut),
-          dateFin: jour(certificat.dateFin),
-          dureeAnnees: texte(certificat.dureeAnnees),
-          montantTtc: certificat.montantTtc === null ? "" : String(certificat.montantTtc),
-          imputation: certificat.imputation,
-          bonCommandeLe: jour(certificat.bonCommandeLe),
-          bonCommandeNote: certificat.bonCommandeNote,
-          statut: certificat.statut,
-          notes: certificat.notes,
-        }}
-      >
-        {/* L'attestation de l'autorité, le bon de commande signé, le recueil
-            d'identité : les pièces se lisent sous la fiche qu'elles attestent. */}
-        <DocumentsPanel
-          parent={{ certificatId: id }}
-          readOnly={!isAdmin}
-          categories={categories.map((c) => ({ id: c.id, label: c.label }))}
-          documents={certificat.documents.map((d) => ({
-            id: d.id,
-            nomOriginal: d.nomOriginal,
-            categorieId: d.categorieId,
-            categorie: d.categorie?.label ?? null,
-            taille: d.taille,
-            deposeParLabel: d.deposeParLabel,
-            createdAt: FMT_DEPOT.format(d.createdAt),
-          }))}
-        />
+      {/* Un onglet unique : cette fiche n'en a pas plusieurs à proposer, mais
+          la barre est ce qui porte le crayon, au même bout de ligne que sur la
+          fiche logiciel. */}
+      <Onglets
+        onglets={[{ key: "fiche", label: "Certificat" }]}
+        actif="fiche"
+        href={() => `/certificats/${id}`}
+        idActions={ID_COMMANDES_ONGLET}
+      />
 
-        {/* La carte des codes n'est pas rendue au lecteur — et l'action qu'elle
+      {/* UN mode de modification pour la fiche ENTIÈRE : le crayon de la barre
+          ouvre les trois cartes du certificat, mais aussi ses documents et la
+          saisie des codes de l'autorité — les LIRE reste hors du mode. */}
+      <ModeFicheProvider readOnly={!isAdmin} objet="ce certificat">
+        <CertificatForm
+          id={id}
+          readOnly={!isAdmin}
+          editeurs={editeurs.map((e) => ({ id: e.id, nom: e.nom }))}
+          services={services.map((s) => ({ id: s.id, nom: s.nom }))}
+          serveurs={serveurs.map((s) => ({ id: s.id, nom: s.nom }))}
+          values={{
+            titulaire: certificat.titulaire,
+            fonction: certificat.fonction,
+            email: certificat.email,
+            fournisseurId: texte(certificat.fournisseurId),
+            serviceId: texte(certificat.serviceId),
+            serveurId: texte(certificat.serveurId),
+            usage: certificat.usage ?? "",
+            support: certificat.support ?? "",
+            niveau: certificat.niveau,
+            numeroSerie: certificat.numeroSerie,
+            dateDebut: jour(certificat.dateDebut),
+            dateFin: jour(certificat.dateFin),
+            dureeAnnees: texte(certificat.dureeAnnees),
+            montantTtc: certificat.montantTtc === null ? "" : String(certificat.montantTtc),
+            imputation: certificat.imputation,
+            bonCommandeLe: jour(certificat.bonCommandeLe),
+            bonCommandeNote: certificat.bonCommandeNote,
+            statut: certificat.statut,
+            notes: certificat.notes,
+          }}
+        >
+          {/* L'attestation de l'autorité, le bon de commande signé, le recueil
+            d'identité : les pièces se lisent sous la fiche qu'elles attestent. */}
+          <DocumentsPanel
+            parent={{ certificatId: id }}
+            readOnly={!isAdmin}
+            categories={categories.map((c) => ({ id: c.id, label: c.label }))}
+            documents={certificat.documents.map((d) => ({
+              id: d.id,
+              nomOriginal: d.nomOriginal,
+              categorieId: d.categorieId,
+              categorie: d.categorie?.label ?? null,
+              taille: d.taille,
+              deposeParLabel: d.deposeParLabel,
+              createdAt: FMT_DEPOT.format(d.createdAt),
+            }))}
+          />
+
+          {/* La carte des codes n'est pas rendue au lecteur — et l'action qu'elle
             appelle exige de toute façon le rôle admin. */}
-        {isAdmin ? <CodesPanel id={id} /> : null}
-      </CertificatForm>
+          {isAdmin ? <CodesPanel id={id} /> : null}
+        </CertificatForm>
+      </ModeFicheProvider>
     </>
   );
 }

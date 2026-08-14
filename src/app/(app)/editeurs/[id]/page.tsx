@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { ID_COMMANDES_ONGLET } from "@/components/commandes-onglet";
 import { DocumentsPanel } from "@/components/documents-panel";
 import { FlecheVoisin } from "@/components/fleche-voisin";
-import { Card, PageHeader } from "@/components/ui";
+import { ModeFicheProvider } from "@/components/mode-fiche";
+import { Card, Onglets, PageHeader } from "@/components/ui";
 import type { Role } from "@/generated/prisma/client";
 import { requireUser } from "@/server/guards";
 import { getEditeur, voisinsEditeur } from "@/server/services/editeurs";
@@ -53,76 +55,91 @@ export default async function EditeurPage({ params }: { params: Promise<{ id: st
           entite="Éditeur"
         />
       </div>
-      <EditeurForm
-        id={editeur.id}
-        readOnly={!isAdmin}
-        nbPiecesJointes={editeur.documents.length}
-        values={{
-          nom: editeur.nom,
-          adresse: editeur.adresse,
-          codePostal: editeur.codePostal,
-          ville: editeur.ville,
-          telephone: editeur.telephone,
-          email: editeur.email,
-          siteWeb: editeur.siteWeb,
-          supportUrl: editeur.supportUrl,
-          supportEmail: editeur.supportEmail,
-          supportTelephone: editeur.supportTelephone,
-          numeroClient: editeur.numeroClient,
-          supportHoraires: editeur.supportHoraires,
-          supportHoraires2: editeur.supportHoraires2,
-          commercialContact: editeur.commercialContact,
-          commercialTelephone: editeur.commercialTelephone,
-          commercialEmail: editeur.commercialEmail,
-          commercialContact2: editeur.commercialContact2,
-          commercialTelephone2: editeur.commercialTelephone2,
-          commercialEmail2: editeur.commercialEmail2,
-          adminContact: editeur.adminContact,
-          adminTelephone: editeur.adminTelephone,
-          adminEmail: editeur.adminEmail,
-          dpoContact: editeur.dpoContact,
-          dpoTelephone: editeur.dpoTelephone,
-          dpoEmail: editeur.dpoEmail,
-          notes: editeur.notes,
-        }}
-      >
-        <Card title="Logiciels de cet éditeur">
-          {editeur.logiciels.length === 0 ? (
-            <p className="text-sm text-faint">
-              Aucun logiciel de l'inventaire ne lui est rattaché.
-            </p>
-          ) : (
-            <ul className="divide-y divide-line text-sm">
-              {editeur.logiciels.map((l) => (
-                <li key={l.id} className="py-2">
-                  <Link
-                    href={`/logiciels/${l.id}`}
-                    className="font-medium text-strong hover:text-accent"
-                  >
-                    {l.nom}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Card>
+      {/* Un onglet unique : cette fiche n'en a pas plusieurs à proposer, mais
+          la barre est ce qui porte le crayon, à la même hauteur et au même bout
+          de ligne que sur la fiche logiciel. Une commande de modification qui
+          change de place d'un écran à l'autre est une commande qu'on cherche. */}
+      <Onglets
+        onglets={[{ key: "fiche", label: "Éditeur" }]}
+        actif="fiche"
+        href={() => `/editeurs/${editeur.id}`}
+        idActions={ID_COMMANDES_ONGLET}
+      />
 
-        <DocumentsPanel
-          parent={{ editeurId: editeur.id }}
+      {/* UN mode de modification pour la fiche ENTIÈRE : le crayon de la barre
+          ouvre les cartes de saisie ET les documents. */}
+      <ModeFicheProvider readOnly={!isAdmin} objet="cette fiche">
+        <EditeurForm
+          id={editeur.id}
           readOnly={!isAdmin}
-          categorieParDefaut="Présentation commerciale"
-          categories={categories.map((c) => ({ id: c.id, label: c.label }))}
-          documents={editeur.documents.map((d) => ({
-            id: d.id,
-            nomOriginal: d.nomOriginal,
-            categorieId: d.categorieId,
-            categorie: d.categorie?.label ?? null,
-            taille: d.taille,
-            deposeParLabel: d.deposeParLabel,
-            createdAt: fmt.format(d.createdAt),
-          }))}
-        />
-      </EditeurForm>
+          nbPiecesJointes={editeur.documents.length}
+          values={{
+            nom: editeur.nom,
+            adresse: editeur.adresse,
+            codePostal: editeur.codePostal,
+            ville: editeur.ville,
+            telephone: editeur.telephone,
+            email: editeur.email,
+            siteWeb: editeur.siteWeb,
+            supportUrl: editeur.supportUrl,
+            supportEmail: editeur.supportEmail,
+            supportTelephone: editeur.supportTelephone,
+            numeroClient: editeur.numeroClient,
+            supportHoraires: editeur.supportHoraires,
+            supportHoraires2: editeur.supportHoraires2,
+            commercialContact: editeur.commercialContact,
+            commercialTelephone: editeur.commercialTelephone,
+            commercialEmail: editeur.commercialEmail,
+            commercialContact2: editeur.commercialContact2,
+            commercialTelephone2: editeur.commercialTelephone2,
+            commercialEmail2: editeur.commercialEmail2,
+            adminContact: editeur.adminContact,
+            adminTelephone: editeur.adminTelephone,
+            adminEmail: editeur.adminEmail,
+            dpoContact: editeur.dpoContact,
+            dpoTelephone: editeur.dpoTelephone,
+            dpoEmail: editeur.dpoEmail,
+            notes: editeur.notes,
+          }}
+        >
+          <Card title="Logiciels de cet éditeur">
+            {editeur.logiciels.length === 0 ? (
+              <p className="text-sm text-faint">
+                Aucun logiciel de l'inventaire ne lui est rattaché.
+              </p>
+            ) : (
+              <ul className="divide-y divide-line text-sm">
+                {editeur.logiciels.map((l) => (
+                  <li key={l.id} className="py-2">
+                    <Link
+                      href={`/logiciels/${l.id}`}
+                      className="font-medium text-strong hover:text-accent"
+                    >
+                      {l.nom}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Card>
+
+          <DocumentsPanel
+            parent={{ editeurId: editeur.id }}
+            readOnly={!isAdmin}
+            categorieParDefaut="Présentation commerciale"
+            categories={categories.map((c) => ({ id: c.id, label: c.label }))}
+            documents={editeur.documents.map((d) => ({
+              id: d.id,
+              nomOriginal: d.nomOriginal,
+              categorieId: d.categorieId,
+              categorie: d.categorie?.label ?? null,
+              taille: d.taille,
+              deposeParLabel: d.deposeParLabel,
+              createdAt: fmt.format(d.createdAt),
+            }))}
+          />
+        </EditeurForm>
+      </ModeFicheProvider>
     </>
   );
 }

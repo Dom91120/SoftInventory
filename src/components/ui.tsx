@@ -68,30 +68,48 @@ export function Onglets<T extends string>({
   onglets,
   actif,
   href,
+  idActions,
 }: {
   /** Dans l'ordre d'affichage. `badge` pour un compte à annoncer sur l'onglet. */
   onglets: ReadonlyArray<{ key: T; label: string; badge?: ReactNode }>;
   actif: T;
   /** Fabrique l'adresse d'un onglet — chaque écran a la sienne. */
   href: (key: T) => string;
+  /**
+   * Emplacement vide, à droite de la rangée, où un composant CLIENT vient poser
+   * ses commandes par portail — le crayon de la fiche logiciel. Un `ReactNode`
+   * ne conviendrait pas : ces boutons suivent l'état d'un formulaire, que cette
+   * barre, rendue côté serveur, ne connaît pas. Il ne prend aucune place tant
+   * que personne ne s'y installe.
+   */
+  idActions?: string;
 }) {
   return (
-    <div className="mb-3 flex flex-wrap gap-1.5 border-b border-line pb-px">
-      {onglets.map((o) => (
-        <Link
-          key={o.key}
-          href={href(o.key)}
-          aria-current={o.key === actif ? "page" : undefined}
-          className={`inline-flex items-center gap-1.5 rounded-t-lg border-b-2 px-3.5 py-2 text-sm font-medium transition ${
-            o.key === actif
-              ? "border-accent text-accent"
-              : "border-transparent text-muted hover:text-strong"
-          }`}
-        >
-          {o.label}
-          {o.badge}
-        </Link>
-      ))}
+    <div className="mb-3 flex items-end gap-1.5 border-b border-line pb-px">
+      {/* Les onglets se replient ENTRE EUX, dans leur propre rangée : sur le
+          même flux que les commandes, ce sont elles qui passaient à la ligne
+          dès que la barre se remplissait — et le crayon quittait la hauteur du
+          titre qu'il déverrouille. */}
+      <div className="flex flex-wrap gap-1.5">
+        {onglets.map((o) => (
+          <Link
+            key={o.key}
+            href={href(o.key)}
+            aria-current={o.key === actif ? "page" : undefined}
+            className={`inline-flex items-center gap-1.5 rounded-t-lg border-b-2 px-3.5 py-2 text-sm font-medium transition ${
+              o.key === actif
+                ? "border-accent text-accent"
+                : "border-transparent text-muted hover:text-strong"
+            }`}
+          >
+            {o.label}
+            {o.badge}
+          </Link>
+        ))}
+      </div>
+      {idActions ? (
+        <div id={idActions} className="ml-auto flex shrink-0 items-center gap-1" />
+      ) : null}
     </div>
   );
 }

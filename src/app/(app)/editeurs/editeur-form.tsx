@@ -4,6 +4,7 @@ import { Check, ExternalLink, Mail } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { type ReactNode, useEffect, useState, useTransition } from "react";
 import { useConfirmation } from "@/components/confirmation";
+import { useInscriptionModeFiche } from "@/components/mode-fiche";
 import { useSaisieEnCours } from "@/components/saisie-en-cours";
 import { Card, Field } from "@/components/ui";
 import { createEditeurAction, deleteEditeurAction, updateEditeurAction } from "./actions";
@@ -123,9 +124,63 @@ export function EditeurForm({
     return () => clearTimeout(t);
   }, [saved]);
 
+  /** Enregistre CE formulaire, à la demande du mode — sa part du
+   *  « Enregistrer » global de la fiche. */
+  async function enregistrerFormulaire(): Promise<boolean> {
+    const form = saisie.formRef.current;
+    if (id === undefined || !form) return true;
+    if (!form.reportValidity()) return false;
+    setError(null);
+    const res = await updateEditeurAction(id, new FormData(form));
+    if (!res.ok) {
+      setError(res.error);
+      return false;
+    }
+    setSaved(true);
+    saisie.enregistre();
+    router.refresh();
+    return true;
+  }
+
+  /**
+   * Le verrou de la fiche n'est plus le sien : c'est LE mode « je modifie
+   * cette fiche », porté par la barre d'onglets et partagé avec le panneau de
+   * documents. Le formulaire s'y inscrit avec ses trois réponses : dire s'il
+   * porte une saisie, la rendre, l'enregistrer.
+   *
+   * En CRÉATION, pas de provider : `mode` est nul et tout reste ouvert — une
+   * fiche qu'on est en train de saisir n'a rien à protéger.
+   */
+  const mode = useInscriptionModeFiche({
+    sale: () => id !== undefined && saisie.modifie,
+    rendre: saisie.annuler,
+    enregistrer: enregistrerFormulaire,
+  });
+  const ouvert = mode ? mode.actif : id === undefined;
+
+  /**
+   * `FormData` IGNORE les champs désactivés : l'empreinte relevée au premier
+   * rendu, cartes verrouillées, ne vaut donc rien une fois les champs réveillés.
+   * On la reprend à l'ouverture du mode — sans quoi la première frappe
+   * comparerait un formulaire complet à un formulaire vide, et « Enregistrer »
+   * paraîtrait de lui-même.
+   */
+  useEffect(() => {
+    if (ouvert) saisie.enregistre();
+  }, [ouvert, saisie.enregistre]);
+
+  /**
+   * Envoi du formulaire — bouton ou touche Entrée. Sur une fiche EXISTANTE, il
+   * passe par le mode : on modifie toute la fiche, on l'enregistre toute. En
+   * CRÉATION, il crée.
+   */
   function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (readOnly) return;
+    if (mode) {
+      void mode.enregistrerTout();
+      return;
+    }
     setError(null);
     setSaved(false);
     const form = new FormData(e.currentTarget);
@@ -147,6 +202,20 @@ export function EditeurForm({
     });
   }
 
+  /** « Annuler » en CRÉATION, où il veut dire quitter : la même question, pour
+   *  ce qui est le même geste — renoncer à ce qu'on a tapé. */
+  async function quitterCreation() {
+    if (saisie.modifie) {
+      const ok = await confirmer({
+        question: "Quitter sans créer l'éditeur ?",
+        detail: "La saisie en cours sera perdue.",
+        action: "Quitter sans créer",
+      });
+      if (!ok) return;
+    }
+    quitter();
+  }
+
   async function supprimer() {
     if (id === undefined) return;
     if (!(await confirmer({ question: `Supprimer l'éditeur « ${values.nom} » ?` }))) return;
@@ -162,7 +231,7 @@ export function EditeurForm({
     });
   }
 
-  const dis = readOnly || pending;
+  const dis = readOnly || pending || !ouvert;
   /**
    * `placeholder` plutôt que `hint` quand l'aide n'est qu'un exemple de format :
    * elle occupe alors la place du champ vide au lieu d'ajouter une ligne sous
@@ -392,21 +461,19 @@ export function EditeurForm({
 
       {readOnly ? null : (
         <div className="flex items-center justify-between gap-3">
-          {/* La ligne suit l'état de la saisie plutôt que d'offrir tout, tout le
-              temps.
+          {/* La ligne suit l'état du MODE, et non l'écart à l'enregistré.
 
-              Fiche EXISTANTE, rien de modifié : il n'y a rien à enregistrer, et
-              le seul geste qui reste est de partir — « Quitter », en clair,
-              puisqu'il ne décide de rien. Dès qu'un champ change, « Enregistrer »
-              prend sa place et « Annuler » le rejoint, qui rend au formulaire ses
-              valeurs enregistrées, sans confirmation : il n'y a que des frappes
-              non sauvegardées à perdre.
+              Fiche fermée : il n'y a rien à enregistrer, et le seul geste qui
+              reste est de partir — « Quitter », en clair, puisqu'il ne décide de
+              rien. Le crayon de la barre d'onglets ouvre le mode, et
+              « Enregistrer » et « Annuler » paraissent AUSSITÔT ; ils portent la
+              FICHE ENTIÈRE — le formulaire comme les documents.
 
               En CRÉATION, la fiche n'existe pas encore : rien à retrouver, donc
               « Annuler » y veut dire quitter, et il est toujours offert — on entre
               parfois ici par erreur. */}
           <div className="flex items-center gap-3">
-            {id !== undefined && !saisie.modifie ? (
+            {id !== undefined && !ouvert ? (
               <button
                 type="button"
                 onClick={quitter}
@@ -418,8 +485,13 @@ export function EditeurForm({
               </button>
             ) : (
               <>
-                <button type="submit" form={FORM_ID} disabled={pending} className="btn-primary">
-                  {pending
+                <button
+                  type="submit"
+                  form={FORM_ID}
+                  disabled={pending || mode?.occupe}
+                  className="btn-primary"
+                >
+                  {pending || mode?.occupe
                     ? "Enregistrement…"
                     : id === undefined
                       ? "Créer l'éditeur"
@@ -427,8 +499,8 @@ export function EditeurForm({
                 </button>
                 <button
                   type="button"
-                  onClick={id === undefined ? quitter : saisie.annuler}
-                  disabled={pending}
+                  onClick={id === undefined ? quitterCreation : () => void mode?.annulerTout()}
+                  disabled={pending || mode?.occupe}
                   className="btn-warn"
                   title={id === undefined ? "Quitter sans créer l'éditeur" : undefined}
                 >

@@ -6,8 +6,9 @@ import type { ReactNode } from "react";
 import { BoutonQuitter } from "@/components/bouton-quitter";
 import { DocumentsPanel } from "@/components/documents-panel";
 import { FlecheVoisin } from "@/components/fleche-voisin";
+import { LigneActionsFiche, ModeFicheProvider } from "@/components/mode-fiche";
 import { EcheanceBadge } from "@/components/tache-badges";
-import { Onglets, PageHeader } from "@/components/ui";
+import { PageHeader } from "@/components/ui";
 import type { Role } from "@/generated/prisma/client";
 import { dateCalendaire } from "@/lib/taches-core";
 import { seuilsRappel } from "@/server/config";
@@ -32,6 +33,7 @@ import { FicheForm } from "../fiche-form";
 import { CriticiteBadge, StatutBadge } from "../shared";
 import { type ContratRow, ContratsPanel } from "./contrats-panel";
 import { type ConsultationRow, DevisPanel } from "./devis-panel";
+import { FicheOnglets } from "./fiche-onglets";
 import { LiaisonsPanel } from "./liaisons-panel";
 import { RgpdPanel } from "./rgpd-panel";
 import { SupportPanel } from "./support-panel";
@@ -103,6 +105,27 @@ export default async function LogicielPage({
     : "synthese";
 
   const { precedent, suivant } = await voisinsLogiciel(id);
+
+  /** La corbeille de la fiche — la même sur chaque onglet qui la montre. */
+  const corbeille = isAdmin ? (
+    <BoutonSupprimerLogiciel id={id} nom={logiciel.nom} nbPiecesJointes={compterPieces(logiciel)} />
+  ) : undefined;
+
+  /**
+   * La ligne du bas des onglets SANS formulaire propre : « Quitter » fiche
+   * fermée, « Enregistrer »/« Annuler » de la FICHE ENTIÈRE dès qu'elle est
+   * ouverte — les deux issues du mode se trouvent ainsi sous chaque onglet. La
+   * Synthèse, les Liaisons et le volet RGPD portent leur propre ligne, qui dit
+   * la même chose ; ils reçoivent la corbeille en prop plutôt que cette rangée.
+   */
+  const rangeeQuitter = (
+    <LigneActionsFiche
+      quitter={<BoutonQuitter vers="/logiciels" titre="Revenir à la liste des logiciels" />}
+      // La corbeille garde son bout de ligne, comme sur la Synthèse : elle
+      // porte sur la fiche entière, pas sur l'onglet qu'on regarde.
+      supprimer={corbeille}
+    />
+  );
 
   return (
     <>
@@ -185,105 +208,97 @@ export default async function LogicielPage({
         />
       </div>
 
-      <Onglets onglets={ONGLETS} actif={actif} href={(key) => `/logiciels/${id}?onglet=${key}`} />
-
-      {actif === "synthese" ? <OngletSynthese logiciel={logiciel} readOnly={!isAdmin} /> : null}
-      {actif === "support" ? (
-        <SupportPanel
-          editeur={
-            logiciel.editeur
-              ? {
-                  id: logiciel.editeur.id,
-                  nom: logiciel.editeur.nom,
-                  supportUrl: logiciel.editeur.supportUrl,
-                  supportEmail: logiciel.editeur.supportEmail,
-                  supportTelephone: logiciel.editeur.supportTelephone,
-                  numeroClient: logiciel.editeur.numeroClient,
-                  supportHoraires: logiciel.editeur.supportHoraires,
-                  supportHoraires2: logiciel.editeur.supportHoraires2,
-                  commercialContact: logiciel.editeur.commercialContact,
-                  commercialTelephone: logiciel.editeur.commercialTelephone,
-                  commercialEmail: logiciel.editeur.commercialEmail,
-                  commercialContact2: logiciel.editeur.commercialContact2,
-                  commercialTelephone2: logiciel.editeur.commercialTelephone2,
-                  commercialEmail2: logiciel.editeur.commercialEmail2,
-                  adminContact: logiciel.editeur.adminContact,
-                  adminTelephone: logiciel.editeur.adminTelephone,
-                  adminEmail: logiciel.editeur.adminEmail,
-                  dpoContact: logiciel.editeur.dpoContact,
-                  dpoTelephone: logiciel.editeur.dpoTelephone,
-                  dpoEmail: logiciel.editeur.dpoEmail,
-                }
-              : null
-          }
-        />
-      ) : null}
-      {actif === "liaisons" ? (
-        <OngletLiaisons
-          logiciel={logiciel}
-          readOnly={!isAdmin}
-          supprimer={
-            isAdmin ? (
-              <BoutonSupprimerLogiciel
-                id={id}
-                nom={logiciel.nom}
-                nbPiecesJointes={compterPieces(logiciel)}
+      {/* UN mode de modification pour la fiche entière, et TOUS les panneaux
+          montés : le crayon de la barre d'onglets vaut pour chaque onglet, et
+          une saisie commencée sur l'un survit à un détour par un autre —
+          `FicheOnglets` masque les panneaux au lieu de les démonter. */}
+      <ModeFicheProvider
+        readOnly={!isAdmin}
+        objet="cette fiche"
+        detailFermeture="Les modifications en cours, sur tous les onglets, seront perdues."
+      >
+        <FicheOnglets
+          onglets={ONGLETS}
+          initial={actif}
+          base={`/logiciels/${id}`}
+          panneaux={{
+            synthese: <OngletSynthese logiciel={logiciel} readOnly={!isAdmin} />,
+            support: (
+              <>
+                <SupportPanel
+                  editeur={
+                    logiciel.editeur
+                      ? {
+                          id: logiciel.editeur.id,
+                          nom: logiciel.editeur.nom,
+                          supportUrl: logiciel.editeur.supportUrl,
+                          supportEmail: logiciel.editeur.supportEmail,
+                          supportTelephone: logiciel.editeur.supportTelephone,
+                          numeroClient: logiciel.editeur.numeroClient,
+                          supportHoraires: logiciel.editeur.supportHoraires,
+                          supportHoraires2: logiciel.editeur.supportHoraires2,
+                          commercialContact: logiciel.editeur.commercialContact,
+                          commercialTelephone: logiciel.editeur.commercialTelephone,
+                          commercialEmail: logiciel.editeur.commercialEmail,
+                          commercialContact2: logiciel.editeur.commercialContact2,
+                          commercialTelephone2: logiciel.editeur.commercialTelephone2,
+                          commercialEmail2: logiciel.editeur.commercialEmail2,
+                          adminContact: logiciel.editeur.adminContact,
+                          adminTelephone: logiciel.editeur.adminTelephone,
+                          adminEmail: logiciel.editeur.adminEmail,
+                          dpoContact: logiciel.editeur.dpoContact,
+                          dpoTelephone: logiciel.editeur.dpoTelephone,
+                          dpoEmail: logiciel.editeur.dpoEmail,
+                        }
+                      : null
+                  }
+                />
+                {rangeeQuitter}
+              </>
+            ),
+            liaisons: (
+              <OngletLiaisons logiciel={logiciel} readOnly={!isAdmin} supprimer={corbeille} />
+            ),
+            contrats: (
+              <>
+                <OngletContrats logiciel={logiciel} readOnly={!isAdmin} />
+                {rangeeQuitter}
+              </>
+            ),
+            devis: (
+              <>
+                <OngletDevis logiciel={logiciel} readOnly={!isAdmin} />
+                {rangeeQuitter}
+              </>
+            ),
+            taches: (
+              <>
+                <OngletTaches logicielId={id} readOnly={!isAdmin} />
+                {rangeeQuitter}
+              </>
+            ),
+            documents: (
+              <>
+                <OngletDocuments logiciel={logiciel} readOnly={!isAdmin} />
+                {rangeeQuitter}
+              </>
+            ),
+            rgpd: (
+              <RgpdPanel
+                logicielId={id}
+                readOnly={!isAdmin}
+                supprimer={corbeille}
+                values={{
+                  donneesPersonnelles: logiciel.donneesPersonnelles,
+                  categoriesDonnees: logiciel.categoriesDonnees,
+                  registreRef: logiciel.registreRef,
+                  localisationDonnees: logiciel.localisationDonnees,
+                }}
               />
-            ) : undefined
-          }
-        />
-      ) : null}
-      {actif === "contrats" ? <OngletContrats logiciel={logiciel} readOnly={!isAdmin} /> : null}
-      {actif === "devis" ? <OngletDevis logiciel={logiciel} readOnly={!isAdmin} /> : null}
-      {actif === "taches" ? <OngletTaches logicielId={id} readOnly={!isAdmin} /> : null}
-      {actif === "documents" ? <OngletDocuments logiciel={logiciel} readOnly={!isAdmin} /> : null}
-      {actif === "rgpd" ? (
-        <RgpdPanel
-          logicielId={id}
-          readOnly={!isAdmin}
-          supprimer={
-            isAdmin ? (
-              <BoutonSupprimerLogiciel
-                id={id}
-                nom={logiciel.nom}
-                nbPiecesJointes={compterPieces(logiciel)}
-              />
-            ) : undefined
-          }
-          values={{
-            donneesPersonnelles: logiciel.donneesPersonnelles,
-            categoriesDonnees: logiciel.categoriesDonnees,
-            registreRef: logiciel.registreRef,
-            localisationDonnees: logiciel.localisationDonnees,
+            ),
           }}
         />
-      ) : null}
-
-      {/* « Quitter » sur CHAQUE onglet : on referme une fiche depuis l'onglet
-          où l'on se trouve, et non en revenant d'abord à la Synthèse. Rendu ici
-          plutôt que dans chaque panneau — le geste porte sur la fiche entière,
-          pas sur ce que l'onglet montre.
-
-          La Synthèse et le volet RGPD sont exclus : leur ligne d'actions porte
-          déjà le sien, à côté d'« Enregistrer ». */}
-      {/* La Synthèse et le volet RGPD portent leur propre ligne d'actions, où
-          les deux gestes voisinent « Enregistrer » : ils reçoivent la corbeille
-          en prop plutôt que cette rangée, qui ferait doublon et la poserait une
-          ligne trop bas. */}
-      {actif === "synthese" || actif === "rgpd" || actif === "liaisons" ? null : (
-        <div className="mt-3 flex items-start justify-between gap-3">
-          <BoutonQuitter vers="/logiciels" titre="Revenir à la liste des logiciels" />
-          {/* La corbeille garde son bout de ligne, comme sur la Synthèse : elle
-              porte sur la fiche entière, pas sur l'onglet qu'on regarde. */}
-          {isAdmin ? (
-            <BoutonSupprimerLogiciel
-              id={id}
-              nom={logiciel.nom}
-              nbPiecesJointes={compterPieces(logiciel)}
-            />
-          ) : null}
-        </div>
-      )}
+      </ModeFicheProvider>
     </>
   );
 }

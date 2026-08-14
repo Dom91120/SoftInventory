@@ -26,6 +26,7 @@ import {
   updateDocumentCategorieAction,
 } from "@/app/(app)/documents/actions";
 import { DETAIL_FICHIER_DEFINITIF, useConfirmation } from "@/components/confirmation";
+import { useInscriptionModeFiche } from "@/components/mode-fiche";
 import { Card, EmptyState } from "@/components/ui";
 import { extensionDe } from "@/lib/documents-regles";
 
@@ -284,12 +285,26 @@ export function DocumentsPanel({
   const fileRef = useRef<HTMLInputElement>(null);
 
   /**
-   * Interrupteur d'écriture, ÉTEINT d'office — celui des mises en concurrence.
    * Cette carte n'a rien à enregistrer : déposer, renommer, reclasser ou
    * supprimer s'appliquent au clic, et la corbeille emporte le fichier du
    * disque. On vient ici ouvrir une pièce bien plus souvent qu'en changer une.
+   *
+   * DEUX régimes, selon l'écran. Sur une fiche à mode partagé (le logiciel),
+   * le panneau lit le mode « je modifie cette fiche » de la barre d'onglets et
+   * s'y inscrit — le renommage en cours pèse dans la question du crayon, et se
+   * referme avec le mode. Ailleurs (fiche éditeur, fiche certificat), pas de
+   * provider : le panneau garde son interrupteur local, ÉTEINT d'office, et
+   * son crayon d'en-tête de carte.
    */
-  const [modeEdition, setModeEdition] = useState(false);
+  const mode = useInscriptionModeFiche({
+    sale: () => renommage !== null,
+    rendre: () => setRenommage(null),
+    // Le « Enregistrer » global VALIDE le renommage en cours, comme sa coche :
+    // c'est la même saisie du même utilisateur que le reste de la fiche.
+    enregistrer: () => renommerCore(),
+  });
+  const [modeLocal, setModeLocal] = useState(false);
+  const modeEdition = mode ? mode.actif : modeLocal;
   /** Vrai quand rien ne doit pouvoir être touché — lecteur, ou crayon éteint. */
   const fige = readOnly || !modeEdition;
 
@@ -334,18 +349,24 @@ export function DocumentsPanel({
     });
   }
 
-  function renommer() {
-    if (!renommage) return;
-    const { id, valeur } = renommage;
+  /** Cœur ATTENDABLE du renommage : sa coche l'appelle, et le « Enregistrer »
+   *  global de la fiche aussi. En échec, le champ reste ouvert sur l'erreur. */
+  async function renommerCore(): Promise<boolean> {
+    if (!renommage) return true;
     setError(null);
+    const res = await renameDocumentAction(renommage.id, renommage.valeur);
+    if (!res.ok) {
+      setError(res.error);
+      return false; // le champ reste ouvert : la saisie n'est pas perdue
+    }
+    setRenommage(null);
+    router.refresh();
+    return true;
+  }
+
+  function renommer() {
     startTransition(async () => {
-      const res = await renameDocumentAction(id, valeur);
-      if (!res.ok) {
-        setError(res.error);
-        return; // le champ reste ouvert : la saisie n'est pas perdue
-      }
-      setRenommage(null);
-      router.refresh();
+      await renommerCore();
     });
   }
 
@@ -435,22 +456,29 @@ export function DocumentsPanel({
                 </button>
               </>
             ) : null}
-            <button
-              type="button"
-              onClick={() => {
-                // Éteindre referme le renommage en cours : son champ resterait
-                // seul, sans la coche qui le valide.
-                if (modeEdition) setRenommage(null);
-                setModeEdition(!modeEdition);
-              }}
-              disabled={uploading || pending}
-              aria-pressed={modeEdition}
-              title={modeEdition ? "Fermer la modification" : "Modifier les documents"}
-              aria-label={modeEdition ? "Fermer la modification" : "Modifier les documents"}
-              className={`btn-ghost !p-2 ${modeEdition ? "!text-accent" : "hover:!text-accent"}`}
-            >
-              <SquarePen className="h-4 w-4" />
-            </button>
+            {/* Le crayon local, pour les écrans SANS mode de fiche partagé :
+                sur les autres, le crayon unique de la barre d'onglets tient ce
+                rôle. Il RESTE visible une fois allumé — rien ne s'enregistre
+                dans cette carte, tout s'applique au clic, et sans lui plus rien
+                ne permettrait de refermer. */}
+            {mode ? null : (
+              <button
+                type="button"
+                onClick={() => {
+                  // Éteindre referme le renommage en cours : son champ resterait
+                  // seul, sans la coche qui le valide.
+                  if (modeEdition) setRenommage(null);
+                  setModeLocal(!modeEdition);
+                }}
+                disabled={uploading || pending}
+                aria-pressed={modeEdition}
+                title={modeEdition ? "Fermer la modification" : "Modifier les documents"}
+                aria-label={modeEdition ? "Fermer la modification" : "Modifier les documents"}
+                className={`btn-ghost !p-2 ${modeEdition ? "!text-accent" : "hover:!text-accent"}`}
+              >
+                <SquarePen className="h-4 w-4" />
+              </button>
+            )}
           </>
         )
       }

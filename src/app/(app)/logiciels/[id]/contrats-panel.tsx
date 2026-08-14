@@ -1,13 +1,14 @@
 "use client";
 
-import { Pencil, Plus, SquarePen, Trash2, Unlink, X } from "lucide-react";
+import { Pencil, Plus, Trash2, Unlink, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { attacherLogicielAction, detacherLogicielAction } from "@/app/(app)/contrats/actions";
 import { useConfirmation } from "@/components/confirmation";
 import { type CategorieOption, LigneDocument } from "@/components/documents-panel";
 import { ChampsMarche, MARCHE_VIDE } from "@/components/marche-champs";
+import { useInscriptionModeFiche } from "@/components/mode-fiche";
 import { FormulairePiece, type PieceContratRow, usePieceContrat } from "@/components/piece-contrat";
 import { Card, EmptyState } from "@/components/ui";
 import { DATE_FMT_FR_UTC, formatEuros } from "@/lib/format";
@@ -203,17 +204,6 @@ export function ContratsPanel({
 
   const categorieParDefautId = categories.find((c) => c.label === CATEGORIE_PAR_DEFAUT)?.id ?? null;
 
-  /**
-   * Interrupteur d'écriture, ÉTEINT d'office — le même que les mises en
-   * concurrence et les tâches, et pour la même raison : cet onglet n'a rien à
-   * enregistrer, chacun de ses gestes s'applique au clic. Détacher un marché ou
-   * supprimer une pièce ne se rattrape pas, et on vient bien plus souvent
-   * consulter un marché que le modifier.
-   */
-  const [modeEdition, setModeEdition] = useState(false);
-  /** Vrai quand rien ne doit pouvoir être touché — lecteur, ou crayon éteint. */
-  const fige = readOnly || !modeEdition;
-
   // Formulaire de marché : ouvert en création ou en édition.
   const [marcheForm, setMarcheForm] = useState<
     { mode: "creation" } | { mode: "edition"; row: ContratRow } | null
@@ -225,26 +215,68 @@ export function ContratsPanel({
     row: PieceContratRow | null;
   } | null>(null);
   const piece = usePieceContrat(setError);
+  /** Poignées sur les formulaires ouverts, pour le « Enregistrer » global. */
+  const formMarcheRef = useRef<HTMLFormElement>(null);
+  const formPieceRef = useRef<HTMLFormElement>(null);
+
+  /**
+   * Cœur ATTENDABLE du formulaire de marché : son bouton l'appelle, et le
+   * « Enregistrer » global de la fiche aussi — le marché qu'on saisissait est
+   * l'œuvre du même utilisateur que le reste. Validation native d'abord.
+   */
+  async function envoyerMarche(form: HTMLFormElement): Promise<boolean> {
+    if (!marcheForm) return true;
+    if (!form.reportValidity()) return false;
+    setError(null);
+    const fd = new FormData(form);
+    const res =
+      marcheForm.mode === "edition"
+        ? await updateContratAction(marcheForm.row.id, fd)
+        : await createContratAction(logicielId, fd);
+    if (!res.ok) {
+      setError(res.error);
+      return false;
+    }
+    setMarcheForm(null);
+    router.refresh();
+    return true;
+  }
+
+  /**
+   * L'onglet lit LE mode « je modifie cette fiche » de la barre d'onglets, et
+   * s'y inscrit avec ses formulaires OUVERTS : un marché ou une pièce en cours
+   * de saisie est l'œuvre du même utilisateur que le reste de la fiche.
+   * « Annuler » les jette avec tout le reste ; « Enregistrer » les SOUMET,
+   * comme leurs propres boutons — la pièce via son formulaire, seul détenteur
+   * du fichier choisi.
+   */
+  const mode = useInscriptionModeFiche({
+    sale: () => marcheForm !== null || pieceForm !== null,
+    rendre: () => {
+      setMarcheForm(null);
+      setPieceForm(null);
+    },
+    enregistrer: async () => {
+      if (marcheForm && formMarcheRef.current) {
+        if (!(await envoyerMarche(formMarcheRef.current))) return false;
+      }
+      if (pieceForm && formPieceRef.current) {
+        if (!(await piece.soumettreViaFormulaire(formPieceRef.current))) return false;
+      }
+      return true;
+    },
+  });
+  const modeEdition = !!mode?.actif;
+  /** Vrai quand rien ne doit pouvoir être touché — lecteur, ou crayon éteint. */
+  const fige = readOnly || !modeEdition;
 
   const nomDe = (c: ContratRow) => c.libelle || c.referenceMarche || "sans libellé";
 
   function soumettreMarche(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (!marcheForm) return;
-    setError(null);
-    const form = new FormData(e.currentTarget);
-    const cible = marcheForm;
+    const form = e.currentTarget;
     startTransition(async () => {
-      const res =
-        cible.mode === "edition"
-          ? await updateContratAction(cible.row.id, form)
-          : await createContratAction(logicielId, form);
-      if (!res.ok) {
-        setError(res.error);
-        return;
-      }
-      setMarcheForm(null);
-      router.refresh();
+      await envoyerMarche(form);
     });
   }
 
@@ -373,25 +405,6 @@ export function ContratsPanel({
                   {marcheForm?.mode === "creation" ? "Fermer" : "Créer"}
                 </button>
               ) : null}
-              {/* Éteindre referme ce qui était ouvert : un formulaire resté à
-                  l'écran sans ses commandes n'aurait plus de sens. */}
-              <button
-                type="button"
-                onClick={() => {
-                  if (modeEdition) {
-                    setMarcheForm(null);
-                    setPieceForm(null);
-                  }
-                  setModeEdition(!modeEdition);
-                }}
-                disabled={pending}
-                aria-pressed={modeEdition}
-                title={modeEdition ? "Fermer la modification" : "Modifier les marchés"}
-                aria-label={modeEdition ? "Fermer la modification" : "Modifier les marchés"}
-                className={`btn-ghost !p-2 ${modeEdition ? "!text-accent" : "hover:!text-accent"}`}
-              >
-                <SquarePen className="h-4 w-4" />
-              </button>
             </>
           )
         }
@@ -409,6 +422,7 @@ export function ContratsPanel({
             pending={pending}
             onSubmit={soumettreMarche}
             onCancel={() => setMarcheForm(null)}
+            refForm={formMarcheRef}
           />
         ) : null}
 
@@ -437,6 +451,7 @@ export function ContratsPanel({
                     pending={pending}
                     onSubmit={soumettreMarche}
                     onCancel={() => setMarcheForm(null)}
+                    refForm={formMarcheRef}
                     className="border-b border-line bg-inset p-4"
                   />
                 ) : (
@@ -702,6 +717,7 @@ export function ContratsPanel({
                         )
                       }
                       onCancel={() => setPieceForm(null)}
+                      refForm={formPieceRef}
                     />
                   ) : null}
 
@@ -738,6 +754,7 @@ export function ContratsPanel({
                                       )
                                     }
                                     onCancel={() => setPieceForm(null)}
+                                    refForm={formPieceRef}
                                     className="rounded-xl border border-sub bg-inset p-4"
                                   />
                                 </td>
@@ -823,6 +840,7 @@ function FormulaireMarche({
   pending,
   onSubmit,
   onCancel,
+  refForm,
   className = "mb-5 rounded-xl border border-sub bg-inset p-4",
 }: {
   row: ContratRow | null;
@@ -832,6 +850,8 @@ function FormulaireMarche({
   pending: boolean;
   onSubmit: (e: React.FormEvent<HTMLFormElement>) => void;
   onCancel: () => void;
+  /** Poignée sur le <form>, pour le « Enregistrer » global de la fiche. */
+  refForm?: React.RefObject<HTMLFormElement | null>;
   /**
    * Habillage : la marge basse sert au formulaire de CRÉATION, posé au-dessus
    * de la liste. En modification, le formulaire prend la place d'un marché dans
@@ -840,7 +860,7 @@ function FormulaireMarche({
   className?: string;
 }) {
   return (
-    <form onSubmit={onSubmit} className={className}>
+    <form ref={refForm} onSubmit={onSubmit} className={className}>
       {/* Les champs viennent du module partagé avec la fiche du marché : mêmes
           libellés, mêmes aides, même grille.
 

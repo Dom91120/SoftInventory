@@ -1,9 +1,11 @@
 "use client";
 
-import { Check, ExternalLink, SquarePen, X } from "lucide-react";
+import { Check, ExternalLink } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
+import { useConfirmation } from "@/components/confirmation";
 import { ModaleSociete } from "@/components/modale-societe";
+import { useInscriptionModeFiche } from "@/components/mode-fiche";
 import { useSaisieEnCours } from "@/components/saisie-en-cours";
 import { Card, Field } from "@/components/ui";
 import { EDITEUR_INTERNE, LIBELLES } from "@/schemas/logiciel";
@@ -118,6 +120,7 @@ export function FicheForm({
   readOnly?: boolean;
 }) {
   const router = useRouter();
+  const confirmer = useConfirmation();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
@@ -127,36 +130,71 @@ export function FicheForm({
   const quitter = () => router.push("/logiciels");
 
   /**
-   * La fiche s'ouvre en LECTURE : on vient bien plus souvent y chercher une
-   * version ou un référent qu'en changer un, et un formulaire d'emblée vivant
-   * se modifie d'une molette égarée sur une liste déroulante. Le crayon des
-   * en-têtes lève le verrou. En création, rien à protéger : tout reste à saisir.
-   *
-   * UN SEUL verrou pour les deux cartes, et non un par carte : elles vivent
-   * dans le même <form> et partent au même enregistrement. Verrouiller l'une
-   * en laissant l'autre ouverte désactiverait ses champs, que `FormData`
-   * ignore — la moitié de la fiche partirait vide à chaque envoi.
+   * Enregistre CE formulaire, à la demande du mode — c'est le morceau que la
+   * fiche apporte au « Enregistrer » global. La validation native passe
+   * d'abord : un nom vide doit se dire ici, pas en erreur serveur.
    */
-  const [verrouille, setVerrouille] = useState(id !== undefined);
-  const dis = readOnly || pending || verrouille;
+  async function enregistrerFormulaire(): Promise<boolean> {
+    const form = saisie.formRef.current;
+    if (id === undefined || !form) return true;
+    if (!form.reportValidity()) return false;
+    setError(null);
+    const res = await updateLogicielAction(id, new FormData(form));
+    if (!res.ok) {
+      setError(res.error);
+      return false;
+    }
+    setSaved(true);
+    saisie.enregistre();
+    router.refresh();
+    return true;
+  }
+
+  /**
+   * Le verrou de la fiche n'est plus le sien : c'est LE mode « je modifie
+   * cette fiche », porté par la barre d'onglets et partagé par tous les
+   * panneaux — le crayon est au niveau des onglets, pas d'une carte. Le
+   * formulaire s'y inscrit avec ses trois réponses : dire s'il porte une
+   * saisie, la rendre, l'enregistrer.
+   *
+   * En CRÉATION, pas de provider : `mode` est nul et tout reste ouvert — une
+   * fiche qu'on est en train de saisir n'a rien à protéger.
+   */
+  const mode = useInscriptionModeFiche({
+    sale: () => id !== undefined && saisie.modifie,
+    rendre: saisie.annuler,
+    enregistrer: enregistrerFormulaire,
+  });
+  const ouvert = mode ? mode.actif : id === undefined;
+  const dis = readOnly || pending || !ouvert;
 
   /**
    * `FormData` IGNORE les champs désactivés : l'empreinte relevée au premier
    * rendu, cartes verrouillées, ne vaut donc rien une fois les champs
-   * réveillés. On la reprend à l'ouverture du verrou — sans quoi la première
-   * frappe comparerait un formulaire complet à un formulaire vide, et la coche
-   * d'enregistrement paraîtrait d'elle-même. En `useEffect` et non dans le
-   * clic : à ce moment-là, les champs portent encore leur `disabled`.
+   * réveillés. On la reprend à l'ouverture du mode — sans quoi la première
+   * frappe comparerait un formulaire complet à un formulaire vide, et
+   * « Enregistrer » paraîtrait de lui-même.
    */
   useEffect(() => {
-    if (!verrouille) saisie.enregistre();
-  }, [verrouille, saisie.enregistre]);
+    if (ouvert) saisie.enregistre();
+  }, [ouvert, saisie.enregistre]);
 
-  /** Refermer rend ses valeurs enregistrées au formulaire : le verrou ne garde
-   *  pas des frappes que plus rien ne montre. C'est le geste d'« Annuler ». */
-  function basculerVerrou() {
-    if (!verrouille) saisie.annuler();
-    setVerrouille(!verrouille);
+  /**
+   * « Annuler » en CRÉATION, où il veut dire quitter : la même question, pour
+   * ce qui est le même geste — renoncer à ce qu'on a tapé. Elle porte
+   * simplement plus lourd ici, puisque rien n'a encore été créé et qu'il n'y a
+   * aucun enregistrement où revenir.
+   */
+  async function quitterCreation() {
+    if (saisie.modifie) {
+      const ok = await confirmer({
+        question: "Quitter sans créer le logiciel ?",
+        detail: "La saisie en cours sera perdue.",
+        action: "Quitter sans créer",
+      });
+      if (!ok) return;
+    }
+    quitter();
   }
 
   /**
@@ -194,9 +232,19 @@ export function FicheForm({
     return () => clearTimeout(t);
   }, [saved]);
 
+  /**
+   * Envoi du formulaire — bouton « Enregistrer » ou touche Entrée. Sur une
+   * fiche EXISTANTE, il passe par le mode : on modifie toute la fiche, on
+   * l'enregistre toute — chaque onglet qui porte une saisie enregistre la
+   * sienne, et le mode se referme si tout a abouti. En CRÉATION, il crée.
+   */
   function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (readOnly) return;
+    if (mode) {
+      void mode.enregistrerTout();
+      return;
+    }
     setError(null);
     setSaved(false);
     const form = new FormData(e.currentTarget);
@@ -213,74 +261,10 @@ export function FicheForm({
       } else {
         setSaved(true);
         saisie.enregistre();
-        // Les cartes se referment : la modification est faite, les laisser
-        // ouvertes exposerait à nouveau les champs à une molette égarée.
-        setVerrouille(true);
         router.refresh();
       }
     });
   }
-
-  /**
-   * Les commandes du verrou, posées dans les DEUX en-têtes : la fiche est
-   * longue, et le geste doit être là où l'œil se trouve. Elles pilotent le même
-   * état — ouvrir depuis Technique déverrouille aussi Identité.
-   *
-   * `key` distincte et `preventDefault` sur le crayon : sans eux, ce clic
-   * ENREGISTRERAIT la fiche. React réutilise le nœud <button> pour la coche qui
-   * prend sa place et le mute en `type="submit"` PENDANT le gestionnaire de
-   * clic — le navigateur exécute ensuite l'action par défaut sur ce qu'il est
-   * devenu. La clé lui interdit la réutilisation, `preventDefault` annule
-   * l'action par défaut. (Vu à l'œuvre sur la fiche marché.)
-   */
-  const commandesVerrou = readOnly ? undefined : verrouille ? (
-    <button
-      key="verrou-ouvrir"
-      type="button"
-      onClick={(e) => {
-        e.preventDefault();
-        basculerVerrou();
-      }}
-      disabled={pending}
-      title="Modifier cette fiche"
-      aria-label="Modifier cette fiche"
-      className="btn-ghost !p-2 hover:!text-accent"
-    >
-      <SquarePen className="h-4 w-4" />
-    </button>
-  ) : (
-    <>
-      {/* La coche attend qu'il y ait quelque chose à enregistrer, comme le
-          bouton du bas de page : offerte d'emblée, elle invitait à un geste
-          sans effet qui touchait quand même la date de modification. */}
-      {saisie.modifie ? (
-        <button
-          key="verrou-valider"
-          type="submit"
-          disabled={pending}
-          title="Enregistrer cette fiche"
-          aria-label="Enregistrer cette fiche"
-          className="btn-ghost !p-2 hover:!text-ok"
-        >
-          <Check className="h-4 w-4" />
-        </button>
-      ) : null}
-      <button
-        key="verrou-annuler"
-        type="button"
-        onClick={(e) => {
-          e.preventDefault();
-          basculerVerrou();
-        }}
-        disabled={pending}
-        title="Annuler la modification"
-        aria-label="Annuler la modification"
-        className="btn-ghost !p-2 hover:!text-danger"
-      >
-        <X className="h-4 w-4" />
-      </button>
-    </>
-  );
 
   const refOptions = (list: Option[]) => list.map((o) => ({ value: String(o.id), label: o.label }));
 
@@ -310,7 +294,7 @@ export function FicheForm({
 
   return (
     <form ref={saisie.formRef} onSubmit={submit} onChange={saisie.surSaisie} className="space-y-3">
-      <Card title="Identité" actions={commandesVerrou}>
+      <Card title="Identité">
         <div className="grid gap-x-3 gap-y-2 sm:grid-cols-2">
           {/* Ce qui NOMME le logiciel sur un seul rang : comment il s'appelle,
               dans quelle version, chez qui, et où on l'ouvre. Parts inégales —
@@ -542,7 +526,7 @@ export function FicheForm({
         </div>
       </Card>
 
-      <Card title="Technique" actions={commandesVerrou}>
+      <Card title="Technique">
         {/* Six champs courts en trois tiers, deux rangs pleins : la carte s'est
             allégée de la version, partie rejoindre le nom du logiciel, et de
             l'URL, partie avec l'éditeur — on ouvre l'application depuis la même
@@ -612,21 +596,21 @@ export function FicheForm({
 
       {readOnly ? null : (
         <div className="flex items-center justify-between gap-3">
-          {/* La ligne suit l'état de la saisie plutôt que d'offrir tout, tout le
-              temps.
+          {/* La ligne suit l'état du MODE, et non l'écart à l'enregistré.
 
-              Fiche EXISTANTE, rien de modifié : il n'y a rien à enregistrer, et
-              le seul geste qui reste est de partir — « Quitter », en clair,
-              puisqu'il ne décide de rien. Dès qu'un champ change, « Enregistrer »
-              prend sa place et « Annuler » le rejoint, qui rend au formulaire ses
-              valeurs enregistrées, sans confirmation : il n'y a que des frappes
-              non sauvegardées à perdre.
+              Fiche fermée : il n'y a rien à enregistrer, et le seul geste qui
+              reste est de partir — « Quitter », en clair, puisqu'il ne décide de
+              rien. Le crayon de la barre d'onglets ouvre le mode, et
+              « Enregistrer » et « Annuler » paraissent AUSSITÔT : ce sont les
+              issues de la modification qu'on vient d'ouvrir, et elles portent
+              la FICHE ENTIÈRE — on modifie toute la fiche, on l'enregistre ou
+              on la rend toute, quel que soit l'onglet d'où l'on clique.
 
               En CRÉATION, la fiche n'existe pas encore : rien à retrouver, donc
               « Annuler » y veut dire quitter, et il est toujours offert — on entre
               parfois ici par erreur. */}
           <div className="flex items-center gap-3">
-            {id !== undefined && !saisie.modifie ? (
+            {id !== undefined && !ouvert ? (
               <button
                 type="button"
                 onClick={quitter}
@@ -638,8 +622,8 @@ export function FicheForm({
               </button>
             ) : (
               <>
-                <button type="submit" disabled={pending} className="btn-primary">
-                  {pending
+                <button type="submit" disabled={pending || mode?.occupe} className="btn-primary">
+                  {pending || mode?.occupe
                     ? "Enregistrement…"
                     : id === undefined
                       ? "Créer le logiciel"
@@ -647,8 +631,8 @@ export function FicheForm({
                 </button>
                 <button
                   type="button"
-                  onClick={id === undefined ? quitter : saisie.annuler}
-                  disabled={pending}
+                  onClick={id === undefined ? quitterCreation : () => void mode?.annulerTout()}
+                  disabled={pending || mode?.occupe}
                   className="btn-warn"
                   title={id === undefined ? "Quitter sans créer le logiciel" : undefined}
                 >

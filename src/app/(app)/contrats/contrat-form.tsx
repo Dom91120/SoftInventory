@@ -1,10 +1,11 @@
 "use client";
 
-import { Check, SquarePen, X } from "lucide-react";
+import { Check } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { type ReactNode, useEffect, useState, useTransition } from "react";
 import { useConfirmation } from "@/components/confirmation";
 import { ChampsMarche, MARCHE_VIDE, type ValeursMarche } from "@/components/marche-champs";
+import { useInscriptionModeFiche } from "@/components/mode-fiche";
 import { useSaisieEnCours } from "@/components/saisie-en-cours";
 import { Card } from "@/components/ui";
 import {
@@ -62,9 +63,18 @@ export function ContratForm({
     return () => clearTimeout(t);
   }, [saved]);
 
+  /**
+   * Envoi du formulaire — bouton ou touche Entrée. Sur une fiche EXISTANTE, il
+   * passe par le mode : on modifie toute la fiche, on l'enregistre toute. En
+   * CRÉATION, il crée.
+   */
   function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (readOnly) return;
+    if (mode) {
+      void mode.enregistrerTout();
+      return;
+    }
     setError(null);
     setSaved(false);
     const form = new FormData(e.currentTarget);
@@ -83,10 +93,6 @@ export function ContratForm({
       } else {
         setSaved(true);
         saisie.enregistre();
-        // La carte se referme : la modification est faite, la laisser ouverte
-        // exposerait à nouveau les champs à une molette égarée. Le crayon la
-        // rouvre en un clic pour qui n'a pas fini.
-        setVerrouille(true);
         router.refresh();
       }
     });
@@ -112,34 +118,63 @@ export function ContratForm({
     });
   }
 
+  /** Enregistre CE formulaire, à la demande du mode — sa part du
+   *  « Enregistrer » global de la fiche. */
+  async function enregistrerFormulaire(): Promise<boolean> {
+    const form = saisie.formRef.current;
+    if (id === undefined || !form) return true;
+    if (!form.reportValidity()) return false;
+    setError(null);
+    const res = await updateContratFicheAction(id, new FormData(form));
+    if (!res.ok) {
+      setError(res.error);
+      return false;
+    }
+    setSaved(true);
+    saisie.enregistre();
+    router.refresh();
+    return true;
+  }
+
   /**
-   * La carte s'ouvre en LECTURE sur une fiche existante : on vient bien plus
-   * souvent y chercher une date de fin qu'en changer une, et un formulaire
-   * d'emblée vivant se modifie d'une molette égarée sur une liste déroulante.
-   * Le crayon de l'en-tête lève le verrou.
+   * Le verrou de la fiche n'est plus le sien : c'est LE mode « je modifie ce
+   * marché », porté par la barre d'onglets et partagé avec les logiciels
+   * couverts et les pièces. Le formulaire s'y inscrit avec ses trois
+   * réponses : dire s'il porte une saisie, la rendre, l'enregistrer.
    *
-   * En création, rien à protéger : la fiche n'existe pas et tout reste à saisir.
+   * En CRÉATION, pas de provider : `mode` est nul et tout reste ouvert.
    */
-  const [verrouille, setVerrouille] = useState(id !== undefined);
-  const dis = readOnly || pending || verrouille;
+  const mode = useInscriptionModeFiche({
+    sale: () => id !== undefined && saisie.modifie,
+    rendre: saisie.annuler,
+    enregistrer: enregistrerFormulaire,
+  });
+  const ouvert = mode ? mode.actif : id === undefined;
+  const dis = readOnly || pending || !ouvert;
 
   /**
    * `FormData` IGNORE les champs désactivés : l'empreinte relevée au premier
    * rendu, carte verrouillée, ne vaut donc rien une fois les champs réveillés.
-   * On la reprend à l'ouverture du verrou — sans quoi la première frappe
+   * On la reprend à l'ouverture du mode — sans quoi la première frappe
    * comparerait un formulaire complet à un formulaire vide, et « Enregistrer »
-   * s'allumerait de lui-même. En `useEffect` et non dans le clic : à ce
-   * moment-là, les champs portent encore leur `disabled`.
+   * s'allumerait de lui-même.
    */
   useEffect(() => {
-    if (!verrouille) saisie.enregistre();
-  }, [verrouille, saisie.enregistre]);
+    if (ouvert) saisie.enregistre();
+  }, [ouvert, saisie.enregistre]);
 
-  /** Refermer rend ses valeurs enregistrées au formulaire : le verrou ne garde
-   *  pas des frappes que plus rien ne montre. C'est le geste d'« Annuler ». */
-  function basculerVerrou() {
-    if (!verrouille) saisie.annuler();
-    setVerrouille(!verrouille);
+  /** « Annuler » en CRÉATION, où il veut dire quitter : la même question, pour
+   *  ce qui est le même geste — renoncer à ce qu'on a tapé. */
+  async function quitterCreation() {
+    if (saisie.modifie) {
+      const ok = await confirmer({
+        question: "Quitter sans créer le marché ?",
+        detail: "La saisie en cours sera perdue.",
+        action: "Quitter sans créer",
+      });
+      if (!ok) return;
+    }
+    quitter();
   }
 
   return (
@@ -151,74 +186,7 @@ export function ContratForm({
         onChange={saisie.surSaisie}
         className="space-y-3"
       >
-        <Card
-          title="Marché"
-          actions={
-            readOnly ? undefined : verrouille ? (
-              /**
-               * `key` distincte et `preventDefault` : sans eux, ce clic
-               * ENREGISTRAIT le marché. React réutilise le nœud <button> pour
-               * la coche qui prend sa place et le mute en `type="submit"`
-               * PENDANT le gestionnaire de clic — le navigateur exécute ensuite
-               * l'action par défaut sur ce qu'il est devenu. La clé lui interdit
-               * la réutilisation, `preventDefault` annule l'action par défaut.
-               */
-              <button
-                key="verrou-ouvrir"
-                type="button"
-                onClick={(e) => {
-                  e.preventDefault();
-                  basculerVerrou();
-                }}
-                disabled={pending}
-                title="Modifier ce marché"
-                aria-label="Modifier ce marché"
-                className="btn-ghost !p-2 hover:!text-accent"
-              >
-                <SquarePen className="h-4 w-4" />
-              </button>
-            ) : (
-              /* Les deux issues de la modification prennent la place du crayon,
-                 là où le geste a commencé : valider d'abord — c'est ce qu'on
-                 vient faire —, renoncer ensuite. Le bouton « Enregistrer » du
-                 bas de page reste, pour qui a déroulé la fiche entière.
-
-                 La coche attend qu'il y ait quelque chose à enregistrer : même
-                 règle qu'en bas de page. Offerte d'emblée, elle invitait à un
-                 geste sans effet — et un enregistrement à vide touche quand
-                 même la date de modification de la fiche. */
-              <>
-                {saisie.modifie ? (
-                  <button
-                    key="verrou-valider"
-                    type="submit"
-                    form={FORM_ID}
-                    disabled={pending}
-                    title="Enregistrer ce marché"
-                    aria-label="Enregistrer ce marché"
-                    className="btn-ghost !p-2 hover:!text-ok"
-                  >
-                    <Check className="h-4 w-4" />
-                  </button>
-                ) : null}
-                <button
-                  key="verrou-annuler"
-                  type="button"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    basculerVerrou();
-                  }}
-                  disabled={pending}
-                  title="Annuler la modification"
-                  aria-label="Annuler la modification"
-                  className="btn-ghost !p-2 hover:!text-danger"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </>
-            )
-          }
-        >
+        <Card title="Marché">
           <ChampsMarche values={values} editeurs={editeurs} disabled={dis} />
         </Card>
       </form>
@@ -229,21 +197,19 @@ export function ContratForm({
 
       {readOnly ? null : (
         <div className="flex items-center justify-between gap-3">
-          {/* La ligne suit l'état de la saisie plutôt que d'offrir tout, tout le
-              temps.
+          {/* La ligne suit l'état du MODE, et non l'écart à l'enregistré.
 
-              Fiche EXISTANTE, rien de modifié : il n'y a rien à enregistrer, et
-              le seul geste qui reste est de partir — « Quitter », en clair,
-              puisqu'il ne décide de rien. Dès qu'un champ change, « Enregistrer »
-              prend sa place et « Annuler » le rejoint, qui rend au formulaire ses
-              valeurs enregistrées, sans confirmation : il n'y a que des frappes
-              non sauvegardées à perdre.
+              Fiche fermée : il n'y a rien à enregistrer, et le seul geste qui
+              reste est de partir — « Quitter », en clair, puisqu'il ne décide de
+              rien. Le crayon de la barre d'onglets l'ouvre, et « Enregistrer »
+              et « Annuler » paraissent AUSSITÔT : ce sont les deux seules issues
+              de la modification qu'on vient d'ouvrir.
 
               En CRÉATION, la fiche n'existe pas encore : rien à retrouver, donc
               « Annuler » y veut dire quitter, et il est toujours offert — on entre
               parfois ici par erreur. */}
           <div className="flex items-center gap-3">
-            {id !== undefined && !saisie.modifie ? (
+            {id !== undefined && !ouvert ? (
               <button
                 type="button"
                 onClick={quitter}
@@ -255,8 +221,13 @@ export function ContratForm({
               </button>
             ) : (
               <>
-                <button type="submit" form={FORM_ID} disabled={pending} className="btn-primary">
-                  {pending
+                <button
+                  type="submit"
+                  form={FORM_ID}
+                  disabled={pending || mode?.occupe}
+                  className="btn-primary"
+                >
+                  {pending || mode?.occupe
                     ? "Enregistrement…"
                     : id === undefined
                       ? "Créer le marché"
@@ -264,8 +235,8 @@ export function ContratForm({
                 </button>
                 <button
                   type="button"
-                  onClick={id === undefined ? quitter : saisie.annuler}
-                  disabled={pending}
+                  onClick={id === undefined ? quitterCreation : () => void mode?.annulerTout()}
+                  disabled={pending || mode?.occupe}
                   className="btn-warn"
                   title={id === undefined ? "Quitter sans créer le marché" : undefined}
                 >

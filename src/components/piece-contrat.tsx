@@ -69,6 +69,26 @@ export function usePieceContrat(onErreur: (message: string | null) => void) {
   const router = useRouter();
   const confirmer = useConfirmation();
   const [pending, startTransition] = useTransition();
+  /**
+   * Qui attend le résultat d'une soumission déclenchée PAR PROGRAMME — le
+   * « Enregistrer » de la fiche, qui soumet aussi la pièce en cours de saisie.
+   * `soumettre` le prévient en terminant ; nul le reste du temps.
+   */
+  const attente = useRef<((ok: boolean) => void) | null>(null);
+
+  /**
+   * Soumet le formulaire de pièce COMME le ferait son bouton — `requestSubmit`
+   * passe par la validation native puis par `onSubmit`, seul détenteur du
+   * fichier choisi — et attend le verdict. Pour le « Enregistrer » global de la
+   * fiche : la pièce qu'on remplissait fait partie de ce qu'on enregistre.
+   */
+  function soumettreViaFormulaire(form: HTMLFormElement): Promise<boolean> {
+    if (!form.reportValidity()) return Promise.resolve(false);
+    return new Promise((resoudre) => {
+      attente.current = resoudre;
+      form.requestSubmit();
+    });
+  }
 
   /**
    * Enregistre la pièce PUIS son fichier, en un seul geste pour qui saisit.
@@ -94,12 +114,20 @@ export function usePieceContrat(onErreur: (message: string | null) => void) {
     const form = new FormData(e.currentTarget);
     const brut = String(form.get("categorieId") ?? "");
     const categorieId = brut === "" ? null : Number(brut);
+    // Chaque issue prévient l'éventuel « Enregistrer » global qui attend. Les
+    // demi-résultats (« pièce enregistrée, mais… ») comptent comme des échecs :
+    // le mode doit rester ouvert sur le message, pas se refermer dessus.
+    const conclure = (ok: boolean) => {
+      attente.current?.(ok);
+      attente.current = null;
+    };
     startTransition(async () => {
       const res = cible.row
         ? await updatePieceContratAction(cible.row.id, form)
         : await createPieceContratAction(cible.contratId, form);
       if (!res.ok) {
         onErreur(res.error);
+        conclure(false);
         return;
       }
       const pieceId = cible.row?.id ?? res.id;
@@ -113,6 +141,7 @@ export function usePieceContrat(onErreur: (message: string | null) => void) {
               `Pièce enregistrée, mais le fichier n'a pas pu être remplacé : ${retrait.error}`,
             );
             router.refresh();
+            conclure(false);
             return;
           }
         }
@@ -120,6 +149,7 @@ export function usePieceContrat(onErreur: (message: string | null) => void) {
         if (echec) {
           onErreur(`Pièce enregistrée, mais le dépôt a échoué : ${echec}`);
           router.refresh();
+          conclure(false);
           return;
         }
       } else if (cible.row?.document && categorieId !== cible.row.document.categorieId) {
@@ -130,11 +160,13 @@ export function usePieceContrat(onErreur: (message: string | null) => void) {
         if (!maj.ok) {
           onErreur(`Pièce enregistrée, mais la catégorie du fichier n'a pas suivi : ${maj.error}`);
           router.refresh();
+          conclure(false);
           return;
         }
       }
       onFini();
       router.refresh();
+      conclure(true);
     });
   }
 
@@ -157,7 +189,7 @@ export function usePieceContrat(onErreur: (message: string | null) => void) {
     });
   }
 
-  return { pending, soumettre, supprimer };
+  return { pending, soumettre, soumettreViaFormulaire, supprimer };
 }
 
 /**
@@ -175,6 +207,7 @@ export function FormulairePiece({
   pending,
   onSubmit,
   onCancel,
+  refForm,
   className = "mb-3 rounded-xl border border-sub bg-inset p-4",
 }: {
   row: PieceContratRow | null;
@@ -184,6 +217,12 @@ export function FormulairePiece({
   pending: boolean;
   onSubmit: (e: React.FormEvent<HTMLFormElement>, fichier: File | null) => void;
   onCancel: () => void;
+  /**
+   * Poignée sur le <form>, pour qui doit le soumettre PAR PROGRAMME — le
+   * « Enregistrer » de la fiche, via `soumettreViaFormulaire` : le fichier
+   * choisi vit ici, seul `onSubmit` sait le joindre.
+   */
+  refForm?: React.RefObject<HTMLFormElement | null>;
   /** Habillage : la marge basse saute quand le formulaire tient dans une ligne de tableau. */
   className?: string;
 }) {
@@ -207,7 +246,7 @@ export function FormulairePiece({
   const fileRef = useRef<HTMLInputElement>(null);
 
   return (
-    <form onSubmit={(e) => onSubmit(e, fichier)} className={className}>
+    <form ref={refForm} onSubmit={(e) => onSubmit(e, fichier)} className={className}>
       <div className="flex flex-wrap items-start gap-4">
         <div className="w-full sm:w-44">
           <Field

@@ -1,6 +1,6 @@
 "use client";
 
-import { Pencil, Plus, SquarePen, Star, Trash2, Upload, X } from "lucide-react";
+import { Pencil, Plus, Star, Trash2, Upload, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useRef, useState, useTransition } from "react";
 import { deleteDocumentAction } from "@/app/(app)/documents/actions";
@@ -11,6 +11,7 @@ import {
   LigneDocument,
 } from "@/components/documents-panel";
 import { ModaleSociete } from "@/components/modale-societe";
+import { useInscriptionModeFiche } from "@/components/mode-fiche";
 import { Card, EmptyState, Field } from "@/components/ui";
 import { DATE_FMT_FR_UTC, formatEuros } from "@/lib/format";
 import {
@@ -87,20 +88,6 @@ export function DevisPanel({
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
-  /**
-   * Interrupteur d'écriture, ÉTEINT d'office. Il ne s'agit pas ici du verrou des
-   * fiches, qui gèle des champs jusqu'à un enregistrement : cet onglet n'a rien
-   * à enregistrer, chacun de ses gestes s'applique au clic — ajouter une
-   * consultation, retenir un devis, supprimer une pièce. Il n'y a donc ni coche
-   * ni croix : le crayon donne le droit de toucher, un second clic le retire.
-   *
-   * On vient ici lire l'historique des mises en concurrence bien plus souvent
-   * qu'on ne l'écrit, et ces gestes-là ne se rattrapent pas.
-   */
-  const [modeEdition, setModeEdition] = useState(false);
-  /** Vrai quand rien ne doit pouvoir être touché — lecteur, ou crayon éteint. */
-  const fige = readOnly || !modeEdition;
-
   // Formulaire de consultation : ouvert en création ou en édition.
   const [consultationForm, setConsultationForm] = useState<
     { mode: "creation" } | { mode: "edition"; row: ConsultationRow } | null
@@ -111,23 +98,79 @@ export function DevisPanel({
     row: DevisRow | null;
   } | null>(null);
 
+  /** Poignées sur les formulaires ouverts, pour le « Enregistrer » global. */
+  const formConsultationRef = useRef<HTMLFormElement>(null);
+  const formDevisRef = useRef<HTMLFormElement>(null);
+  /** Qui attend le résultat d'une soumission de devis déclenchée par programme. */
+  const attenteDevis = useRef<((ok: boolean) => void) | null>(null);
+
+  /**
+   * Cœur ATTENDABLE du formulaire de consultation : son bouton l'appelle, et
+   * le « Enregistrer » global de la fiche aussi.
+   */
+  async function envoyerConsultation(form: HTMLFormElement): Promise<boolean> {
+    if (!consultationForm) return true;
+    if (!form.reportValidity()) return false;
+    setError(null);
+    const fd = new FormData(form);
+    const res =
+      consultationForm.mode === "edition"
+        ? await updateConsultationAction(consultationForm.row.id, fd)
+        : await createConsultationAction(logicielId, fd);
+    if (!res.ok) {
+      setError(res.error);
+      return false;
+    }
+    setConsultationForm(null);
+    router.refresh();
+    return true;
+  }
+
+  /**
+   * Soumet le formulaire de devis COMME son bouton — `requestSubmit` passe par
+   * la validation native puis par `onSubmit`, seul détenteur du fichier — et
+   * attend le verdict, que `soumettreDevis` lui rend en terminant.
+   */
+  function soumettreDevisViaFormulaire(form: HTMLFormElement): Promise<boolean> {
+    if (!form.reportValidity()) return Promise.resolve(false);
+    return new Promise((resoudre) => {
+      attenteDevis.current = resoudre;
+      form.requestSubmit();
+    });
+  }
+
+  /**
+   * L'onglet lit LE mode « je modifie cette fiche » de la barre d'onglets, et
+   * s'y inscrit avec ses formulaires OUVERTS : une consultation ou un devis en
+   * cours de saisie est l'œuvre du même utilisateur que le reste de la fiche.
+   * « Annuler » les jette avec tout le reste ; « Enregistrer » les SOUMET,
+   * comme leurs propres boutons.
+   */
+  const mode = useInscriptionModeFiche({
+    sale: () => consultationForm !== null || devisForm !== null,
+    rendre: () => {
+      setConsultationForm(null);
+      setDevisForm(null);
+    },
+    enregistrer: async () => {
+      if (consultationForm && formConsultationRef.current) {
+        if (!(await envoyerConsultation(formConsultationRef.current))) return false;
+      }
+      if (devisForm && formDevisRef.current) {
+        if (!(await soumettreDevisViaFormulaire(formDevisRef.current))) return false;
+      }
+      return true;
+    },
+  });
+  const modeEdition = !!mode?.actif;
+  /** Vrai quand rien ne doit pouvoir être touché — lecteur, ou crayon éteint. */
+  const fige = readOnly || !modeEdition;
+
   function soumettreConsultation(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (!consultationForm) return;
-    setError(null);
-    const form = new FormData(e.currentTarget);
-    const cible = consultationForm;
+    const form = e.currentTarget;
     startTransition(async () => {
-      const res =
-        cible.mode === "edition"
-          ? await updateConsultationAction(cible.row.id, form)
-          : await createConsultationAction(logicielId, form);
-      if (!res.ok) {
-        setError(res.error);
-        return;
-      }
-      setConsultationForm(null);
-      router.refresh();
+      await envoyerConsultation(form);
     });
   }
 
@@ -145,12 +188,19 @@ export function DevisPanel({
     setError(null);
     const form = new FormData(e.currentTarget);
     const cible = devisForm;
+    // Chaque issue prévient l'éventuel « Enregistrer » global qui attend. Les
+    // demi-résultats comptent comme des échecs : le mode reste sur le message.
+    const conclure = (ok: boolean) => {
+      attenteDevis.current?.(ok);
+      attenteDevis.current = null;
+    };
     startTransition(async () => {
       const res = cible.row
         ? await updateDevisAction(cible.row.id, form)
         : await createDevisAction(cible.consultationId, form);
       if (!res.ok) {
         setError(res.error);
+        conclure(false);
         return;
       }
       const devisId = cible.row?.id ?? res.id;
@@ -164,6 +214,7 @@ export function DevisPanel({
               `Devis enregistré, mais la pièce n'a pas pu être remplacée : ${retrait.error}`,
             );
             router.refresh();
+            conclure(false);
             return;
           }
         }
@@ -171,11 +222,13 @@ export function DevisPanel({
         if (echec) {
           setError(`Devis enregistré, mais le dépôt a échoué : ${echec}`);
           router.refresh();
+          conclure(false);
           return;
         }
       }
       setDevisForm(null);
       router.refresh();
+      conclure(true);
     });
   }
 
@@ -263,25 +316,6 @@ export function DevisPanel({
                   {consultationForm?.mode === "creation" ? "Fermer" : "Ajouter une consultation"}
                 </button>
               ) : null}
-              {/* Éteindre referme ce qui était ouvert : un formulaire resté à
-                  l'écran sans son bouton d'ajout n'aurait plus de sens. */}
-              <button
-                type="button"
-                onClick={() => {
-                  if (modeEdition) {
-                    setConsultationForm(null);
-                    setDevisForm(null);
-                  }
-                  setModeEdition(!modeEdition);
-                }}
-                disabled={pending}
-                aria-pressed={modeEdition}
-                title={modeEdition ? "Fermer la modification" : "Modifier les consultations"}
-                aria-label={modeEdition ? "Fermer la modification" : "Modifier les consultations"}
-                className={`btn-ghost !p-2 ${modeEdition ? "!text-accent" : "hover:!text-accent"}`}
-              >
-                <SquarePen className="h-4 w-4" />
-              </button>
             </>
           )
         }
@@ -289,6 +323,7 @@ export function DevisPanel({
         {consultationForm ? (
           <form
             key={consultationForm.mode === "edition" ? `c-${consultationForm.row.id}` : "c-new"}
+            ref={formConsultationRef}
             onSubmit={soumettreConsultation}
             className="mb-5 rounded-xl border border-sub bg-inset p-4"
           >
@@ -448,6 +483,7 @@ export function DevisPanel({
                       pending={pending}
                       onSubmit={soumettreDevis}
                       onCancel={() => setDevisForm(null)}
+                      refForm={formDevisRef}
                     />
                   ) : null}
 
@@ -501,6 +537,7 @@ export function DevisPanel({
                                     pending={pending}
                                     onSubmit={soumettreDevis}
                                     onCancel={() => setDevisForm(null)}
+                                    refForm={formDevisRef}
                                     className="rounded-xl border border-sub bg-inset p-4"
                                   />
                                 </td>
@@ -685,6 +722,7 @@ function FormulaireDevis({
   pending,
   onSubmit,
   onCancel,
+  refForm,
   className = "mb-3 rounded-xl border border-sub bg-inset p-4",
 }: {
   row: DevisRow | null;
@@ -692,6 +730,9 @@ function FormulaireDevis({
   pending: boolean;
   onSubmit: (e: React.FormEvent<HTMLFormElement>, fichier: File | null) => void;
   onCancel: () => void;
+  /** Poignée sur le <form>, pour le « Enregistrer » global de la fiche —
+   *  le fichier choisi vit ici, seul `onSubmit` sait le joindre. */
+  refForm?: React.RefObject<HTMLFormElement | null>;
   /** Habillage : la marge basse saute quand le formulaire tient dans une ligne. */
   className?: string;
 }) {
@@ -706,7 +747,7 @@ function FormulaireDevis({
   const [modale, setModale] = useState(false);
 
   return (
-    <form onSubmit={(e) => onSubmit(e, fichier)} className={className}>
+    <form ref={refForm} onSubmit={(e) => onSubmit(e, fichier)} className={className}>
       {/* Les quatre champs sur UNE rangée. Pas une grille en colonnes égales :
           le bouton, le montant et la date ont chacun une largeur incompressible
           et le tiers ne les arrange pas. Chacun porte donc sa largeur propre, le

@@ -1,9 +1,9 @@
 "use client";
 
-import { Check, ChevronDown, Pencil, Plus, SquarePen, Trash2, X } from "lucide-react";
+import { Check, ChevronDown, Pencil, Plus, Trash2, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import {
   completerTacheAction,
   createTacheAction,
@@ -12,6 +12,7 @@ import {
 } from "@/app/(app)/taches/actions";
 import { useConfirmation } from "@/components/confirmation";
 import { ModaleTache } from "@/components/modale-tache";
+import { useInscriptionModeFiche } from "@/components/mode-fiche";
 import { Card, EmptyState, Field } from "@/components/ui";
 import { LIBELLES_TACHE } from "@/schemas/tache";
 
@@ -68,16 +69,35 @@ export function TachesPanel({
   const [completion, setCompletion] = useState<TacheRow | null>(null);
   /** Tâche dont on lit la fiche, en modale — voir n'est pas modifier. */
   const [detail, setDetail] = useState<TacheRow | null>(null);
+  /** Poignées sur les deux formulaires, pour le « Enregistrer » global. */
+  const formTacheRef = useRef<HTMLFormElement>(null);
+  const formCompletionRef = useRef<HTMLFormElement>(null);
 
   /**
-   * Interrupteur d'écriture, ÉTEINT d'office — le même que les mises en
-   * concurrence, et pour la même raison : cet onglet n'a rien à enregistrer,
-   * chacun de ses gestes s'applique au clic. Marquer une tâche faite avance son
-   * échéance, la supprimer emporte son historique d'exécutions ; ni l'un ni
-   * l'autre ne se rattrape. Le crayon donne le droit de toucher, un second clic
-   * le retire, sans coche ni croix.
+   * L'onglet lit LE mode « je modifie cette fiche » de la barre d'onglets, et
+   * s'y inscrit avec ses formulaires OUVERTS : une tâche ou une complétion en
+   * cours de saisie est l'œuvre du même utilisateur que le reste de la fiche.
+   * « Annuler » les jette avec tout le reste ; « Enregistrer » les SOUMET,
+   * comme leurs propres boutons — et s'arrête sur eux si la validation refuse.
    */
-  const [modeEdition, setModeEdition] = useState(false);
+  const mode = useInscriptionModeFiche({
+    sale: () => formVisible || enEdition !== null || completion !== null,
+    rendre: () => {
+      setFormVisible(false);
+      setEnEdition(null);
+      setCompletion(null);
+    },
+    enregistrer: async () => {
+      if (completion && formCompletionRef.current) {
+        if (!(await envoyerCompletion(formCompletionRef.current))) return false;
+      }
+      if ((formVisible || enEdition) && formTacheRef.current) {
+        if (!(await envoyerTache(formTacheRef.current))) return false;
+      }
+      return true;
+    },
+  });
+  const modeEdition = !!mode?.actif;
   /** Vrai quand rien ne doit pouvoir être touché — lecteur, ou crayon éteint. */
   const fige = readOnly || !modeEdition;
 
@@ -93,27 +113,57 @@ export function TachesPanel({
     });
   }
 
+  /**
+   * Cœurs ATTENDABLES des deux formulaires : leurs boutons les appellent, et le
+   * « Enregistrer » global de la fiche aussi — une tâche ou une complétion en
+   * cours de saisie sont l'œuvre du même utilisateur que le reste de la fiche,
+   * elles s'enregistrent avec elle. La validation native passe d'abord.
+   */
+  async function envoyerTache(form: HTMLFormElement): Promise<boolean> {
+    if (!form.reportValidity()) return false;
+    setError(null);
+    const fd = new FormData(form);
+    const res = enEdition
+      ? await updateTacheAction(enEdition.id, fd)
+      : await createTacheAction(logicielId, fd);
+    if (!res.ok) {
+      setError(res.error ?? "Erreur.");
+      return false;
+    }
+    setEnEdition(null);
+    setFormVisible(false);
+    router.refresh();
+    return true;
+  }
+
+  async function envoyerCompletion(form: HTMLFormElement): Promise<boolean> {
+    if (!completion) return true;
+    if (!form.reportValidity()) return false;
+    setError(null);
+    const res = await completerTacheAction(completion.id, new FormData(form));
+    if (!res.ok) {
+      setError(res.error ?? "Erreur.");
+      return false;
+    }
+    setCompletion(null);
+    router.refresh();
+    return true;
+  }
+
   function submitTache(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    const form = new FormData(e.currentTarget);
-    run(
-      () =>
-        enEdition ? updateTacheAction(enEdition.id, form) : createTacheAction(logicielId, form),
-      () => {
-        setEnEdition(null);
-        setFormVisible(false);
-      },
-    );
+    const form = e.currentTarget;
+    startTransition(async () => {
+      await envoyerTache(form);
+    });
   }
 
   function submitCompletion(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (!completion) return;
-    const form = new FormData(e.currentTarget);
-    run(
-      () => completerTacheAction(completion.id, form),
-      () => setCompletion(null),
-    );
+    const form = e.currentTarget;
+    startTransition(async () => {
+      await envoyerCompletion(form);
+    });
   }
 
   async function supprimer(t: TacheRow) {
@@ -154,26 +204,6 @@ export function TachesPanel({
                   {formVisible && !enEdition ? "Fermer" : "Ajouter"}
                 </button>
               ) : null}
-              {/* Éteindre referme ce qui était ouvert : un formulaire resté à
-                  l'écran sans son bouton d'ajout n'aurait plus de sens. */}
-              <button
-                type="button"
-                onClick={() => {
-                  if (modeEdition) {
-                    setFormVisible(false);
-                    setEnEdition(null);
-                    setCompletion(null);
-                  }
-                  setModeEdition(!modeEdition);
-                }}
-                disabled={pending}
-                aria-pressed={modeEdition}
-                title={modeEdition ? "Fermer la modification" : "Modifier les tâches"}
-                aria-label={modeEdition ? "Fermer la modification" : "Modifier les tâches"}
-                className={`btn-ghost !p-2 ${modeEdition ? "!text-accent" : "hover:!text-accent"}`}
-              >
-                <SquarePen className="h-4 w-4" />
-              </button>
             </>
           )
         }
@@ -300,7 +330,7 @@ export function TachesPanel({
 
       {completion ? (
         <Card title={`Marquer « ${completion.titre} » comme faite`}>
-          <form onSubmit={submitCompletion} className="space-y-3">
+          <form ref={formCompletionRef} onSubmit={submitCompletion} className="space-y-3">
             <Field label="Commentaire (optionnel)" htmlFor="commentaire">
               <textarea
                 id="commentaire"
@@ -331,6 +361,7 @@ export function TachesPanel({
         <Card title={enEdition ? "Modifier la tâche" : "Nouvelle tâche"}>
           <form
             key={enEdition ? `edit-${enEdition.id}` : "new"}
+            ref={formTacheRef}
             onSubmit={submitTache}
             className="grid gap-x-3 gap-y-2 sm:grid-cols-2"
           >

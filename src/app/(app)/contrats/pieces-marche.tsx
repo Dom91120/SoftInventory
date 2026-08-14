@@ -1,8 +1,9 @@
 "use client";
 
 import { Pencil, Plus, Trash2, X } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { type CategorieOption, LigneDocument } from "@/components/documents-panel";
+import { useInscriptionModeFiche } from "@/components/mode-fiche";
 import { FormulairePiece, type PieceContratRow, usePieceContrat } from "@/components/piece-contrat";
 import { Card, EmptyState } from "@/components/ui";
 import { DATE_FMT_FR_UTC } from "@/lib/format";
@@ -39,12 +40,33 @@ export function PiecesMarche({
   // Formulaire ouvert : sur une pièce existante (crayon) ou sur une neuve.
   const [ouvert, setOuvert] = useState<{ row: PieceContratRow | null } | null>(null);
   const piece = usePieceContrat(setError);
+  /** Poignée sur le formulaire ouvert, pour le « Enregistrer » global. */
+  const formPieceRef = useRef<HTMLFormElement>(null);
+
+  /**
+   * La carte lit LE mode « je modifie ce marché » de la barre d'onglets — le
+   * crayon de la fiche arme aussi ses pièces. Elle s'y inscrit avec son
+   * formulaire OUVERT : la pièce qu'on remplissait est l'œuvre du même
+   * utilisateur que le reste de la fiche — « Annuler » la jette avec tout le
+   * reste, « Enregistrer » la SOUMET, comme son propre bouton.
+   */
+  const mode = useInscriptionModeFiche({
+    sale: () => ouvert !== null,
+    rendre: () => setOuvert(null),
+    enregistrer: async () => {
+      if (ouvert && formPieceRef.current) {
+        return piece.soumettreViaFormulaire(formPieceRef.current);
+      }
+      return true;
+    },
+  });
+  const fige = readOnly || !(mode ? mode.actif : true);
 
   return (
     <Card
       title={pieces.length > 1 ? "Pièces du marché" : "Pièce du marché"}
       actions={
-        readOnly ? undefined : (
+        fige ? undefined : (
           <button
             type="button"
             className="btn-secondary !px-2.5 !py-1 !text-xs"
@@ -65,7 +87,7 @@ export function PiecesMarche({
 
       {/* L'ajout se pose AU-DESSUS de la liste ; la modification prend la place
           de la pièce concernée, plus bas. */}
-      {ouvert?.row === null ? (
+      {ouvert?.row === null && !fige ? (
         <FormulairePiece
           key="p-new"
           row={null}
@@ -76,6 +98,7 @@ export function PiecesMarche({
             piece.soumettre(e, fichier, { contratId, row: null }, () => setOuvert(null))
           }
           onCancel={() => setOuvert(null)}
+          refForm={formPieceRef}
         />
       ) : null}
 
@@ -86,7 +109,7 @@ export function PiecesMarche({
       ) : (
         <ul className="divide-y divide-line text-sm">
           {pieces.map((p) =>
-            ouvert?.row?.id === p.id ? (
+            ouvert?.row?.id === p.id && !fige ? (
               <li key={p.id} className="py-2">
                 <FormulairePiece
                   key={`p-${p.id}`}
@@ -98,6 +121,7 @@ export function PiecesMarche({
                     piece.soumettre(e, fichier, { contratId, row: p }, () => setOuvert(null))
                   }
                   onCancel={() => setOuvert(null)}
+                  refForm={formPieceRef}
                   className="rounded-xl border border-sub bg-inset p-4"
                 />
               </li>
@@ -119,7 +143,7 @@ export function PiecesMarche({
                   // la pièce, qui vit à l'intérieur, disparaîtrait avec elle.
                   <span className="text-faint">{p.datePiece ? enDateFr(p.datePiece) : "—"}</span>
                 )}
-                {readOnly ? null : (
+                {fige ? null : (
                   <span className="flex shrink-0 items-center gap-1">
                     <button
                       type="button"

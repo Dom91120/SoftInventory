@@ -1,8 +1,9 @@
 "use client";
 
-import { Check, SquarePen, X } from "lucide-react";
+import { Check } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { type ReactNode, useEffect, useState, useTransition } from "react";
+import { type ReactNode, useEffect, useState } from "react";
+import { useInscriptionModeFiche } from "@/components/mode-fiche";
 import { useSaisieEnCours } from "@/components/saisie-en-cours";
 import { Card, Field } from "@/components/ui";
 import { LIBELLES } from "@/schemas/logiciel";
@@ -33,52 +34,68 @@ export function RgpdPanel({
   supprimer?: ReactNode;
 }) {
   const router = useRouter();
-  const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [traite, setTraite] = useState(values.donneesPersonnelles);
   const saisie = useSaisieEnCours();
 
-  /**
-   * Le verrou de la carte Identité, et non l'interrupteur des onglets voisins :
-   * ce volet est un FORMULAIRE, ses valeurs attendent un enregistrement. Le
-   * crayon l'ouvre, la coche enregistre, la croix rend les valeurs enregistrées.
-   *
-   * Fermé d'office : on consulte le volet pour répondre à une question — ce
-   * logiciel traite-t-il des données ? où ? — bien plus souvent qu'on ne le
-   * corrige, et ses cases se décochent d'un clic malheureux.
-   */
-  const [verrouille, setVerrouille] = useState(true);
-  const dis = readOnly || pending || verrouille;
   /** Retour à SA liste, et non à la page précédente : arrivé par une URL collée
    *  ou un rechargement, un retour d'historique ferait sortir de l'application. */
   const quitter = () => router.push("/logiciels");
-  /** `reset()` rend au DOM ses valeurs, mais la case vit dans un état React
-   *  qu'il n'atteint pas : sans cette ligne, « Annuler » laisserait le volet
-   *  déplié sur une case redevenue décochée. */
+
+  /**
+   * « Annuler » : rend au volet ses valeurs enregistrées. `reset()` rend au DOM
+   * les siennes, mais la case vit dans un état React qu'il n'atteint pas —
+   * sans la première ligne, le volet resterait déplié sur une case redevenue
+   * décochée.
+   */
   const annuler = () => {
     setTraite(values.donneesPersonnelles);
     saisie.annuler();
   };
 
+  /** Enregistre CE volet, à la demande du mode — sa part du « Enregistrer »
+   *  global de la fiche. */
+  async function enregistrerVolet(): Promise<boolean> {
+    const form = saisie.formRef.current;
+    if (!form) return true;
+    if (!form.reportValidity()) return false;
+    setError(null);
+    const res = await updateRgpdAction(logicielId, new FormData(form));
+    if (!res.ok) {
+      setError(res.error);
+      return false;
+    }
+    setSaved(true);
+    saisie.enregistre();
+    router.refresh();
+    return true;
+  }
+
+  /**
+   * Le volet n'a plus son propre verrou : il lit LE mode « je modifie cette
+   * fiche » de la barre d'onglets, et s'y inscrit avec ses trois réponses —
+   * dire s'il porte une saisie, la rendre, l'enregistrer.
+   */
+  const mode = useInscriptionModeFiche({
+    sale: () => saisie.modifie,
+    rendre: annuler,
+    enregistrer: enregistrerVolet,
+  });
+  const ouvert = !!mode?.actif;
+  /** L'enregistrement en cours vient du MODE : c'est lui qui pilote l'envoi. */
+  const pending = !!mode?.occupe;
+  const dis = readOnly || pending || !ouvert;
+
   /**
    * `FormData` IGNORE les champs désactivés : l'empreinte relevée au premier
    * rendu, volet verrouillé, ne vaut donc rien une fois les champs réveillés. On
-   * la reprend à l'ouverture — sans quoi la première frappe comparerait un
-   * formulaire complet à un formulaire vide, et la coche paraîtrait d'elle-même.
-   * En `useEffect` et non dans le clic : à ce moment-là, les champs portent
-   * encore leur `disabled`.
+   * la reprend à l'ouverture du mode — sans quoi la première frappe comparerait
+   * un formulaire complet à un formulaire vide.
    */
   useEffect(() => {
-    if (!verrouille) saisie.enregistre();
-  }, [verrouille, saisie.enregistre]);
-
-  /** Refermer rend au volet ses valeurs enregistrées : le verrou ne garde pas
-   *  des frappes que plus rien ne montre. C'est le geste d'« Annuler ». */
-  function basculerVerrou() {
-    if (!verrouille) annuler();
-    setVerrouille(!verrouille);
-  }
+    if (ouvert) saisie.enregistre();
+  }, [ouvert, saisie.enregistre]);
 
   /** La confirmation s'efface d'elle-même : elle annonce un fait accompli, pas
    *  un état à surveiller. La laisser à l'écran, c'est laisser croire, au geste
@@ -89,90 +106,34 @@ export function RgpdPanel({
     return () => clearTimeout(t);
   }, [saved]);
 
+  /** Envoi du formulaire — bouton ou touche Entrée : le « Enregistrer » de la
+   *  FICHE. Chaque onglet qui porte une saisie enregistre la sienne. */
   function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (readOnly) return;
-    setError(null);
-    setSaved(false);
-    const form = new FormData(e.currentTarget);
-    startTransition(async () => {
-      const res = await updateRgpdAction(logicielId, form);
-      if (!res.ok) setError(res.error);
-      else {
-        setSaved(true);
-        saisie.enregistre();
-        // Le volet se referme : la modification est faite, le laisser ouvert
-        // exposerait à nouveau ses cases à un clic malheureux.
-        setVerrouille(true);
-        router.refresh();
-      }
-    });
+    void mode?.enregistrerTout();
   }
 
   return (
     <form ref={saisie.formRef} onSubmit={submit} onChange={saisie.surSaisie} className="space-y-3">
-      <Card
-        title="Données personnelles"
-        actions={
-          readOnly ? undefined : verrouille ? (
-            /* `key` distincte et `preventDefault`, comme sur les fiches : sans
-               eux, ce clic ENREGISTRERAIT le volet. React réutilise le nœud
-               <button> pour la coche qui prend sa place et le mute en
-               `type="submit"` pendant le gestionnaire de clic. */
-            <button
-              key="verrou-ouvrir"
-              type="button"
-              onClick={(e) => {
-                e.preventDefault();
-                basculerVerrou();
-              }}
-              disabled={pending}
-              title="Modifier le volet RGPD"
-              aria-label="Modifier le volet RGPD"
-              className="btn-ghost !p-2 hover:!text-accent"
-            >
-              <SquarePen className="h-4 w-4" />
-            </button>
-          ) : (
-            <>
-              {/* La coche attend qu'il y ait quelque chose à enregistrer, comme
-                  le bouton du bas de carte. */}
-              {saisie.modifie ? (
-                <button
-                  key="verrou-valider"
-                  type="submit"
-                  disabled={pending}
-                  title="Enregistrer le volet RGPD"
-                  aria-label="Enregistrer le volet RGPD"
-                  className="btn-ghost !p-2 hover:!text-ok"
-                >
-                  <Check className="h-4 w-4" />
-                </button>
-              ) : null}
-              <button
-                key="verrou-annuler"
-                type="button"
-                onClick={(e) => {
-                  e.preventDefault();
-                  basculerVerrou();
-                }}
-                disabled={pending}
-                title="Annuler la modification"
-                aria-label="Annuler la modification"
-                className="btn-ghost !p-2 hover:!text-danger"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </>
-          )
-        }
-      >
+      <Card title="Données personnelles">
         <label className="flex items-center gap-3 text-sm text-body">
           <input
             type="checkbox"
             name="donneesPersonnelles"
             checked={traite}
             onChange={(e) => setTraite(e.target.checked)}
+            // `defaultChecked` posé À LA MAIN, aligné sur l'enregistré : la case
+            // est contrôlée, et `reset()` — le geste d'« Annuler » — rend au DOM
+            // son defaultChecked, qui sans cela n'existe pas (donc décoché).
+            // React, dont l'état n'a pas bougé, ne recommettait pas la propriété :
+            // la case DOM restait décochée derrière une case React cochée, et
+            // l'enregistrement suivant, qui lit le DOM (`FormData`), envoyait
+            // « décochée ». Via une ref parce que React interdit de déclarer
+            // `checked` et `defaultChecked` ensemble.
+            ref={(el) => {
+              if (el) el.defaultChecked = values.donneesPersonnelles;
+            }}
             disabled={dis}
             className="h-4 w-4 accent-(--color-accent)"
           />
@@ -239,17 +200,21 @@ export function RgpdPanel({
           fiche depuis cet onglet comme depuis les autres. */}
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          {/* Comme dans l'onglet Synthèse, la ligne suit l'état de la saisie :
-              tant que rien ne diffère de l'enregistré, il n'y a rien à
-              enregistrer et le seul geste qui reste est de partir. Le volet
-              existe toujours — on n'entre jamais ici en création —, donc pas
-              de cas où « Annuler » voudrait dire quitter. */}
-          {!readOnly && saisie.modifie ? (
+          {/* Comme dans l'onglet Synthèse, la ligne suit l'état du MODE, et
+              ses deux boutons portent la FICHE ENTIÈRE : « Enregistrer »
+              enregistre chaque onglet qui porte une saisie, « Annuler » rend
+              tout et referme — le même geste que le crayon. */}
+          {!readOnly && ouvert ? (
             <>
-              <button type="submit" disabled={pending} className="btn-primary">
-                {pending ? "Enregistrement…" : "Enregistrer"}
+              <button type="submit" disabled={pending || mode?.occupe} className="btn-primary">
+                {pending || mode?.occupe ? "Enregistrement…" : "Enregistrer"}
               </button>
-              <button type="button" onClick={annuler} disabled={pending} className="btn-warn">
+              <button
+                type="button"
+                onClick={() => void mode?.annulerTout()}
+                disabled={pending || mode?.occupe}
+                className="btn-warn"
+              >
                 Annuler
               </button>
             </>

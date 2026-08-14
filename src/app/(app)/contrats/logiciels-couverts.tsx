@@ -4,6 +4,7 @@ import { Plus, Trash2, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
+import { useInscriptionModeFiche } from "@/components/mode-fiche";
 import { Card } from "@/components/ui";
 import { attacherLogicielAction, detacherLogicielAction } from "./actions";
 
@@ -40,6 +41,35 @@ export function LogicielsCouverts({
     setChoix("");
   }
 
+  /**
+   * La carte lit LE mode « je modifie ce marché » de la barre d'onglets — le
+   * crayon de la fiche arme aussi ses rattachements, qui s'appliquent au clic.
+   * Elle s'y inscrit avec sa zone OUVERTE : un logiciel choisi mais pas encore
+   * rattaché est un geste du même utilisateur que le reste — « Enregistrer »
+   * l'APPLIQUE, comme son bouton « Rattacher » ; la zone ouverte sans choix ne
+   * retient rien et se referme.
+   */
+  const mode = useInscriptionModeFiche({
+    sale: () => ouvert && choix !== "",
+    rendre: fermer,
+    enregistrer: async () => {
+      if (!ouvert || !choix) {
+        fermer();
+        return true;
+      }
+      setError(null);
+      const res = await attacherLogicielAction(contratId, Number(choix));
+      if (!res.ok) {
+        setError(res.error ?? "Une erreur est survenue.");
+        return false;
+      }
+      fermer();
+      router.refresh();
+      return true;
+    },
+  });
+  const fige = readOnly || !(mode ? mode.actif : true);
+
   function run(action: () => Promise<{ ok: boolean; error?: string }>, apres?: () => void) {
     setError(null);
     startTransition(async () => {
@@ -60,7 +90,7 @@ export function LogicielsCouverts({
       // voisine : il porte sur la CARTE, pas sur une de ses lignes, et la liste
       // n'a plus un champ de saisie collé sous elle en permanence.
       actions={
-        readOnly || disponibles.length === 0 ? undefined : (
+        fige || disponibles.length === 0 ? undefined : (
           <button
             type="button"
             className="btn-secondary !px-2.5 !py-1 !text-xs"
@@ -77,7 +107,7 @@ export function LogicielsCouverts({
 
       {/* La zone se déplie AU-DESSUS de la liste, à l'endroit où le logiciel
           choisi viendra s'inscrire. */}
-      {ouvert ? (
+      {ouvert && !fige ? (
         <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-sub bg-inset p-4">
           <select
             // biome-ignore lint/a11y/noAutofocus: la zone vient d'être ouverte par un clic délibéré sur « Rattacher ».
@@ -133,7 +163,7 @@ export function LogicielsCouverts({
               >
                 {l.nom}
               </Link>
-              {readOnly ? null : (
+              {fige ? null : (
                 <button
                   type="button"
                   // La corbeille tenait 34 px et c'est ELLE qui fixait la
@@ -156,7 +186,7 @@ export function LogicielsCouverts({
       {/* Plus de bouton dans l'en-tête quand il n'y a plus rien à rattacher :
           la carte le dit en clair plutôt que de laisser une commande sans
           effet. */}
-      {readOnly || disponibles.length > 0 ? null : (
+      {fige || disponibles.length > 0 ? null : (
         <p className="text-sm text-faint">
           Tous les logiciels de l'inventaire sont déjà rattachés à ce marché.
         </p>

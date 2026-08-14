@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { ID_COMMANDES_ONGLET } from "@/components/commandes-onglet";
 import { FlecheVoisin } from "@/components/fleche-voisin";
-import { PageHeader } from "@/components/ui";
+import { ModeFicheProvider } from "@/components/mode-fiche";
+import { Onglets, PageHeader } from "@/components/ui";
 import type { Role } from "@/generated/prisma/client";
 import { dateCalendaire } from "@/lib/taches-core";
 import { seuilsRappel } from "@/server/config";
@@ -134,67 +136,83 @@ export default async function ContratPage({
         />
       </div>
 
-      <ContratForm
-        id={contrat.id}
-        readOnly={!isAdmin}
-        editeurs={editeurs.map((e) => ({ id: e.id, nom: e.nom }))}
-        values={{
-          nature: contrat.nature ?? "",
-          referenceMarche: contrat.referenceMarche,
-          referenceFournisseur: contrat.referenceFournisseur,
-          libelle: contrat.libelle,
-          fournisseurId: contrat.fournisseurId === null ? "" : String(contrat.fournisseurId),
-          montantAnnuel: contrat.montantAnnuel === null ? "" : String(contrat.montantAnnuel),
-          montantMaxi: contrat.montantMaxi === null ? "" : String(contrat.montantMaxi),
-          montantTotal: contrat.montantTotal === null ? "" : String(contrat.montantTotal),
-          dateDebut: dateStr(contrat.dateDebut),
-          dateFin: dateStr(contrat.dateFin),
-          dureeAnnees: contrat.dureeAnnees === null ? "" : String(contrat.dureeAnnees),
-          renouvellements: contrat.renouvellements === null ? "" : String(contrat.renouvellements),
-          notes: contrat.notes,
-        }}
-      >
-        <LogicielsCouverts
-          contratId={contrat.id}
+      {/* Un onglet unique : cette fiche n'en a pas plusieurs à proposer, mais
+          la barre est ce qui porte le crayon, au même bout de ligne que sur la
+          fiche logiciel. */}
+      <Onglets
+        onglets={[{ key: "fiche", label: "Contrat/Marché" }]}
+        actif="fiche"
+        href={() => `/contrats/${contrat.id}`}
+        idActions={ID_COMMANDES_ONGLET}
+      />
+
+      {/* UN mode de modification pour la fiche ENTIÈRE : le crayon de la barre
+          ouvre le formulaire du marché, mais aussi les logiciels couverts et
+          les pièces — tout ce que la page permet de changer. */}
+      <ModeFicheProvider readOnly={!isAdmin} objet="ce marché">
+        <ContratForm
+          id={contrat.id}
           readOnly={!isAdmin}
-          rattaches={contrat.logiciels.map((l) => ({ id: l.logiciel.id, nom: l.logiciel.nom }))}
-          // Le reste de l'inventaire : la liste de rattachement ne propose que
-          // ce qui n'est pas déjà couvert.
-          disponibles={logiciels.filter(
-            (l) => !contrat.logiciels.some((r) => r.logiciel.id === l.id),
-          )}
-        />
-        {/* Les pièces se saisissent ICI, avec le même formulaire que l'onglet
+          editeurs={editeurs.map((e) => ({ id: e.id, nom: e.nom }))}
+          values={{
+            nature: contrat.nature ?? "",
+            referenceMarche: contrat.referenceMarche,
+            referenceFournisseur: contrat.referenceFournisseur,
+            libelle: contrat.libelle,
+            fournisseurId: contrat.fournisseurId === null ? "" : String(contrat.fournisseurId),
+            montantAnnuel: contrat.montantAnnuel === null ? "" : String(contrat.montantAnnuel),
+            montantMaxi: contrat.montantMaxi === null ? "" : String(contrat.montantMaxi),
+            montantTotal: contrat.montantTotal === null ? "" : String(contrat.montantTotal),
+            dateDebut: dateStr(contrat.dateDebut),
+            dateFin: dateStr(contrat.dateFin),
+            dureeAnnees: contrat.dureeAnnees === null ? "" : String(contrat.dureeAnnees),
+            renouvellements:
+              contrat.renouvellements === null ? "" : String(contrat.renouvellements),
+            notes: contrat.notes,
+          }}
+        >
+          <LogicielsCouverts
+            contratId={contrat.id}
+            readOnly={!isAdmin}
+            rattaches={contrat.logiciels.map((l) => ({ id: l.logiciel.id, nom: l.logiciel.nom }))}
+            // Le reste de l'inventaire : la liste de rattachement ne propose que
+            // ce qui n'est pas déjà couvert.
+            disponibles={logiciels.filter(
+              (l) => !contrat.logiciels.some((r) => r.logiciel.id === l.id),
+            )}
+          />
+          {/* Les pièces se saisissent ICI, avec le même formulaire que l'onglet
             d'un logiciel : c'est ce qui rend utilisable un marché qui ne couvre
             encore rien. Une pièce n'a qu'UN fichier — d'où le premier document
             et lui seul, les éventuels autres étant hérités d'avant cette règle. */}
-        <PiecesMarche
-          contratId={contrat.id}
-          readOnly={!isAdmin}
-          categories={optionsCategories}
-          categorieParDefautId={
-            categories.find((c) => c.label === CATEGORIE_PAR_DEFAUT)?.id ?? null
-          }
-          pieces={contrat.pieces.map((p) => {
-            const d = p.documents[0];
-            return {
-              id: p.id,
-              datePiece: dateStr(p.datePiece),
-              document: d
-                ? {
-                    id: d.id,
-                    nomOriginal: d.nomOriginal,
-                    categorieId: d.categorieId,
-                    categorie: d.categorie?.label ?? null,
-                    taille: d.taille,
-                    deposeParLabel: d.deposeParLabel,
-                    createdAt: fmt.format(d.createdAt),
-                  }
-                : null,
-            };
-          })}
-        />
-      </ContratForm>
+          <PiecesMarche
+            contratId={contrat.id}
+            readOnly={!isAdmin}
+            categories={optionsCategories}
+            categorieParDefautId={
+              categories.find((c) => c.label === CATEGORIE_PAR_DEFAUT)?.id ?? null
+            }
+            pieces={contrat.pieces.map((p) => {
+              const d = p.documents[0];
+              return {
+                id: p.id,
+                datePiece: dateStr(p.datePiece),
+                document: d
+                  ? {
+                      id: d.id,
+                      nomOriginal: d.nomOriginal,
+                      categorieId: d.categorieId,
+                      categorie: d.categorie?.label ?? null,
+                      taille: d.taille,
+                      deposeParLabel: d.deposeParLabel,
+                      createdAt: fmt.format(d.createdAt),
+                    }
+                  : null,
+              };
+            })}
+          />
+        </ContratForm>
+      </ModeFicheProvider>
     </>
   );
 }

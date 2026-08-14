@@ -1,10 +1,11 @@
 "use client";
 
-import { ArrowLeft, ArrowRight, Check, Plus, SquarePen, Trash2, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { type ReactNode, useEffect, useState, useTransition } from "react";
 import { BoutonQuitter } from "@/components/bouton-quitter";
+import { useInscriptionModeFiche } from "@/components/mode-fiche";
 import { Card } from "@/components/ui";
 import { compareAlpha } from "@/lib/format";
 import { LIBELLES } from "@/schemas/logiciel";
@@ -76,43 +77,85 @@ export function LiaisonsPanel({
   const [saved, setSaved] = useState(false);
 
   /**
-   * Les cases s'ouvrent sous clé, comme les cartes de saisie des fiches : on
-   * vient bien plus souvent lire quels services utilisent un logiciel qu'en
-   * changer la liste, et une case se décoche d'un clic malheureux sans que rien
-   * ne le signale. Le crayon de l'en-tête lève le verrou.
+   * L'onglet n'a plus son propre verrou : ses trois cartes lisent LE mode
+   * « je modifie cette fiche » de la barre d'onglets. Il s'y inscrit avec
+   * l'écart de ses CASES — elles seules attendent un enregistrement ; un
+   * serveur choisi ou un flux décrit sans avoir cliqué le bouton qui les
+   * applique ne sont qu'un geste en suspens, vidé sans question. Sa part du
+   * « Enregistrer » global est l'envoi de ces cases.
    */
-  const [verrouille, setVerrouille] = useState(true);
-  const casesFigees = readOnly || pending || verrouille;
-
+  const mode = useInscriptionModeFiche({
+    // Les cases qui s'écartent de l'enregistré, mais aussi les gestes en
+    // suspens : un serveur choisi sans « Associer », un flux décrit sans
+    // « Ajouter » — même utilisateur, même saisie, même sort que le reste.
+    sale: () =>
+      coches.size !== servicesLies.length ||
+      servicesLies.some((id) => !coches.has(id)) ||
+      nouveauServeur !== "" ||
+      nouvelleCible !== "" ||
+      nouvelleDesc !== "",
+    rendre: () => {
+      setCoches(new Set(servicesLies));
+      vider();
+    },
+    enregistrer: async () => {
+      setError(null);
+      // Les cases, si elles ont bougé.
+      if (coches.size !== servicesLies.length || servicesLies.some((id) => !coches.has(id))) {
+        const res = await setServicesAction(logicielId, [...coches]);
+        if (!res.ok) {
+          setError(res.error ?? "Erreur.");
+          return false;
+        }
+        setSaved(true);
+      }
+      // Le serveur choisi mais pas encore associé : « Enregistrer » l'applique,
+      // comme son bouton.
+      if (nouveauServeur) {
+        const res = await addServeurAction(logicielId, Number(nouveauServeur), nouvelEnv);
+        if (!res.ok) {
+          setError(res.error ?? "Erreur.");
+          return false;
+        }
+        setNouveauServeur("");
+      }
+      // Le flux décrit : sa cible est obligatoire — une description seule ne
+      // désigne aucun logiciel, et on ne la jette pas sans le dire.
+      if (nouvelleCible) {
+        const res = await addInterconnexionAction(logicielId, Number(nouvelleCible), nouvelleDesc);
+        if (!res.ok) {
+          setError(res.error ?? "Erreur.");
+          return false;
+        }
+        setNouvelleCible("");
+        setNouvelleDesc("");
+      } else if (nouvelleDesc) {
+        setError("Une interconnexion est décrite mais son logiciel cible n'est pas choisi.");
+        return false;
+      }
+      router.refresh();
+      return true;
+    },
+  });
+  const ouvert = !!mode?.actif;
+  const casesFigees = readOnly || pending || !ouvert;
   /**
    * Les deux autres cartes n'ont rien à enregistrer — associer un serveur,
-   * déclarer un flux, les retirer : tout s'applique au clic. Elles reçoivent
-   * donc l'interrupteur des mises en concurrence, et non le verrou des cases :
-   * ni coche ni croix, le crayon donne le droit de toucher.
-   *
-   * UN interrupteur PAR CARTE : elles ne parlent pas de la même chose, et
-   * ouvrir les serveurs n'a pas à découvrir les interconnexions.
+   * déclarer un flux, les retirer : tout s'applique au clic. Le mode n'y
+   * donne que le DROIT DE TOUCHER ; `pending` ne les fige pas, chaque bouton
+   * porte déjà son propre `disabled`.
    */
-  const [modeServeurs, setModeServeurs] = useState(false);
-  const [modeIntercos, setModeIntercos] = useState(false);
-  const serveursFiges = readOnly || !modeServeurs;
-  const intercosFigees = readOnly || !modeIntercos;
+  const serveursFiges = readOnly || !ouvert;
+  const intercosFigees = readOnly || !ouvert;
 
-  /** Le crayon d'une carte qui s'applique au clic : allumé, éteint, rien d'autre. */
-  const crayon = (actif: boolean, basculer: () => void, quoi: string) =>
-    readOnly ? undefined : (
-      <button
-        type="button"
-        onClick={basculer}
-        disabled={pending}
-        aria-pressed={actif}
-        title={actif ? "Fermer la modification" : `Modifier ${quoi}`}
-        aria-label={actif ? "Fermer la modification" : `Modifier ${quoi}`}
-        className={`btn-ghost !p-2 ${actif ? "!text-accent" : "hover:!text-accent"}`}
-      >
-        <SquarePen className="h-4 w-4" />
-      </button>
-    );
+  /** Vide les saisies en cours : un serveur choisi sans le bouton qui
+   *  l'associe, une description de flux sans sa cible, n'attendent plus rien
+   *  une fois les cartes closes. */
+  function vider() {
+    setNouveauServeur("");
+    setNouvelleCible("");
+    setNouvelleDesc("");
+  }
 
   /**
    * Ordre alphabétique, et non celui du référentiel : on cherche ici un service
@@ -126,14 +169,6 @@ export function LiaisonsPanel({
     if (aFourreTout !== bFourreTout) return aFourreTout ? 1 : -1;
     return compareAlpha(a.label, b.label);
   });
-
-  /**
-   * « Les cases diffèrent-elles de ce qui est enregistré ? » — l'équivalent, pour
-   * des cases contrôlées, de l'empreinte que les fiches relèvent sur leur
-   * formulaire. C'est lui qui décide d'offrir ou non « Enregistrer ».
-   */
-  const dirtyServices =
-    coches.size !== servicesLies.length || servicesLies.some((id) => !coches.has(id));
 
   /** La confirmation s'efface d'elle-même, comme sur les fiches. */
   useEffect(() => {
@@ -154,77 +189,11 @@ export function LiaisonsPanel({
     });
   }
 
-  /** Enregistre les cases puis referme : la modification est faite. */
-  function enregistrerServices() {
-    run(
-      () => setServicesAction(logicielId, [...coches]),
-      () => {
-        setSaved(true);
-        setVerrouille(true);
-      },
-    );
-  }
-
-  /** Referme en rendant aux cases leurs valeurs enregistrées — le geste
-   *  d'« Annuler », qui ne perd que des clics. */
-  function fermerServices() {
-    setCoches(new Set(servicesLies));
-    setVerrouille(true);
-  }
-
-  /**
-   * Les commandes du verrou. Pas de `preventDefault` ici, contrairement aux
-   * fiches : ces boutons ne vivent dans aucun <form>, aucune action par défaut
-   * n'est à annuler. Les `key` restent — elles interdisent à React de recycler
-   * un nœud pour son remplaçant et de lui laisser des attributs qui ne sont
-   * plus les siens.
-   */
-  const commandesServices = readOnly ? undefined : verrouille ? (
-    <button
-      key="verrou-ouvrir"
-      type="button"
-      onClick={() => setVerrouille(false)}
-      disabled={pending}
-      title="Modifier les services"
-      aria-label="Modifier les services"
-      className="btn-ghost !p-2 hover:!text-accent"
-    >
-      <SquarePen className="h-4 w-4" />
-    </button>
-  ) : (
-    <>
-      {dirtyServices ? (
-        <button
-          key="verrou-valider"
-          type="button"
-          onClick={enregistrerServices}
-          disabled={pending}
-          title="Enregistrer les services"
-          aria-label="Enregistrer les services"
-          className="btn-ghost !p-2 hover:!text-ok"
-        >
-          <Check className="h-4 w-4" />
-        </button>
-      ) : null}
-      <button
-        key="verrou-annuler"
-        type="button"
-        onClick={fermerServices}
-        disabled={pending}
-        title="Annuler la modification"
-        aria-label="Annuler la modification"
-        className="btn-ghost !p-2 hover:!text-danger"
-      >
-        <X className="h-4 w-4" />
-      </button>
-    </>
-  );
-
   return (
     <div className="space-y-3">
       {error ? <p className="alert-error">{error}</p> : null}
 
-      <Card title="Services utilisateurs" actions={commandesServices}>
+      <Card title="Services utilisateurs">
         {services.length === 0 ? (
           <p className="text-sm text-faint">
             Aucun service dans le référentiel — ajoutez-les depuis Administration › Référentiels.
@@ -263,19 +232,7 @@ export function LiaisonsPanel({
         )}
       </Card>
 
-      <Card
-        title="Serveurs d'installation"
-        actions={crayon(
-          modeServeurs,
-          () => {
-            // Éteindre vide le choix en cours : un serveur sélectionné sans le
-            // bouton qui l'associe n'attend plus rien.
-            if (modeServeurs) setNouveauServeur("");
-            setModeServeurs(!modeServeurs);
-          },
-          "les serveurs",
-        )}
-      >
+      <Card title="Serveurs d'installation">
         {serveursLies.length === 0 ? (
           <p className="mb-3 text-sm text-faint">Aucun serveur associé.</p>
         ) : (
@@ -361,20 +318,7 @@ export function LiaisonsPanel({
         )}
       </Card>
 
-      <Card
-        title="Interconnexions"
-        actions={crayon(
-          modeIntercos,
-          () => {
-            if (modeIntercos) {
-              setNouvelleCible("");
-              setNouvelleDesc("");
-            }
-            setModeIntercos(!modeIntercos);
-          },
-          "les interconnexions",
-        )}
-      >
+      <Card title="Interconnexions">
         {interconnexions.length === 0 ? (
           <p className="mb-3 text-sm text-faint">
             Aucune interconnexion déclarée (échanges de données avec d'autres logiciels).
@@ -461,32 +405,28 @@ export function LiaisonsPanel({
       {/* Une seule ligne d'actions, tout en bas, comme sur la Synthèse : les
           gestes qui portent sur l'onglet à gauche, la corbeille au bout.
 
-          Tant que les cases ne diffèrent pas de l'enregistré, il n'y a rien à
-          enregistrer et le seul geste qui reste est de partir. Dès qu'une case
-          bouge, « Enregistrer » prend la place de « Quitter » et « Annuler » le
-          rejoint, qui rend aux cases leurs valeurs enregistrées — sans
-          confirmation, il n'y a que des clics à perdre.
-
-          Les serveurs et les interconnexions n'y figurent pas : ils s'appliquent
-          AU CLIC, chacun dans sa carte. Seules les cases attendent un
-          enregistrement, parce qu'on en coche plusieurs d'affilée. */}
+          Elle suit l'état du MODE, et ses deux boutons portent la FICHE
+          ENTIÈRE : « Enregistrer » enregistre chaque onglet qui porte une
+          saisie — ici, les cases —, « Annuler » rend tout et referme, le même
+          geste que le crayon. Les serveurs et les interconnexions n'attendent
+          rien d'eux : ils s'appliquent AU CLIC, chacun dans sa carte. */}
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          {!readOnly && dirtyServices ? (
+          {!readOnly && ouvert ? (
             <>
               <button
                 type="button"
                 className="btn-primary"
-                disabled={pending}
-                onClick={enregistrerServices}
+                disabled={pending || mode?.occupe}
+                onClick={() => void mode?.enregistrerTout()}
               >
-                {pending ? "Enregistrement…" : "Enregistrer"}
+                {pending || mode?.occupe ? "Enregistrement…" : "Enregistrer"}
               </button>
               <button
                 type="button"
                 className="btn-warn"
-                disabled={pending}
-                onClick={() => setCoches(new Set(servicesLies))}
+                disabled={pending || mode?.occupe}
+                onClick={() => void mode?.annulerTout()}
               >
                 Annuler
               </button>
