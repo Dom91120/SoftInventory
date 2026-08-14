@@ -4,8 +4,9 @@ import { type ReactNode, useEffect, useState } from "react";
 import { ID_COMMANDES_ONGLET } from "@/components/commandes-onglet";
 
 /**
- * Les onglets de la fiche logiciel, versés CÔTÉ CLIENT — à la différence des
- * `Onglets` du kit, qui sont des liens et rechargent la page.
+ * Les onglets d'une FICHE à mode de modification partagé — logiciel, éditeur —,
+ * versés CÔTÉ CLIENT, à la différence des `Onglets` du kit, qui sont des liens
+ * et rechargent la page.
  *
  * La raison est la SAISIE : tous les panneaux sont montés en permanence, et
  * changer d'onglet ne fait que masquer l'un pour montrer l'autre. Un champ à

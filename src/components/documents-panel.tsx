@@ -507,7 +507,13 @@ export function DocumentsPanel({
                           disabled={pending}
                           onChange={(e) => setRenommage({ id: d.id, valeur: e.target.value })}
                           onKeyDown={(e) => {
-                            if (e.key === "Enter") renommer();
+                            // `preventDefault` : sur la fiche éditeur, ce panneau
+                            // vit DANS le <form> de la fiche, et Entrée y
+                            // déclencherait aussi l'envoi implicite du formulaire.
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              renommer();
+                            }
                             if (e.key === "Escape") setRenommage(null);
                           }}
                         />
