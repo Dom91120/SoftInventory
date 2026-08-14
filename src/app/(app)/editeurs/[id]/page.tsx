@@ -108,7 +108,10 @@ export default async function EditeurPage({
             notes: editeur.notes,
           }}
           logiciels={
-            <Card title="Logiciels de cet éditeur">
+            // `key` sur les éléments-slots, comme sur la fiche marché :
+            // désérialisés du flux RSC au rendu serveur, React les tient pour
+            // les membres d'une liste et peut réclamer une clé.
+            <Card key="logiciels" title="Logiciels de cet éditeur">
               {editeur.logiciels.length === 0 ? (
                 <p className="text-sm text-faint">
                   Aucun logiciel de l'inventaire ne lui est rattaché.
@@ -131,6 +134,7 @@ export default async function EditeurPage({
           }
           documents={
             <DocumentsPanel
+              key="documents"
               parent={{ editeurId: editeur.id }}
               readOnly={!isAdmin}
               categorieParDefaut="Présentation commerciale"

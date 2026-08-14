@@ -54,7 +54,12 @@ export function FicheOnglets<T extends string>({
       return;
     e.preventDefault();
     if (key === actif) return;
-    window.history.pushState(null, "", `${base}?onglet=${key}`);
+    // SEUL `onglet` change : les autres paramètres — le tri d'une liste, que
+    // les flèches voisin prolongent — voyagent avec la fiche et doivent
+    // survivre au basculement.
+    const q = new URLSearchParams(window.location.search);
+    q.set("onglet", key);
+    window.history.pushState(null, "", `${base}?${q.toString()}`);
     setActif(key);
   }
 

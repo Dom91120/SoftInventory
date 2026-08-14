@@ -1,10 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ID_COMMANDES_ONGLET } from "@/components/commandes-onglet";
 import { FlecheVoisin } from "@/components/fleche-voisin";
 import { ModeFicheProvider } from "@/components/mode-fiche";
-import { Onglets, PageHeader } from "@/components/ui";
+import { PageHeader } from "@/components/ui";
 import type { Role } from "@/generated/prisma/client";
 import { dateCalendaire } from "@/lib/taches-core";
 import { seuilsRappel } from "@/server/config";
@@ -20,6 +19,7 @@ import { listEditeurs } from "@/server/services/editeurs";
 import { listCategoriesDocuments } from "@/server/services/referentiels";
 import { ContratForm } from "../contrat-form";
 import { LogicielsCouverts } from "../logiciels-couverts";
+import { ongletContrat } from "../onglets";
 import { PiecesMarche } from "../pieces-marche";
 import { queryTri, triContratsDepuisParams } from "../shared";
 
@@ -54,6 +54,9 @@ export default async function ContratPage({
   const query = await searchParams;
   const { tri, sens } = triContratsDepuisParams(query);
   const qTri = queryTri(query);
+  const actif = ongletContrat(query.onglet);
+  /** Les flèches voisin emportent l'ordre de la liste ET l'onglet courant. */
+  const qFleches = `${qTri || "?"}${qTri ? "&" : ""}onglet=${actif}`;
   const jour = dateCalendaire(new Date());
 
   const [contrat, editeurs, logiciels, categories, { contrat: seuilJours }] = await Promise.all([
@@ -92,12 +95,14 @@ export default async function ContratPage({
 
   return (
     <>
+      {/* L'en-tête est encadré des flèches de navigation : on reste sur le MÊME
+          onglet en changeant de marché, et l'ordre de la liste voyage avec. */}
       <div className="mb-3 flex items-start gap-2">
         <FlecheVoisin
           voisin={voisins.precedent}
           sens="precedent"
           hrefBase="/contrats"
-          query={qTri}
+          query={qFleches}
           entite="Marché"
         />
         <div className="min-w-0 flex-1">
@@ -131,28 +136,20 @@ export default async function ContratPage({
           voisin={voisins.suivant}
           sens="suivant"
           hrefBase="/contrats"
-          query={qTri}
+          query={qFleches}
           entite="Marché"
         />
       </div>
 
-      {/* Un onglet unique : cette fiche n'en a pas plusieurs à proposer, mais
-          la barre est ce qui porte le crayon, au même bout de ligne que sur la
-          fiche logiciel. */}
-      <Onglets
-        onglets={[{ key: "fiche", label: "Contrat/Marché" }]}
-        actif="fiche"
-        href={() => `/contrats/${contrat.id}`}
-        idActions={ID_COMMANDES_ONGLET}
-      />
-
-      {/* UN mode de modification pour la fiche ENTIÈRE : le crayon de la barre
-          ouvre le formulaire du marché, mais aussi les logiciels couverts et
-          les pièces — tout ce que la page permet de changer. */}
+      {/* UN mode de modification pour la fiche ENTIÈRE, et DEUX onglets tous
+          montés — la barre vit dans ContratForm, comme sur la fiche éditeur.
+          Le crayon ouvre le formulaire du marché, mais aussi les logiciels
+          couverts et les pièces — tout ce que la page permet de changer. */}
       <ModeFicheProvider readOnly={!isAdmin} objet="ce marché">
         <ContratForm
           id={contrat.id}
           readOnly={!isAdmin}
+          onglet={actif}
           editeurs={editeurs.map((e) => ({ id: e.id, nom: e.nom }))}
           values={{
             nature: contrat.nature ?? "",
@@ -170,48 +167,59 @@ export default async function ContratPage({
               contrat.renouvellements === null ? "" : String(contrat.renouvellements),
             notes: contrat.notes,
           }}
-        >
-          <LogicielsCouverts
-            contratId={contrat.id}
-            readOnly={!isAdmin}
-            rattaches={contrat.logiciels.map((l) => ({ id: l.logiciel.id, nom: l.logiciel.nom }))}
-            // Le reste de l'inventaire : la liste de rattachement ne propose que
-            // ce qui n'est pas déjà couvert.
-            disponibles={logiciels.filter(
-              (l) => !contrat.logiciels.some((r) => r.logiciel.id === l.id),
-            )}
-          />
-          {/* Les pièces se saisissent ICI, avec le même formulaire que l'onglet
-            d'un logiciel : c'est ce qui rend utilisable un marché qui ne couvre
-            encore rien. Une pièce n'a qu'UN fichier — d'où le premier document
-            et lui seul, les éventuels autres étant hérités d'avant cette règle. */}
-          <PiecesMarche
-            contratId={contrat.id}
-            readOnly={!isAdmin}
-            categories={optionsCategories}
-            categorieParDefautId={
-              categories.find((c) => c.label === CATEGORIE_PAR_DEFAUT)?.id ?? null
-            }
-            pieces={contrat.pieces.map((p) => {
-              const d = p.documents[0];
-              return {
-                id: p.id,
-                datePiece: dateStr(p.datePiece),
-                document: d
-                  ? {
-                      id: d.id,
-                      nomOriginal: d.nomOriginal,
-                      categorieId: d.categorieId,
-                      categorie: d.categorie?.label ?? null,
-                      taille: d.taille,
-                      deposeParLabel: d.deposeParLabel,
-                      createdAt: fmt.format(d.createdAt),
-                    }
-                  : null,
-              };
-            })}
-          />
-        </ContratForm>
+          logiciels={
+            // `key` sur les deux éléments-slots : désérialisés du flux RSC au
+            // rendu serveur, React les tient pour les membres d'une liste et
+            // réclame sinon une clé — à tort ici, mais bruyamment.
+            <LogicielsCouverts
+              key="logiciels"
+              contratId={contrat.id}
+              readOnly={!isAdmin}
+              rattaches={contrat.logiciels.map((l) => ({
+                id: l.logiciel.id,
+                nom: l.logiciel.nom,
+              }))}
+              // Le reste de l'inventaire : la liste de rattachement ne propose
+              // que ce qui n'est pas déjà couvert.
+              disponibles={logiciels.filter(
+                (l) => !contrat.logiciels.some((r) => r.logiciel.id === l.id),
+              )}
+            />
+          }
+          // Les pièces se saisissent ICI, avec le même formulaire que l'onglet
+          // d'un logiciel : c'est ce qui rend utilisable un marché qui ne couvre
+          // encore rien. Une pièce n'a qu'UN fichier — d'où le premier document
+          // et lui seul, les éventuels autres étant hérités d'avant cette règle.
+          pieces={
+            <PiecesMarche
+              key="pieces"
+              contratId={contrat.id}
+              readOnly={!isAdmin}
+              categories={optionsCategories}
+              categorieParDefautId={
+                categories.find((c) => c.label === CATEGORIE_PAR_DEFAUT)?.id ?? null
+              }
+              pieces={contrat.pieces.map((p) => {
+                const d = p.documents[0];
+                return {
+                  id: p.id,
+                  datePiece: dateStr(p.datePiece),
+                  document: d
+                    ? {
+                        id: d.id,
+                        nomOriginal: d.nomOriginal,
+                        categorieId: d.categorieId,
+                        categorie: d.categorie?.label ?? null,
+                        taille: d.taille,
+                        deposeParLabel: d.deposeParLabel,
+                        createdAt: fmt.format(d.createdAt),
+                      }
+                    : null,
+                };
+              })}
+            />
+          }
+        />
       </ModeFicheProvider>
     </>
   );

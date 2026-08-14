@@ -4,6 +4,7 @@ import { Check } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { type ReactNode, useEffect, useState, useTransition } from "react";
 import { useConfirmation } from "@/components/confirmation";
+import { FicheOnglets } from "@/components/fiche-onglets";
 import { ChampsMarche, MARCHE_VIDE, type ValeursMarche } from "@/components/marche-champs";
 import { useInscriptionModeFiche } from "@/components/mode-fiche";
 import { useSaisieEnCours } from "@/components/saisie-en-cours";
@@ -13,36 +14,54 @@ import {
   deleteContratFicheAction,
   updateContratFicheAction,
 } from "./actions";
+import { ONGLETS_CONTRAT, type OngletContrat } from "./onglets";
 
 /** Les champs eux-mêmes vivent dans `ChampsMarche`, partagé avec l'onglet du logiciel. */
 export type ContratValues = ValeursMarche;
 
-/** Cible du bouton d'enregistrement, qui vit hors du <form> — voir `children`. */
+/** Cible des boutons d'enregistrement, qui vivent hors du <form>. */
 const FORM_ID = "contrat-form";
 
 /**
- * Fiche d'un marché : ses données propres, et elles seules. Les logiciels
- * couverts se rattachent au clic, dans leur propre carte (`children`), hors de
- * ce formulaire — un lien n'est pas un champ.
+ * Fiche d'un marché en DEUX ONGLETS — Synthèse (l'acte et les logiciels qu'il
+ * couvre), Documents (ses pièces) — sur le modèle des fiches logiciel et
+ * éditeur : tous les panneaux montés, masqués et non démontés au changement
+ * d'onglet, pour qu'une saisie commencée survive à un détour.
  *
- * `id` absent = création (redirige vers la fiche créée, où l'on rattache). Le
- * lecteur reçoit `readOnly` : champs désactivés, aucun bouton — la protection
- * réelle reste dans les server actions (requireRole admin).
+ * À la différence de la fiche éditeur, le <form> n'enveloppe PAS les onglets :
+ * tous ses champs vivent sur la Synthèse, et les pièces portent leurs propres
+ * <form> — qu'il est interdit d'imbriquer. Il se referme donc sur la seule
+ * carte « Marché » ; masqué avec son onglet, il reste monté, et les boutons
+ * « Enregistrer » des autres onglets le désignent par l'attribut `form`.
+ *
+ * Les logiciels couverts se rattachent au clic, dans leur propre carte, hors
+ * du formulaire — un lien n'est pas un champ.
+ *
+ * `id` absent = création (redirige vers la fiche créée, où l'on rattache) :
+ * pas d'onglets, la carte seule. Le lecteur reçoit `readOnly` : champs
+ * désactivés, aucun bouton — la protection réelle reste dans les server
+ * actions (requireRole admin).
  */
 export function ContratForm({
   id,
   values = MARCHE_VIDE,
   editeurs,
   readOnly = false,
-  children,
+  onglet = "synthese",
+  logiciels,
+  pieces,
 }: {
   id?: number;
   values?: ContratValues;
   /** Annuaire des sociétés, pour désigner le fournisseur. */
   editeurs: Array<{ id: number; nom: string }>;
   readOnly?: boolean;
-  /** Logiciels couverts et pièces, entre le formulaire et la ligne d'actions. */
-  children?: ReactNode;
+  /** L'onglet demandé par l'URL au chargement. */
+  onglet?: OngletContrat;
+  /** La carte des logiciels couverts, rendue côté serveur — onglet Synthèse. */
+  logiciels?: ReactNode;
+  /** La carte des pièces du marché, rendue côté serveur — onglet Documents. */
+  pieces?: ReactNode;
 }) {
   const router = useRouter();
   const confirmer = useConfirmation();
@@ -177,94 +196,130 @@ export function ContratForm({
     quitter();
   }
 
-  return (
-    <div className="space-y-3">
-      <form
-        id={FORM_ID}
-        ref={saisie.formRef}
-        onSubmit={submit}
-        onChange={saisie.surSaisie}
-        className="space-y-3"
-      >
-        <Card title="Marché">
-          <ChampsMarche values={values} editeurs={editeurs} disabled={dis} />
-        </Card>
-      </form>
+  /* Le <form>, refermé sur la seule carte « Marché » : ses champs sont tous
+     sur la Synthèse, et les pièces de l'onglet Documents portent leurs propres
+     <form>, qu'il est interdit d'imbriquer. */
+  const formulaireMarche = (
+    <form
+      id={FORM_ID}
+      ref={saisie.formRef}
+      onSubmit={submit}
+      onChange={saisie.surSaisie}
+      className="space-y-3"
+    >
+      <Card title="Marché">
+        <ChampsMarche values={values} editeurs={editeurs} disabled={dis} />
+      </Card>
+    </form>
+  );
 
-      {children}
-
+  /**
+   * La ligne d'actions, SOUS CHAQUE ONGLET : les deux issues du mode portent la
+   * fiche entière. Son « Enregistrer » désigne le formulaire par l'attribut
+   * `form` — il vit hors de lui, parfois sur un autre onglet.
+   *
+   * Fiche fermée : il n'y a rien à enregistrer, et le seul geste qui reste est
+   * de partir — « Quitter », en clair, puisqu'il ne décide de rien. Le crayon
+   * ouvre le mode, et « Enregistrer » et « Annuler » paraissent AUSSITÔT.
+   *
+   * En CRÉATION, la fiche n'existe pas encore : rien à retrouver, donc
+   * « Annuler » y veut dire quitter, et il est toujours offert — on entre
+   * parfois ici par erreur.
+   */
+  const ligneActions = readOnly ? null : (
+    <>
       {error ? <p className="alert-error">{error}</p> : null}
-
-      {readOnly ? null : (
-        <div className="flex items-center justify-between gap-3">
-          {/* La ligne suit l'état du MODE, et non l'écart à l'enregistré.
-
-              Fiche fermée : il n'y a rien à enregistrer, et le seul geste qui
-              reste est de partir — « Quitter », en clair, puisqu'il ne décide de
-              rien. Le crayon de la barre d'onglets l'ouvre, et « Enregistrer »
-              et « Annuler » paraissent AUSSITÔT : ce sont les deux seules issues
-              de la modification qu'on vient d'ouvrir.
-
-              En CRÉATION, la fiche n'existe pas encore : rien à retrouver, donc
-              « Annuler » y veut dire quitter, et il est toujours offert — on entre
-              parfois ici par erreur. */}
-          <div className="flex items-center gap-3">
-            {id !== undefined && !ouvert ? (
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          {id !== undefined && !ouvert ? (
+            <button
+              type="button"
+              onClick={quitter}
+              disabled={pending}
+              className="btn-secondary"
+              title="Revenir à la liste des contrats et marchés"
+            >
+              Quitter
+            </button>
+          ) : (
+            <>
+              <button
+                type="submit"
+                form={FORM_ID}
+                disabled={pending || mode?.occupe}
+                className="btn-primary"
+              >
+                {pending || mode?.occupe
+                  ? "Enregistrement…"
+                  : id === undefined
+                    ? "Créer le marché"
+                    : "Enregistrer"}
+              </button>
               <button
                 type="button"
-                onClick={quitter}
-                disabled={pending}
-                className="btn-secondary"
-                title="Revenir à la liste des contrats et marchés"
+                onClick={id === undefined ? quitterCreation : () => void mode?.annulerTout()}
+                disabled={pending || mode?.occupe}
+                className="btn-warn"
+                title={id === undefined ? "Quitter sans créer le marché" : undefined}
               >
-                Quitter
+                Annuler
               </button>
-            ) : (
-              <>
-                <button
-                  type="submit"
-                  form={FORM_ID}
-                  disabled={pending || mode?.occupe}
-                  className="btn-primary"
-                >
-                  {pending || mode?.occupe
-                    ? "Enregistrement…"
-                    : id === undefined
-                      ? "Créer le marché"
-                      : "Enregistrer"}
-                </button>
-                <button
-                  type="button"
-                  onClick={id === undefined ? quitterCreation : () => void mode?.annulerTout()}
-                  disabled={pending || mode?.occupe}
-                  className="btn-warn"
-                  title={id === undefined ? "Quitter sans créer le marché" : undefined}
-                >
-                  Annuler
-                </button>
-              </>
-            )}
-            {/* La confirmation se range à la suite des boutons, là où le regard
-                revient après le clic — plutôt qu'en bandeau, qui pousse la page. */}
-            {saved ? (
-              <span
-                className="flex items-center gap-1.5 text-sm"
-                style={{ color: "var(--color-ok-text)" }}
-              >
-                <Check className="h-4 w-4" />
-                Marché enregistré.
-              </span>
-            ) : null}
-          </div>
-          {/* La corbeille garde son bout de ligne : elle ne porte pas sur la
-              saisie en cours mais sur la fiche entière. */}
-          {id === undefined ? null : (
-            <button type="button" onClick={supprimer} disabled={pending} className="btn-danger">
-              Supprimer
-            </button>
+            </>
           )}
+          {/* La confirmation se range à la suite des boutons, là où le regard
+              revient après le clic — plutôt qu'en bandeau, qui pousse la page. */}
+          {saved ? (
+            <span
+              className="flex items-center gap-1.5 text-sm"
+              style={{ color: "var(--color-ok-text)" }}
+            >
+              <Check className="h-4 w-4" />
+              Marché enregistré.
+            </span>
+          ) : null}
         </div>
-      )}
-    </div>
+        {/* La corbeille garde son bout de ligne : elle ne porte pas sur la
+            saisie en cours mais sur la fiche entière. */}
+        {id === undefined ? null : (
+          <button type="button" onClick={supprimer} disabled={pending} className="btn-danger">
+            Supprimer
+          </button>
+        )}
+      </div>
+    </>
+  );
+
+  /* En CRÉATION, pas d'onglets : la carte seule — les logiciels couverts et
+     les pièces s'ajoutent après création. */
+  if (id === undefined) {
+    return (
+      <div className="space-y-3">
+        {formulaireMarche}
+        {ligneActions}
+      </div>
+    );
+  }
+
+  return (
+    <FicheOnglets
+      onglets={ONGLETS_CONTRAT}
+      initial={onglet}
+      base={`/contrats/${id}`}
+      panneaux={{
+        synthese: (
+          <div className="space-y-3">
+            {formulaireMarche}
+            {logiciels}
+            {ligneActions}
+          </div>
+        ),
+        documents: (
+          <div className="space-y-3">
+            {pieces}
+            {ligneActions}
+          </div>
+        ),
+      }}
+    />
   );
 }
