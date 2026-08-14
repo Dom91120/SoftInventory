@@ -107,8 +107,13 @@ export function Onglets<T extends string>({
           </Link>
         ))}
       </div>
+      {/* Le retrait bas cale l'icône sur le TEXTE des onglets, et non sur le bas
+          de la rangée où `items-end` la posait — trois pixels plus bas, ce qui
+          se voit. Deux viennent du trait de 2 px que les onglets portent sous
+          leur texte et que ce bloc n'a pas, le troisième de l'écart entre une
+          icône de 16 px et une ligne de texte, qui est plus haute. */}
       {idActions ? (
-        <div id={idActions} className="ml-auto flex shrink-0 items-center gap-1" />
+        <div id={idActions} className="ml-auto flex shrink-0 items-center gap-1 pb-[3px]" />
       ) : null}
     </div>
   );

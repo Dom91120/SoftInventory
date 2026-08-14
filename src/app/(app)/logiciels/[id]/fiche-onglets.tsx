@@ -79,7 +79,12 @@ export function FicheOnglets<T extends string>({
             </a>
           ))}
         </div>
-        <div id={ID_COMMANDES_ONGLET} className="ml-auto flex shrink-0 items-center gap-1" />
+        {/* Le retrait bas cale l'icône sur le TEXTE des onglets — même raison
+            que dans le kit (`Onglets`), dont cette barre reprend la silhouette. */}
+        <div
+          id={ID_COMMANDES_ONGLET}
+          className="ml-auto flex shrink-0 items-center gap-1 pb-[3px]"
+        />
       </div>
 
       {/* `hidden` et non un démontage : c'est tout l'objet de ce composant. */}
