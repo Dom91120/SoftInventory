@@ -89,10 +89,12 @@ export default async function ServeursPage({
           donner la forme d'un onglet ferait croire qu'on quitte la page. Deux
           liens et non deux boutons — la vue est une adresse.
 
-          `pb-[3px]`, comme l'emplacement des commandes d'onglet : le cadre se
-          pose sur la ligne des onglets sans la toucher. */}
-      <div className="mb-3 flex items-end justify-end border-b border-line pb-px">
-        <div className="mb-[3px] flex items-center gap-0.5 rounded-lg border border-sub bg-surface p-0.5">
+          SANS le filet des barres d'onglets : il annonce une bascule de contenu,
+          et il n'y en a pas ici — la page montre la même chose des deux côtés.
+          Le cadre du sélecteur se suffit, et le trait faisait doublon avec celui
+          que porte déjà le haut de la carte qui suit. */}
+      <div className="mb-3 flex items-end justify-end">
+        <div className="flex items-center gap-0.5 rounded-lg border border-sub bg-surface p-0.5">
           {VUES.map(({ cle, label, Icone }) => (
             <Link
               key={cle}
@@ -208,9 +210,19 @@ export default async function ServeursPage({
               <header className="card-header pl-7">
                 {/* Le titre de la carte EST le lien vers la fiche, plutôt qu'une
                     commande de plus à sa droite : c'est le nom qu'on vise quand
-                    on veut corriger un OS ou une localisation. */}
-                <h2 className="card-title shrink-0">
-                  <Link href={`/serveurs/${s.id}`} className="transition hover:text-accent">
+                    on veut corriger un OS ou une localisation.
+
+                    Il porte l'habillage des NOMS D'OBJETS de l'inventaire —
+                    celui des logiciels juste en dessous — et non le petit
+                    capitale grise de `card-title` : ces deux lignes nomment des
+                    choses de même rang, un serveur et ce qui tourne dessus, et
+                    l'une menait à sa fiche en ayant l'air d'un intitulé de
+                    rubrique. L'en-tête garde sa barre d'accent et sa hauteur. */}
+                <h2 className="shrink-0 text-sm font-medium">
+                  <Link
+                    href={`/serveurs/${s.id}`}
+                    className="text-strong transition hover:text-accent"
+                  >
                     {s.nom}
                   </Link>
                 </h2>

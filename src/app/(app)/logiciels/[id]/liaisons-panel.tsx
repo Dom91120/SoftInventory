@@ -236,7 +236,11 @@ export function LiaisonsPanel({
         {serveursLies.length === 0 ? (
           <p className="mb-3 text-sm text-faint">Aucun serveur associé.</p>
         ) : (
-          <ul className="mb-3 divide-y divide-line text-sm">
+          // Sans filets entre les lignes : deux installations d'un même
+          // logiciel se lisent comme une liste, pas comme deux données
+          // distinctes qu'il faudrait séparer — même règle que les cartes de
+          // l'écran Serveurs.
+          <ul className="mb-3 text-sm">
             {serveursLies.map((s) => (
               <li
                 key={`${s.serveurId}-${s.environnement}`}
