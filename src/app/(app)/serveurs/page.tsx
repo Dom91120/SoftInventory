@@ -1,6 +1,7 @@
 import { LayoutGrid, List, Plus } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Pagination, pageDepuisParams, paginer } from "@/components/pagination";
 import { EmptyState, PageHeader } from "@/components/ui";
 import type { Role } from "@/generated/prisma/client";
 import { LIBELLES } from "@/schemas/logiciel";
@@ -43,16 +44,20 @@ type VueCle = (typeof VUES)[number]["cle"];
 export default async function ServeursPage({
   searchParams,
 }: {
-  searchParams: Promise<{ vue?: string }>;
+  searchParams: Promise<{ vue?: string; page?: string }>;
 }) {
   const session = await requireUser();
   const isAdmin = (session.user as { role?: Role }).role === "admin";
-  const { vue } = await searchParams;
+  const params = await searchParams;
   // Tout ce qui n'est pas « cartes » retombe sur la liste : une adresse
   // bricolée montre le parc, jamais une page vide.
-  const active: VueCle = vue === "cartes" ? "cartes" : "liste";
+  const active: VueCle = params.vue === "cartes" ? "cartes" : "liste";
 
-  const serveurs = await listServeursAvecLogiciels();
+  // Dix par page, comme les listes de logiciels, d'éditeurs et de marchés —
+  // et le même découpage pour les DEUX vues : elles montrent le même parc,
+  // elles doivent en montrer la même tranche.
+  const tous = await listServeursAvecLogiciels();
+  const { page, pages, total, elements: serveurs } = paginer(tous, pageDepuisParams(params));
 
   /** Pastille d'environnement, commune aux deux vues. */
   const badgeEnv = (environnement: keyof typeof LIBELLES.environnement) => (
@@ -96,10 +101,13 @@ export default async function ServeursPage({
           que porte déjà le haut de la carte qui suit. */}
       <div className="mb-3 flex items-end justify-end">
         <div className="flex items-center gap-0.5 rounded-lg border border-sub bg-surface p-0.5">
+          {/* La page en cours suit le changement de vue : les deux montrent le
+              même parc dans le même ordre, on regarde donc la même tranche
+              autrement — retomber à la première serait perdre sa place. */}
           {VUES.map(({ cle, label, Icone }) => (
             <Link
               key={cle}
-              href={`?vue=${cle}`}
+              href={page > 1 ? `?vue=${cle}&page=${page}` : `?vue=${cle}`}
               aria-current={cle === active ? "page" : undefined}
               title={`Affichage en ${label.toLowerCase()}`}
               className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-sm font-medium transition ${
@@ -113,7 +121,7 @@ export default async function ServeursPage({
         </div>
       </div>
 
-      {serveurs.length === 0 ? (
+      {total === 0 ? (
         <EmptyState>
           Aucun serveur pour l'instant.
           {isAdmin ? " Créez le premier avec le bouton « + Serveur »." : ""}
@@ -268,6 +276,9 @@ export default async function ServeursPage({
           ))}
         </div>
       )}
+      {/* Le pavé des autres listes, à la même place — sous ce qu'il feuillette,
+          et sous les deux vues : c'est le même parc qu'elles découpent. */}
+      <Pagination page={page} pages={pages} total={total} params={params} />
     </>
   );
 }
