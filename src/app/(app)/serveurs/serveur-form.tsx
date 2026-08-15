@@ -4,6 +4,7 @@ import { Check } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { type ReactNode, useEffect, useState, useTransition } from "react";
 import { useConfirmation } from "@/components/confirmation";
+import { useInscriptionModeFiche } from "@/components/mode-fiche";
 import { useSaisieEnCours } from "@/components/saisie-en-cours";
 import { Card, Field } from "@/components/ui";
 import { LIBELLES_TYPE_OS, TYPES_OS } from "@/schemas/serveur";
@@ -33,17 +34,19 @@ const VIDE: ServeurValues = {
 const FORM_ID = "serveur-form";
 
 /**
- * Fiche serveur — une carte, PAS D'ONGLETS ni de crayon.
+ * Fiche serveur — une carte, et LE MÊME VERROU que les cinq autres fiches :
+ * elle s'ouvre en lecture, et c'est le crayon qui la rend modifiable.
  *
- * Les fiches à onglets (logiciel, éditeur, marché, certificat) tiennent leur
- * verrou d'un « mode fiche » dont le crayon vit au bout de la barre d'onglets.
- * Ici il n'y a pas de barre où le poser, et rien à protéger : la fiche tient
- * dans un écran, et « Annuler » rend la saisie d'un geste. Elle s'ouvre donc
- * modifiable, comme les écrans de création.
+ * Elle n'a pas d'onglets, mais elle garde leur BARRE, réduite à son filet et à
+ * l'emplacement des commandes (voir `[id]/page.tsx`) : le crayon se trouve là
+ * où on l'a laissé sur les autres fiches, et le geste ne change pas d'une
+ * fiche à l'autre. Sans lui, celle-ci s'ouvrait modifiable — un clic malheureux
+ * dans un champ, et le parc changeait sans qu'on l'ait voulu.
  *
- * `id` absent = création (redirige vers la fiche créée). Le lecteur reçoit
- * `readOnly` : champs désactivés, aucun bouton — la protection réelle reste
- * dans les server actions (requireRole admin).
+ * `id` absent = création (redirige vers la fiche créée) : pas de provider, donc
+ * pas de verrou — une fiche qu'on est en train de saisir n'a rien à protéger.
+ * Le lecteur reçoit `readOnly` : champs désactivés, aucun bouton — la protection
+ * réelle reste dans les server actions (requireRole admin).
  */
 export function ServeurForm({
   id,
@@ -61,7 +64,7 @@ export function ServeurForm({
    * la confirmation doit le dire avant qu'on les délie sans le vouloir.
    */
   nbCertificats?: number;
-  /** La carte des logiciels installés, rendue côté serveur. */
+  /** La carte des logiciels installés, montée par la page. */
   logiciels?: ReactNode;
 }) {
   const router = useRouter();
@@ -74,6 +77,51 @@ export function ServeurForm({
    *  ou un rechargement, un retour d'historique ferait sortir de l'application. */
   const quitter = () => router.push("/serveurs");
 
+  /**
+   * Enregistre CE formulaire, à la demande du mode. La validation native passe
+   * d'abord : un nom vide doit se dire ici, pas en erreur serveur.
+   */
+  async function enregistrerFormulaire(): Promise<boolean> {
+    const form = saisie.formRef.current;
+    if (id === undefined || !form) return true;
+    if (!form.reportValidity()) return false;
+    setError(null);
+    const res = await updateServeurAction(id, new FormData(form));
+    if (!res.ok) {
+      setError(res.error);
+      return false;
+    }
+    setSaved(true);
+    saisie.enregistre();
+    router.refresh();
+    return true;
+  }
+
+  /**
+   * Le verrou de la fiche est LE mode « je modifie cette fiche », celui des
+   * autres fiches, dont le crayon vit sur la barre. Le formulaire s'y inscrit
+   * avec ses trois réponses : dire s'il porte une saisie, la rendre,
+   * l'enregistrer.
+   *
+   * En CRÉATION, pas de provider : `mode` est nul et tout reste ouvert.
+   */
+  const mode = useInscriptionModeFiche({
+    sale: () => id !== undefined && saisie.modifie,
+    rendre: saisie.annuler,
+    enregistrer: enregistrerFormulaire,
+  });
+  const ouvert = mode ? mode.actif : id === undefined;
+
+  /**
+   * `FormData` IGNORE les champs désactivés : l'empreinte relevée au premier
+   * rendu, fiche verrouillée, ne vaut donc rien une fois les champs réveillés.
+   * On la reprend à l'ouverture du mode — sans quoi la première frappe
+   * comparerait un formulaire complet à un formulaire vide.
+   */
+  useEffect(() => {
+    if (ouvert) saisie.enregistre();
+  }, [ouvert, saisie.enregistre]);
+
   /** La confirmation s'efface d'elle-même : elle annonce un fait accompli, pas
    *  un état à surveiller. */
   useEffect(() => {
@@ -82,9 +130,18 @@ export function ServeurForm({
     return () => clearTimeout(t);
   }, [saved]);
 
+  /**
+   * Envoi du formulaire — bouton « Enregistrer » ou touche Entrée. Sur une
+   * fiche EXISTANTE, il passe par le mode, qui referme le verrou une fois
+   * l'enregistrement abouti. En CRÉATION, il crée.
+   */
   function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (readOnly) return;
+    if (mode) {
+      void mode.enregistrerTout();
+      return;
+    }
     setError(null);
     setSaved(false);
     const form = new FormData(e.currentTarget);
@@ -144,7 +201,7 @@ export function ServeurForm({
     });
   }
 
-  const dis = readOnly || pending;
+  const dis = readOnly || pending || !ouvert;
 
   const carteIdentite = (
     <Card title="Identité">
@@ -254,17 +311,22 @@ export function ServeurForm({
   );
 
   /**
-   * « Enregistrer » ne paraît que s'il y a quelque chose à enregistrer : tant
-   * que la fiche est telle que le serveur l'a rendue, le seul geste qui reste
-   * est de partir. En CRÉATION, il est toujours là — la fiche n'existe pas
-   * encore, il n'y a rien à comparer.
+   * La ligne suit l'état du MODE, comme sur les autres fiches.
+   *
+   * Fiche fermée : il n'y a rien à enregistrer, et le seul geste qui reste est
+   * de partir — « Quitter », en clair, puisqu'il ne décide de rien. Le crayon
+   * ouvre le mode, et « Enregistrer » et « Annuler » paraissent AUSSITÔT : ce
+   * sont les issues de la modification qu'on vient d'ouvrir.
+   *
+   * En CRÉATION, la fiche n'existe pas encore : rien à retrouver, donc
+   * « Annuler » y veut dire quitter, et il est toujours offert.
    */
   const ligneActions = readOnly ? null : (
     <>
       {error ? <p className="alert-error">{error}</p> : null}
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          {id !== undefined && !saisie.modifie ? (
+          {id !== undefined && !ouvert ? (
             <button
               type="button"
               onClick={quitter}
@@ -276,8 +338,13 @@ export function ServeurForm({
             </button>
           ) : (
             <>
-              <button type="submit" form={FORM_ID} disabled={pending} className="btn-primary">
-                {pending
+              <button
+                type="submit"
+                form={FORM_ID}
+                disabled={pending || mode?.occupe}
+                className="btn-primary"
+              >
+                {pending || mode?.occupe
                   ? "Enregistrement…"
                   : id === undefined
                     ? "Créer le serveur"
@@ -285,8 +352,8 @@ export function ServeurForm({
               </button>
               <button
                 type="button"
-                onClick={id === undefined ? quitterCreation : saisie.annuler}
-                disabled={pending}
+                onClick={id === undefined ? quitterCreation : () => void mode?.annulerTout()}
+                disabled={pending || mode?.occupe}
                 className="btn-warn"
                 title={id === undefined ? "Quitter sans créer le serveur" : undefined}
               >
@@ -322,9 +389,10 @@ export function ServeurForm({
       className="space-y-3"
     >
       {carteIdentite}
-      {/* Les installations s'ajoutent depuis la fiche du LOGICIEL, onglet
-          Liaisons : la carte est ici en lecture, hors du flux de saisie mais
-          dans le <form> — elle ne porte aucun champ nommé, elle n'envoie rien. */}
+      {/* La carte des installations vit DANS le <form> sans en faire partie :
+          elle ne porte aucun champ nommé, elle n'envoie rien, et ses gestes
+          s'appliquent au clic. Elle tient sa part du mode de la fiche pour son
+          propre compte (voir `[id]/logiciels-panel.tsx`). */}
       {logiciels}
       {ligneActions}
     </form>

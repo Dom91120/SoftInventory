@@ -185,6 +185,11 @@ export async function addServeurAction(
   try {
     await svc.addServeur(logicielId, serveurId, environnement);
     revalidatePath(`/logiciels/${logicielId}`);
+    // L'installation se déclare des DEUX côtés — onglet Liaisons du logiciel,
+    // carte « Logiciels installés » du serveur — et se lit aussi sur la liste
+    // du parc, qui montre ce que chaque machine porte.
+    revalidatePath(`/serveurs/${serveurId}`);
+    revalidatePath("/serveurs");
     return { ok: true };
   } catch (e) {
     if ((e as { code?: string })?.code === "P2003") {
@@ -207,6 +212,8 @@ export async function removeServeurAction(
   try {
     await svc.removeServeur(logicielId, serveurId, environnement);
     revalidatePath(`/logiciels/${logicielId}`);
+    revalidatePath(`/serveurs/${serveurId}`);
+    revalidatePath("/serveurs");
     return { ok: true };
   } catch (e) {
     return inattendu(e);

@@ -229,6 +229,18 @@ export async function voisinsLogiciel(id: number): Promise<{
   return { precedent: tous[i - 1] ?? null, suivant: tous[i + 1] ?? null };
 }
 
+/**
+ * La liste nue de l'inventaire — les options de la carte « Logiciels installés »
+ * d'un serveur, où l'on désigne ce qui tourne sur la machine.
+ */
+export async function listLogicielsNoms() {
+  const tous = await prisma.logiciel.findMany({
+    orderBy: [{ nom: "asc" }, { id: "asc" }],
+    select: { id: true, nom: true },
+  });
+  return tous.sort((a, b) => compareAlpha(a.nom, b.nom));
+}
+
 /** Candidats à une interconnexion : tous les logiciels sauf celui-ci. */
 export async function listAutresLogiciels(saufId: number) {
   const autres = await prisma.logiciel.findMany({
