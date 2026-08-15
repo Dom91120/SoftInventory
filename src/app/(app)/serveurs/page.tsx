@@ -59,9 +59,18 @@ export default async function ServeursPage({
   const tous = await listServeursAvecLogiciels();
   const { page, pages, total, elements: serveurs } = paginer(tous, pageDepuisParams(params));
 
-  /** Pastille d'environnement, commune aux deux vues. */
+  /**
+   * Pastille d'environnement, commune aux deux vues — au gabarit RESSERRÉ de la
+   * liste des logiciels (`px-2 py-0`, 11 px) : sur une liste, les pastilles se
+   * comptent par dizaines, et des pilules pleine taille y pèsent plus que ce
+   * qu'elles disent. Les fiches, où le badge est seul, gardent le gabarit
+   * normal. Les utilitaires l'emportent sans `!` — `.badge-*` vit dans la
+   * couche des composants, qui passe avant.
+   */
   const badgeEnv = (environnement: keyof typeof LIBELLES.environnement) => (
-    <span className={environnement === "production" ? "badge-ok" : "badge-muted"}>
+    <span
+      className={`${environnement === "production" ? "badge-ok" : "badge-muted"} px-2 py-0 text-[11px]`}
+    >
       {LIBELLES.environnement[environnement]}
     </span>
   );
