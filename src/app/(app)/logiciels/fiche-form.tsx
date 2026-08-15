@@ -28,6 +28,7 @@ export type FicheValues = {
   url: string;
   dateMiseEnService: string; // AAAA-MM-JJ ou ""
   authentification: string;
+  authentificationForte: boolean;
   nbUtilisateurs: string;
   nbMaxUtilisateurs: string;
   referentMetier: string;
@@ -47,7 +48,8 @@ export const FICHE_VIDE: FicheValues = {
   versionInstallee: "",
   url: "",
   dateMiseEnService: "",
-  authentification: "locale",
+  authentification: "",
+  authentificationForte: false,
   nbUtilisateurs: "",
   nbMaxUtilisateurs: "",
   referentMetier: "",
@@ -558,14 +560,43 @@ export function FicheForm({
               disabled={dis}
             />
           </Field>
-          <Field label="Authentification" htmlFor="authentification">
-            <Select
-              name="authentification"
-              value={values.authentification}
-              options={enumOptions(LIBELLES.authentification)}
-              disabled={dis}
-            />
-          </Field>
+          {/* Le mode et son SECOND FACTEUR partagent un tiers de rangée : ils
+              répondent à la même question — comment on entre dans ce logiciel —
+              et « SSO, et avec un code à usage unique » se lit d'un trait. La
+              case ne prend que la largeur de son libellé (`auto`), la liste
+              garde le reste ; la carte, elle, conserve ses trois colonnes.
+
+              Le vide est une réponse pour la liste : on ne sait pas toujours
+              comment un logiciel authentifie ses utilisateurs, et un défaut à
+              « Locale » le faisait dire à toutes les fiches sans que personne
+              l'ait saisi. */}
+          <div className="grid items-end gap-x-3 sm:grid-cols-[1fr_auto]">
+            <Field label="Authentification" htmlFor="authentification">
+              <Select
+                name="authentification"
+                value={values.authentification}
+                options={enumOptions(LIBELLES.authentification)}
+                disabled={dis}
+                aucun="— inconnue —"
+              />
+            </Field>
+            {/* Une case et non une liste — il y en a un, ou il n'y en a pas.
+                Hauteur exacte d'un `.input` et case CENTRÉE sous son libellé,
+                comme le « Virtuel » de la fiche serveur : seule de sa colonne,
+                elle pendrait sinon au bord gauche. */}
+            <Field label="2FA" htmlFor="authentificationForte">
+              <div className="flex h-[1.85rem] items-center justify-center">
+                <input
+                  id="authentificationForte"
+                  name="authentificationForte"
+                  type="checkbox"
+                  defaultChecked={values.authentificationForte}
+                  disabled={dis}
+                  className="h-4 w-4 accent-(--color-accent)"
+                />
+              </div>
+            </Field>
+          </div>
           <Field label="Date de mise en service" htmlFor="dateMiseEnService">
             <input
               id="dateMiseEnService"

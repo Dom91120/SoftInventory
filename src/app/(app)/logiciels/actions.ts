@@ -75,6 +75,8 @@ function parseFiche(formData: FormData) {
     url: get("url"),
     dateMiseEnService: get("dateMiseEnService"),
     authentification: get("authentification"),
+    // Une case décochée n'est PAS envoyée : son absence vaut « non ».
+    authentificationForte: formData.get("authentificationForte") === "on",
     nbUtilisateurs: get("nbUtilisateurs"),
     nbMaxUtilisateurs: get("nbMaxUtilisateurs"),
     referentMetier: get("referentMetier"),

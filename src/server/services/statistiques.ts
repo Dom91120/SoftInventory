@@ -10,10 +10,12 @@ import { prisma } from "@/server/db";
  * Ce qui a guidé le choix des séries, en regardant les données réelles plutôt
  * qu'un catalogue de graphiques :
  *
- *  - certains champs ne sont qu'à leur VALEUR PAR DÉFAUT (84 logiciels sur 85
- *    en authentification « locale », 82 en localisation de données
- *    « inconnue ») : en faire un graphique décrirait le formulaire, pas le
- *    parc. Ils sont écartés des répartitions, et comptés dans la complétude ;
+ *  - certains champs ne sont qu'à leur VALEUR PAR DÉFAUT (82 logiciels sur 85
+ *    en localisation de données « inconnue ») : en faire un graphique décrirait
+ *    le formulaire, pas le parc. Ils sont écartés des répartitions, et comptés
+ *    dans la complétude — c'est ce qu'est devenue l'authentification, qui n'a
+ *    plus de défaut du tout depuis qu'elle disait « locale » de 84 fiches sur
+ *    85 sans que personne l'ait saisi ;
  *  - à l'inverse, ce qui EST renseigné se prête à la comparaison : hébergement,
  *    éditeurs, services, technologies ;
  *  - l'inventaire étant jeune, la part de fiches renseignées est en soi la
@@ -72,6 +74,7 @@ export async function chargerStatistiques(): Promise<DonneesStatistiques> {
           technologieId: true,
           editeurId: true,
           dateMiseEnService: true,
+          authentification: true,
           referentMetier: true,
           donneesPersonnelles: true,
           registreRef: true,
@@ -218,6 +221,13 @@ export async function chargerStatistiques(): Promise<DonneesStatistiques> {
     {
       label: "Date de mise en service",
       renseignes: logiciels.filter((l) => l.dateMiseEnService !== null).length,
+    },
+    // Le champ a rejoint cette liste le jour où il a cessé d'avoir une valeur
+    // par défaut : tant que « locale » s'écrivait tout seul, il se disait
+    // rempli à 100 % sans que personne l'ait saisi.
+    {
+      label: "Authentification",
+      renseignes: logiciels.filter((l) => l.authentification !== null).length,
     },
   ]
     .map((c) => ({ ...c, total }))

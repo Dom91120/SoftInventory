@@ -142,12 +142,13 @@ export default async function LogicielPage({
           entite="Logiciel"
         />
         <div className="min-w-0 flex-1">
-          {/* Le titre et les indicateurs occupent la première rangée ; le
-              sous-titre et le raccourci vers l'éditeur forment la seconde, d'où
-              le sous-titre rendu ici plutôt que confié à PageHeader. C'est ce
-              qui met « Fiche éditeur » À LA MÊME HAUTEUR que « Édité par… » :
-              empilé dans les actions, il dépendait de la hauteur des badges et
-              se décalait selon la présence du bouton « Ouvrir l'application ». */}
+          {/* Le titre et le STATUT occupent la première rangée ; d'où vient le
+              logiciel et ce que son arrêt coûterait forment la seconde, d'où le
+              sous-titre rendu ici plutôt que confié à PageHeader.
+              La criticité est descendue d'un rang, à la place qu'occupait le
+              raccourci « Fiche éditeur » : le statut dit où en est le logiciel
+              et se lit avec son nom, la criticité pèse son importance et n'a
+              pas à se disputer cette ligne-là. */}
           <PageHeader
             className=""
             title={
@@ -171,33 +172,41 @@ export default async function LogicielPage({
                 ) : null}
               </span>
             }
-            actions={
-              <span className="flex items-center gap-2">
-                <StatutBadge statut={logiciel.statut} statuts={statuts} />
-                <CriticiteBadge criticite={logiciel.criticite} />
-              </span>
-            }
+            actions={<StatutBadge statut={logiciel.statut} statuts={statuts} />}
           />
-          {logiciel.developpementInterne || logiciel.editeur ? (
-            <div className="mt-1 flex flex-wrap items-center justify-between gap-4">
-              <p className="text-sm text-muted">
-                {logiciel.developpementInterne
-                  ? LIBELLE_INTERNE
-                  : `Édité par ${logiciel.editeur?.nom}`}
-              </p>
-              {/* Raccourci vers l'éditeur : c'est de là que viennent les
-                  coordonnées de support de l'onglet dédié. Rien à y consulter
-                  pour du développement interne — ni support, ni contrat. */}
-              {logiciel.developpementInterne || !logiciel.editeur ? null : (
-                <Link
-                  href={`/editeurs/${logiciel.editeur.id}`}
-                  className="text-sm font-medium text-muted hover:text-accent"
-                >
-                  Fiche éditeur
-                </Link>
+          <div className="mt-1 flex flex-wrap items-center justify-between gap-4">
+            {/* Le NOM de l'éditeur mène à sa fiche, et se porte en gras :
+                  c'est un nom d'objet de l'inventaire, comme le serveur d'une
+                  installation ou le logiciel d'une interconnexion — partout
+                  ailleurs, un tel nom est un lien vers cet objet. « Édité
+                  par », qui n'est qu'une tournure, garde le gris du
+                  sous-titre. Rien à lier pour du développement interne : il n'y
+                  a pas de société derrière. */}
+            <p className="text-sm text-muted">
+              {logiciel.developpementInterne || !logiciel.editeur ? (
+                logiciel.developpementInterne ? (
+                  LIBELLE_INTERNE
+                ) : null
+              ) : (
+                <>
+                  Édité par{" "}
+                  <Link
+                    href={`/editeurs/${logiciel.editeur.id}`}
+                    className="font-semibold text-strong transition hover:text-accent"
+                  >
+                    {logiciel.editeur.nom}
+                  </Link>
+                </>
               )}
-            </div>
-          ) : null}
+            </p>
+            {/* La criticité prend la place du raccourci « Fiche éditeur », qui
+                a disparu : le nom de l'éditeur, juste à gauche, mène au même
+                endroit — deux liens pour une seule destination sur une seule
+                ligne. */}
+            <span className="ml-auto flex items-center gap-2">
+              <CriticiteBadge criticite={logiciel.criticite} />
+            </span>
+          </div>
         </div>
         <FlecheVoisin
           voisin={suivant}
@@ -556,7 +565,9 @@ async function OngletSynthese({
         versionInstallee: logiciel.versionInstallee,
         url: logiciel.url,
         dateMiseEnService: dateStr(logiciel.dateMiseEnService),
-        authentification: logiciel.authentification,
+        // null (non renseigné) → "" : c'est l'option vide de la liste.
+        authentification: logiciel.authentification ?? "",
+        authentificationForte: logiciel.authentificationForte,
         nbUtilisateurs: logiciel.nbUtilisateurs === null ? "" : String(logiciel.nbUtilisateurs),
         nbMaxUtilisateurs:
           logiciel.nbMaxUtilisateurs === null ? "" : String(logiciel.nbMaxUtilisateurs),

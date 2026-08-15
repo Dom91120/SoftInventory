@@ -55,11 +55,16 @@ enum TypeSource {
 }
 
 /// Comment les utilisateurs s'authentifient dans le logiciel.
+/// « Mixte » était trop court pour ce qu'il désigne : plusieurs portes sur le
+/// même logiciel, et c'est LAQUELLE s'ajoute aux comptes locaux qui compte —
+/// fermer un compte d'annuaire ne suffit pas de la même façon selon qu'on a
+/// affaire à l'AD ou à un fournisseur d'identité.
 enum ModeAuthentification {
   locale
   sso
   ldap
-  mixte
+  mixte_ldap
+  mixte_sso
   aucune
 }
 
@@ -461,7 +466,15 @@ model Logiciel {
   /// depuis la liste et la fiche).
   url               String               @default("")
   dateMiseEnService DateTime?            @map("date_mise_en_service") @db.Date
-  authentification  ModeAuthentification @default(locale)
+  /// null = non renseigné. PAS de valeur par défaut : « locale » s'écrivait sur
+  /// toute fiche créée, et 84 des 85 logiciels l'affirmaient sans que personne
+  /// l'ait saisi — au point que l'écran Statistiques écartait le champ de ses
+  /// répartitions. Mieux vaut un vide qui se voit qu'une réponse inventée.
+  authentification  ModeAuthentification?
+  /// Second facteur exigé à la connexion (2FA / MFA). Faux par défaut, et ce
+  /// défaut-là ne ment pas : la double authentification est encore l'exception,
+  /// et c'est la cocher qui est une information.
+  authentificationForte Boolean @default(false) @map("authentification_forte")
   /// Nombre d'utilisateurs réels ; null = NON COMPTÉ. La distinction compte :
   /// un logiciel à zéro utilisateur est un candidat au retrait, un logiciel
   /// non compté n'est qu'un trou dans l'inventaire.

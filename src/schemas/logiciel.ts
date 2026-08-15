@@ -55,7 +55,7 @@ const entierOptionnel = (max: number, quoi: string) =>
 export const HEBERGEMENTS = ["saas", "on_premise", "hybride"] as const;
 export const CYCLES_DE_VIE = ["evaluation", "production", "fin_de_vie", "abandonne"] as const;
 export const TYPES_SOURCE = ["opensource", "proprietaire", "mixte"] as const;
-export const MODES_AUTH = ["locale", "sso", "ldap", "mixte", "aucune"] as const;
+export const MODES_AUTH = ["locale", "sso", "ldap", "mixte_ldap", "mixte_sso", "aucune"] as const;
 export const LOCALISATIONS = ["ue", "hors_ue", "mixte", "inconnue"] as const;
 /** Ce qu'est l'acte. Vide = non renseigné, d'où l'absence de valeur par défaut. */
 export const NATURES_MARCHE = ["marche", "contrat"] as const;
@@ -72,11 +72,15 @@ export const LIBELLES = {
     abandonne: "Abandonné",
   },
   typeSource: { opensource: "Open source", proprietaire: "Propriétaire", mixte: "Mixte" },
+  // « Mixte » dit qu'il y a plusieurs portes ; le complément dit LAQUELLE
+  // s'ajoute aux comptes locaux — ce n'est pas la même chose à fermer quand un
+  // agent s'en va.
   authentification: {
     locale: "Locale",
     sso: "SSO",
-    ldap: "LDAP / Active Directory",
-    mixte: "Mixte",
+    ldap: "LDAP",
+    mixte_ldap: "Mixte (Locale + LDAP)",
+    mixte_sso: "Mixte (Locale + SSO)",
     aucune: "Aucune",
   },
   localisationDonnees: {
@@ -129,7 +133,20 @@ export const logicielSchema = z.object({
       "URL invalide (elle doit commencer par http:// ou https://).",
     ),
   dateMiseEnService: dateOptionnelle,
-  authentification: z.enum(MODES_AUTH),
+  // "" → null : la liste s'ouvre sur « — inconnu — », et ce vide-là est une
+  // réponse. Un défaut à « locale » faisait dire à 84 fiches sur 85 quelque
+  // chose que personne n'avait saisi.
+  authentification: z
+    .string()
+    .trim()
+    .transform((v) => (v === "" ? null : v))
+    .refine(
+      (v) => v === null || (MODES_AUTH as readonly string[]).includes(v),
+      "Mode d'authentification invalide.",
+    )
+    .transform((v) => v as (typeof MODES_AUTH)[number] | null),
+  /** Second facteur exigé à la connexion. Une case : il y en a un, ou non. */
+  authentificationForte: z.boolean(),
   // Vide = non compté (null), à distinguer de zéro utilisateur.
   nbUtilisateurs: entierOptionnel(1_000_000, "Nombre d'utilisateurs"),
   // Vide = illimité.

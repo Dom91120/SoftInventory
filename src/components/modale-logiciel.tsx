@@ -55,12 +55,18 @@ export function ModaleLogiciel({
     // Faute de <form>, on reconstitue le FormData depuis les champs nommés :
     // les mêmes clés que la page logiciel, donc la même server action. Les
     // champs qu'on ne saisit pas ici arrivent absents, et `parseFiche` les lit
-    // comme vides — ce que le formulaire de création enverrait aussi.
+    // comme vides — ce que le formulaire de création enverrait aussi. La CASE
+    // à cocher se relit par `checked` : son `value` vaut « on » qu'elle soit
+    // cochée ou non, et tout logiciel créé ici se déclarerait à double facteur.
     const form = new FormData();
     for (const el of conteneur.querySelectorAll<
       HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
     >("[name]")) {
-      form.set(el.name, el.value);
+      if (el instanceof HTMLInputElement && el.type === "checkbox") {
+        if (el.checked) form.set(el.name, "on");
+      } else {
+        form.set(el.name, el.value);
+      }
     }
     const nom = String(form.get("nom") ?? "").trim();
     if (nom === "") {
@@ -269,9 +275,24 @@ export function ModaleLogiciel({
               {liste("typeSource", "Open source / propriétaire", parEnum(LIBELLES.typeSource), {
                 defaut: "proprietaire",
               })}
-              {liste("authentification", "Authentification", parEnum(LIBELLES.authentification), {
-                defaut: "locale",
-              })}
+              {/* Le mode et son second facteur partagent un tiers de rangée,
+                  comme sur la fiche : ils répondent à la même question. */}
+              <div className="grid items-end gap-x-3 sm:grid-cols-[1fr_auto]">
+                {liste("authentification", "Authentification", parEnum(LIBELLES.authentification), {
+                  aucun: "— inconnue —",
+                })}
+                <Field label="2FA" htmlFor="log-authentificationForte">
+                  <div className="flex h-[1.85rem] items-center justify-center">
+                    <input
+                      id="log-authentificationForte"
+                      name="authentificationForte"
+                      type="checkbox"
+                      disabled={pending}
+                      className="h-4 w-4 accent-(--color-accent)"
+                    />
+                  </div>
+                </Field>
+              </div>
               {champ("dateMiseEnService", "Date de mise en service", { type: "date" })}
               {champ("referentTechnique", "Référent technique", { max: 150 })}
             </div>

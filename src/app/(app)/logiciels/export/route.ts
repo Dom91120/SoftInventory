@@ -40,6 +40,7 @@ export function GET(request: Request): Promise<Response> {
         "Version",
         "URL",
         "Authentification",
+        "2FA",
         "Services utilisateurs",
         "Utilisateurs",
         "Licences",
@@ -58,7 +59,12 @@ export function GET(request: Request): Promise<Response> {
         LIBELLES.typeSource[l.typeSource],
         l.versionInstallee,
         l.url,
-        LIBELLES.authentification[l.authentification],
+        // Vide quand le mode n'est pas renseigné, comme les autres colonnes
+        // nullables du fichier.
+        l.authentification === null ? "" : LIBELLES.authentification[l.authentification],
+        // « OUI » ou rien, comme le dépassement de plafond : c'est la présence
+        // du second facteur qui est une information, pas son absence.
+        l.authentificationForte ? "OUI" : "",
         l.services.map((s) => s.service.nom).join(", "),
         l.nbUtilisateurs === null ? "" : l.nbUtilisateurs,
         // Vide = illimité ou non renseigné, comme dans la fiche (et comme les
