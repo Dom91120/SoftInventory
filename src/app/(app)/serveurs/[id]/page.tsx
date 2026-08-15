@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { FlecheVoisin } from "@/components/fleche-voisin";
 import { Card, PageHeader } from "@/components/ui";
 import type { Role } from "@/generated/prisma/client";
 import { LIBELLES } from "@/schemas/logiciel";
 import { requireUser } from "@/server/guards";
-import { getServeur } from "@/server/services/serveurs";
+import { getServeur, voisinsServeur } from "@/server/services/serveurs";
 import { ServeurForm } from "../serveur-form";
 
 export const metadata: Metadata = { title: "Serveur" };
@@ -17,21 +18,45 @@ export default async function ServeurPage({ params }: { params: Promise<{ id: st
   const { id: idStr } = await params;
   const id = Number(idStr);
   if (!Number.isInteger(id) || id < 1) notFound();
-  const serveur = await getServeur(id);
+  const [serveur, voisins] = await Promise.all([getServeur(id), voisinsServeur(id)]);
   if (!serveur) notFound();
 
   return (
     <>
-      <PageHeader
-        title={serveur.nom}
-        subtitle={isAdmin ? "Fiche serveur" : "Fiche serveur (lecture seule)"}
-      />
+      {/* L'en-tête est encadré des flèches de navigation : on parcourt le parc
+          sans repasser par la liste, DANS SON ORDRE — alphabétique, celui des
+          deux vues de l'écran Serveurs. Pas d'onglet à conserver ici : la fiche
+          serveur tient dans un écran. */}
+      <div className="mb-4 flex items-start gap-2">
+        <FlecheVoisin
+          voisin={voisins.precedent}
+          sens="precedent"
+          hrefBase="/serveurs"
+          entite="Serveur"
+        />
+        <div className="min-w-0 flex-1">
+          <PageHeader
+            className=""
+            title={serveur.nom}
+            subtitle={isAdmin ? "Fiche serveur" : "Fiche serveur (lecture seule)"}
+          />
+        </div>
+        <FlecheVoisin
+          voisin={voisins.suivant}
+          sens="suivant"
+          hrefBase="/serveurs"
+          entite="Serveur"
+        />
+      </div>
       <ServeurForm
         id={serveur.id}
         readOnly={!isAdmin}
         nbCertificats={serveur._count.certificats}
         values={{
           nom: serveur.nom,
+          virtuel: serveur.virtuel,
+          // null (non renseigné) → "" : c'est l'option vide de la liste.
+          typeOs: serveur.typeOs ?? "",
           os: serveur.os,
           localisation: serveur.localisation,
           notes: serveur.notes,

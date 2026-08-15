@@ -49,6 +49,26 @@ export function getServeur(id: number) {
   });
 }
 
+/**
+ * Serveurs précédent et suivant DANS L'ORDRE DE LA LISTE — alphabétique, celui
+ * des deux vues de l'écran Serveurs. Même approche que `voisinsEditeur` : on
+ * relit la liste des seuls noms, on s'y repère, et les deux ordres ne peuvent
+ * donc pas diverger. L'`id` départage : `nom` est unique, mais le tri doit
+ * rester stable quoi qu'il arrive.
+ */
+export async function voisinsServeur(id: number): Promise<{
+  precedent: { id: number; nom: string } | null;
+  suivant: { id: number; nom: string } | null;
+}> {
+  const tous = await prisma.serveur.findMany({
+    orderBy: [{ nom: "asc" }, { id: "asc" }],
+    select: { id: true, nom: true },
+  });
+  const i = tous.findIndex((s) => s.id === id);
+  if (i === -1) return { precedent: null, suivant: null };
+  return { precedent: tous[i - 1] ?? null, suivant: tous[i + 1] ?? null };
+}
+
 export function createServeur(data: ServeurInput) {
   return prisma.serveur.create({ data });
 }

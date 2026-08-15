@@ -6,21 +6,34 @@ import { type ReactNode, useEffect, useState, useTransition } from "react";
 import { useConfirmation } from "@/components/confirmation";
 import { useSaisieEnCours } from "@/components/saisie-en-cours";
 import { Card, Field } from "@/components/ui";
+import { LIBELLES_TYPE_OS, TYPES_OS } from "@/schemas/serveur";
 import { createServeurAction, deleteServeurAction, updateServeurAction } from "./actions";
 
 export type ServeurValues = {
   nom: string;
+  virtuel: boolean;
+  typeOs: string;
   os: string;
   localisation: string;
   notes: string;
 };
 
-const VIDE: ServeurValues = { nom: "", os: "", localisation: "", notes: "" };
+/** Le parc est virtualisé : la machine physique est l'exception, et une
+ *  création part de ce qui est vrai neuf fois sur dix. Le type de système, lui,
+ *  ne se devine pas — il s'ouvre à vide. */
+const VIDE: ServeurValues = {
+  nom: "",
+  virtuel: true,
+  typeOs: "",
+  os: "",
+  localisation: "",
+  notes: "",
+};
 
 const FORM_ID = "serveur-form";
 
 /**
- * Fiche serveur — quatre champs, une carte, PAS D'ONGLETS ni de crayon.
+ * Fiche serveur — une carte, PAS D'ONGLETS ni de crayon.
  *
  * Les fiches à onglets (logiciel, éditeur, marché, certificat) tiennent leur
  * verrou d'un « mode fiche » dont le crayon vit au bout de la barre d'onglets.
@@ -135,11 +148,20 @@ export function ServeurForm({
 
   const carteIdentite = (
     <Card title="Identité">
-      {/* Le nom prend la moitié de la ligne, l'OS et la localisation un quart
-          chacun : c'est le nom qu'on lit et qu'on cherche, les deux autres
-          tiennent en quelques mots. */}
-      <div className="grid gap-x-3 gap-y-2 sm:grid-cols-4">
-        <div className="sm:col-span-2">
+      {/* Ce qu'on dit d'une machine tient sur UNE ligne : son nom, si elle est
+          virtuelle, sa famille de système, sa version exacte, où elle se trouve.
+          La case à cocher et la liste des types prennent `auto` — leur largeur
+          MINIMALE, celle de leur libellé et de leur plus longue option : elles
+          n'ont rien à gagner à s'étirer. Ce qui reste se partage en parts
+          inégales — 30 / 24 / 23 — parce qu'un nom de machine, une version de
+          système et un lieu n'ont pas la même longueur.
+
+          `fr` et non `%` : la grille pose quatre gouttières de 12 px, et des
+          pourcentages faisant 100 déborderaient d'autant. `items-end` aligne les
+          champs par le BAS — c'est là que se pose la case à cocher, plus courte
+          que les champs qu'elle voisine. */}
+      <div className="grid gap-x-3 gap-y-2">
+        <div className="grid items-end gap-x-3 gap-y-2 sm:grid-cols-[30fr_auto_auto_24fr_23fr]">
           <Field label="Nom du serveur" htmlFor="nom" required>
             <input
               id="nom"
@@ -151,41 +173,82 @@ export function ServeurForm({
               placeholder="Ex : SRV-AFFGE"
             />
           </Field>
-        </div>
-        <Field label="Système" htmlFor="os">
-          <input
-            id="os"
-            name="os"
-            defaultValue={values.os}
-            disabled={dis}
-            className="input"
-            placeholder="Ex : Windows Server 2022"
-          />
-        </Field>
-        <Field label="Localisation" htmlFor="localisation">
-          <input
-            id="localisation"
-            name="localisation"
-            defaultValue={values.localisation}
-            disabled={dis}
-            className="input"
-            placeholder="Ex : salle serveur — mairie"
-          />
-        </Field>
-        {/* Pleine largeur : c'est de la prose, elle ne se lit pas en colonne. */}
-        <div className="sm:col-span-4">
-          <Field label="Observations" htmlFor="notes">
-            <textarea
-              id="notes"
-              name="notes"
-              defaultValue={values.notes}
+          {/* La hauteur est POSÉE à celle EXACTE d'un `.input` — 1,85 rem, le
+              même nombre que le bouton « + » de la fiche logiciel. Sans elle, la
+              case seule ferait une rangée plus courte et se collerait au bas de
+              la ligne ; à 30 px ronds elle la dépassait de 0,4 px, et comme la
+              rangée s'aligne par le BAS, c'est le libellé « VIRTUEL » qui
+              montait d'un pixel au-dessus de ses voisins.
+              La case se CENTRE sous son libellé : seule de sa colonne, dont
+              « VIRTUEL » fixe la largeur, elle pendait au bord gauche. */}
+          <Field label="Virtuel" htmlFor="virtuel">
+            <div className="flex h-[1.85rem] items-center justify-center">
+              <input
+                id="virtuel"
+                name="virtuel"
+                type="checkbox"
+                defaultChecked={values.virtuel}
+                disabled={dis}
+                className="h-4 w-4 accent-(--color-accent)"
+              />
+            </div>
+          </Field>
+          {/* La FAMILLE du système, celle qui décide des outils d'administration.
+              Sa version exacte se saisit juste à côté, en clair. Le vide est une
+              réponse : on ne sait pas toujours, et rien n'oblige à trancher. */}
+          <Field label="Type" htmlFor="typeOs">
+            <select
+              id="typeOs"
+              name="typeOs"
+              defaultValue={values.typeOs}
               disabled={dis}
-              rows={3}
+              // `!w-auto` : une liste de trois choix courts n'a pas besoin d'une
+              // colonne, elle prend la largeur de sa plus longue option. Le
+              // `w-full` d'`.input` est fait pour les champs de saisie, où l'on
+              // ne sait pas d'avance ce qui sera tapé.
+              className="input !w-auto"
+            >
+              <option value="">— inconnu —</option>
+              {TYPES_OS.map((cle) => (
+                <option key={cle} value={cle}>
+                  {LIBELLES_TYPE_OS[cle]}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Système" htmlFor="os">
+            <input
+              id="os"
+              name="os"
+              defaultValue={values.os}
+              disabled={dis}
               className="input"
-              placeholder="Informations libres : virtualisation, sauvegarde, exploitant, particularités…"
+              placeholder="Ex : Windows Server 2022"
+            />
+          </Field>
+          <Field label="Localisation" htmlFor="localisation">
+            <input
+              id="localisation"
+              name="localisation"
+              defaultValue={values.localisation}
+              disabled={dis}
+              className="input"
+              placeholder="Ex : salle serveur — mairie"
             />
           </Field>
         </div>
+        {/* Pleine largeur : c'est de la prose, elle ne se lit pas en colonne. */}
+        <Field label="Observations" htmlFor="notes">
+          <textarea
+            id="notes"
+            name="notes"
+            defaultValue={values.notes}
+            disabled={dis}
+            rows={3}
+            className="input"
+            placeholder="Informations libres : sauvegarde, exploitant, particularités…"
+          />
+        </Field>
       </div>
     </Card>
   );

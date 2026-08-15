@@ -352,13 +352,27 @@ model ServiceUtilisateur {
   @@map("services_utilisateurs")
 }
 
+/// Famille du système : ce qui décide des outils d'administration et des
+/// habitudes d'exploitation. La VERSION exacte reste dans `os`, en clair.
+/// Vide = non renseigné, d'où l'absence de valeur par défaut.
+enum TypeOs {
+  windows
+  linux
+}
+
 /// Serveur d'hébergement (interne ou hébergé) sur lequel des logiciels tournent.
 model Serveur {
-  id           Int    @id @default(autoincrement())
-  nom          String @unique
-  os           String @default("")
-  localisation String @default("") // salle serveur, datacenter, hébergeur…
-  notes        String @default("")
+  id  Int    @id @default(autoincrement())
+  nom String @unique
+  /// Machine virtuelle plutôt que matériel dédié. Vrai par défaut : le parc
+  /// est virtualisé, et c'est la machine physique qui fait exception.
+  virtuel Boolean @default(true)
+  /// null = non renseigné : personne n'est obligé de trancher, et le parc
+  /// repris de l'existant n'a pas été dépouillé sur ce point.
+  typeOs       TypeOs? @map("type_os")
+  os           String  @default("")
+  localisation String  @default("") // salle serveur, datacenter, hébergeur…
+  notes        String  @default("")
 
   logiciels   LogicielServeur[]
   certificats Certificat[]

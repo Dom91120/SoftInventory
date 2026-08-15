@@ -25,6 +25,9 @@ function messageErreur(e: unknown): string {
 function parseForm(formData: FormData) {
   return serveurSchema.safeParse({
     nom: formData.get("nom") ?? "",
+    // Une case décochée n'est PAS envoyée : son absence vaut « non ».
+    virtuel: formData.get("virtuel") === "on",
+    typeOs: formData.get("typeOs") ?? "",
     os: formData.get("os") ?? "",
     localisation: formData.get("localisation") ?? "",
     notes: formData.get("notes") ?? "",

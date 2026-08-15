@@ -4,6 +4,7 @@ import Link from "next/link";
 import { EmptyState, PageHeader } from "@/components/ui";
 import type { Role } from "@/generated/prisma/client";
 import { LIBELLES } from "@/schemas/logiciel";
+import { LIBELLES_TYPE_OS } from "@/schemas/serveur";
 import { requireUser } from "@/server/guards";
 import { listServeursAvecLogiciels } from "@/server/services/serveurs";
 
@@ -127,13 +128,19 @@ export default async function ServeursPage({
             <table className="data-table table-fixed">
               <colgroup>
                 <col style={{ width: "22%" }} />
-                <col style={{ width: "16%" }} />
+                <col style={{ width: "12%" }} />
                 <col style={{ width: "18%" }} />
-                <col style={{ width: "44%" }} />
+                <col style={{ width: "48%" }} />
               </colgroup>
               <thead>
                 <tr>
                   <th>Serveur</th>
+                  {/* La colonne garde son titre d'origine — c'est « l'OS » qu'on
+                      cherche des yeux — mais donne la FAMILLE du système et non
+                      sa version : « Windows » se balaie d'un trait sur quinze
+                      lignes, « Windows Server 2022 » demande qu'on le lise. La
+                      version exacte reste sur la fiche, où l'on va quand on la
+                      cherche. */}
                   <th>OS</th>
                   <th>Localisation</th>
                   <th>Logiciels installés</th>
@@ -160,8 +167,8 @@ export default async function ServeursPage({
                     {/* Un tiret plutôt qu'une case vide : la colonne existe,
                         c'est le renseignement qui manque. */}
                     <td>
-                      <span className="block truncate text-muted" title={s.os}>
-                        {s.os || "—"}
+                      <span className="block truncate text-muted">
+                        {s.typeOs ? LIBELLES_TYPE_OS[s.typeOs] : "—"}
                       </span>
                     </td>
                     <td>
@@ -226,8 +233,13 @@ export default async function ServeursPage({
                     {s.nom}
                   </Link>
                 </h2>
+                {/* Le TYPE seul, comme la colonne de la liste — et rien d'autre :
+                    la localisation n'a rien à faire là où l'on regarde ce qu'une
+                    machine porte, et elle se lit dans l'autre vue. Rien quand le
+                    type n'est pas renseigné : un tiret tient une colonne, pas une
+                    ligne de méta. */}
                 <span className="min-w-0 truncate text-xs text-faint">
-                  {[s.os, s.localisation].filter(Boolean).join(" · ")}
+                  {s.typeOs ? LIBELLES_TYPE_OS[s.typeOs] : ""}
                 </span>
               </header>
               <div className="card-body">
