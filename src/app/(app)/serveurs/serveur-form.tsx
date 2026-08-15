@@ -8,6 +8,7 @@ import { useInscriptionModeFiche } from "@/components/mode-fiche";
 import { useSaisieEnCours } from "@/components/saisie-en-cours";
 import { Card, Field } from "@/components/ui";
 import { LIBELLES_TYPE_OS, TYPES_OS } from "@/schemas/serveur";
+import { addServeurAction } from "../logiciels/actions";
 import { createServeurAction, deleteServeurAction, updateServeurAction } from "./actions";
 
 export type ServeurValues = {
@@ -54,10 +55,18 @@ export function ServeurForm({
   readOnly = false,
   nbCertificats = 0,
   logiciels,
+  installationsEnAttente = [],
 }: {
   id?: number;
   values?: ServeurValues;
   readOnly?: boolean;
+  /**
+   * EN CRÉATION seulement : les installations déclarées avant que la machine
+   * existe. Elles ne peuvent pas s'écrire plus tôt — une ligne de liaison exige
+   * les deux identifiants —, alors le formulaire les pose juste après la
+   * création, avant de partir vers la fiche.
+   */
+  installationsEnAttente?: Array<{ logicielId: number; environnement: string }>;
   /**
    * Les certificats que ce serveur équipe. Ils n'empêchent pas la suppression —
    * leur rattachement est en SetNull, le certificat survit à la machine — mais
@@ -153,6 +162,22 @@ export function ServeurForm({
         return;
       }
       if (id === undefined && res.id) {
+        // Les installations déclarées pendant la saisie se posent maintenant :
+        // la machine a enfin un identifiant. EN SÉQUENCE, et un échec ARRÊTE le
+        // départ vers la fiche : le serveur, lui, est bien créé, et une
+        // redirection emporterait le message avec elle.
+        let pose = true;
+        for (const i of installationsEnAttente) {
+          const lien = await addServeurAction(i.logicielId, res.id, i.environnement);
+          if (!lien.ok) {
+            setError(
+              `Le serveur est créé, mais une installation n'a pas pu être déclarée : ${lien.error ?? "erreur."} Reprenez-la depuis sa fiche.`,
+            );
+            pose = false;
+            break;
+          }
+        }
+        if (!pose) return;
         router.replace(`/serveurs/${res.id}`);
         router.refresh();
       } else {

@@ -15,8 +15,8 @@ import {
   listTechnologies,
 } from "@/server/services/referentiels";
 import { getServeur, voisinsServeur } from "@/server/services/serveurs";
+import { LogicielsPanel } from "../logiciels-panel";
 import { ServeurForm } from "../serveur-form";
-import { LogicielsPanel } from "./logiciels-panel";
 
 export const metadata: Metadata = { title: "Serveur" };
 

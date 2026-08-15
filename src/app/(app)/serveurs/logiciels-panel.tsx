@@ -9,9 +9,9 @@ import { useInscriptionModeFiche } from "@/components/mode-fiche";
 import { Card } from "@/components/ui";
 import { compareAlpha } from "@/lib/format";
 import { LIBELLES } from "@/schemas/logiciel";
-import { addServeurAction, removeServeurAction } from "../../logiciels/actions";
+import { addServeurAction, removeServeurAction } from "../logiciels/actions";
 
-type Installation = { logicielId: number; nom: string; environnement: string };
+export type Installation = { logicielId: number; nom: string; environnement: string };
 type Option = { id: number; label: string };
 type OptionCle = { cle: string; label: string };
 
@@ -41,16 +41,27 @@ export type ReferentielsLogiciel = {
  * mode se limite au choix en suspens : un logiciel désigné sans avoir cliqué
  * « Associer » est une saisie comme une autre, que « Enregistrer » applique et
  * qu'« Annuler » jette.
+ *
+ * EN CRÉATION (`serveurId` absent), la machine n'existe pas encore : il n'y a
+ * aucune ligne de liaison à écrire, et rien ne part au serveur. Les
+ * installations s'empilent dans l'état du parent, qui les posera toutes une
+ * fois le serveur créé — on monte un serveur en disant du même geste ce qu'on
+ * y met. Pas de verrou non plus : une fiche qu'on est en train de saisir n'a
+ * rien à protéger.
  */
 export function LogicielsPanel({
   serveurId,
   installations,
+  onChangeEnAttente,
   logiciels,
   referentiels,
   readOnly,
 }: {
-  serveurId: number;
+  /** Absent = création : les installations attendent que la machine existe. */
+  serveurId?: number;
   installations: Installation[];
+  /** En création, la liste vit chez le parent : c'est lui qui l'appliquera. */
+  onChangeEnAttente?: (installations: Installation[]) => void;
   /** Tout l'inventaire : c'est parmi lui qu'on désigne ce qui tourne ici. */
   logiciels: Option[];
   /** De quoi créer un logiciel absent de l'inventaire, sans quitter la fiche. */
@@ -74,7 +85,22 @@ export function LogicielsPanel({
   async function associer(): Promise<boolean> {
     if (!nouveauLogiciel) return true;
     setError(null);
-    const res = await addServeurAction(Number(nouveauLogiciel), serveurId, nouvelEnv);
+    const logicielId = Number(nouveauLogiciel);
+    // En création, rien ne part au serveur : la ligne de liaison exige les DEUX
+    // identifiants, et la machine n'en a pas encore. L'installation rejoint la
+    // liste en attente, que le formulaire posera après la création.
+    if (serveurId === undefined) {
+      const deja = installations.some(
+        (i) => i.logicielId === logicielId && i.environnement === nouvelEnv,
+      );
+      if (!deja) {
+        const nom = inventaire.find((l) => l.id === logicielId)?.label ?? "";
+        onChangeEnAttente?.([...installations, { logicielId, nom, environnement: nouvelEnv }]);
+      }
+      setNouveauLogiciel("");
+      return true;
+    }
+    const res = await addServeurAction(logicielId, serveurId, nouvelEnv);
     if (!res.ok) {
       setError(res.error ?? "Erreur.");
       return false;
@@ -89,10 +115,20 @@ export function LogicielsPanel({
     rendre: () => setNouveauLogiciel(""),
     enregistrer: associer,
   });
-  const fige = readOnly || !mode?.actif;
+  /** Le mode ne gouverne que la FICHE : en création, tout est ouvert d'emblée. */
+  const ouvert = mode ? mode.actif : serveurId === undefined;
+  const fige = readOnly || !ouvert;
 
   function retirer(i: Installation) {
     setError(null);
+    if (serveurId === undefined) {
+      onChangeEnAttente?.(
+        installations.filter(
+          (x) => !(x.logicielId === i.logicielId && x.environnement === i.environnement),
+        ),
+      );
+      return;
+    }
     startTransition(async () => {
       const res = await removeServeurAction(i.logicielId, serveurId, i.environnement);
       if (!res.ok) {

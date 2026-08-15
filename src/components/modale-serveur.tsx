@@ -17,6 +17,13 @@ import { LIBELLES_TYPE_OS, TYPES_OS } from "@/schemas/serveur";
  * moment de l'associer, et aller le créer ailleurs coûterait la saisie en
  * cours.
  *
+ * PAS de carte « Logiciels installés », à l'inverse de l'écran de création :
+ * on arrive ici depuis la ligne « Choisir un serveur… › Associer » de l'onglet
+ * Liaisons, qui pose précisément cette installation — et qui retient d'office
+ * la machine créée. La proposer une seconde fois dans la modale offrirait deux
+ * chemins pour un seul geste, à l'endroit où l'on ne s'occupe pas encore de ce
+ * que la machine porte.
+ *
  * Pas de <form> ici : la modale s'affiche À L'INTÉRIEUR de l'écran appelant, et
  * un formulaire imbriqué est invalide en HTML. D'où les champs relus à la main
  * depuis le conteneur, la soumission au clic, et l'interception d'Entrée qui
