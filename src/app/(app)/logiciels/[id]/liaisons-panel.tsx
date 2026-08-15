@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { type ReactNode, useEffect, useState, useTransition } from "react";
 import { BoutonQuitter } from "@/components/bouton-quitter";
+import { ModaleServeur } from "@/components/modale-serveur";
 import { useInscriptionModeFiche } from "@/components/mode-fiche";
 import { Card } from "@/components/ui";
 import { compareAlpha } from "@/lib/format";
@@ -71,6 +72,13 @@ export function LiaisonsPanel({
   const [coches, setCoches] = useState<Set<number>>(new Set(servicesLies));
   const [nouveauServeur, setNouveauServeur] = useState("");
   const [nouvelEnv, setNouvelEnv] = useState("production");
+  /**
+   * Le parc tenu localement : une machine créée depuis cette carte doit paraître
+   * dans la liste SANS recharger la page, qui perdrait les cases en cours.
+   * Même façon de faire que l'annuaire des éditeurs sur la fiche logiciel.
+   */
+  const [parc, setParc] = useState(serveurs);
+  const [modaleServeur, setModaleServeur] = useState(false);
   const [nouvelleCible, setNouvelleCible] = useState("");
   const [nouvelleDesc, setNouvelleDesc] = useState("");
 
@@ -280,16 +288,18 @@ export function LiaisonsPanel({
             ))}
           </ul>
         )}
-        {serveursFiges ? null : serveurs.length === 0 ? (
-          <p className="text-sm text-faint">
-            Aucun serveur dans l'inventaire — créez-en un depuis l'écran{" "}
-            <Link href="/serveurs" className="text-accent hover:underline">
-              Serveurs
-            </Link>
-            .
-          </p>
-        ) : (
+        {serveursFiges ? null : (
           <div className="flex flex-wrap items-center gap-2">
+            {parc.length === 0 ? (
+              <p className="basis-full text-sm text-faint">
+                Aucun serveur dans l'inventaire — créez la première machine avec le « + », ou depuis
+                l'écran{" "}
+                <Link href="/serveurs" className="text-accent hover:underline">
+                  Serveurs
+                </Link>
+                .
+              </p>
+            ) : null}
             <select
               className="input !w-auto"
               value={nouveauServeur}
@@ -298,12 +308,29 @@ export function LiaisonsPanel({
               aria-label="Serveur"
             >
               <option value="">Choisir un serveur…</option>
-              {serveurs.map((s) => (
+              {parc.map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.label}
                 </option>
               ))}
             </select>
+            {/* Le « + » ouvre la fiche serveur ENTIÈRE, sans quitter celle-ci :
+                on découvre que la machine manque au parc au moment de l'associer,
+                et aller la créer ailleurs coûterait les cases en cours. Même
+                geste qu'à l'éditeur de la Synthèse, et la même forme de modale.
+                Carré de 1,85 rem, la hauteur des listes qu'il accompagne. */}
+            <button
+              type="button"
+              className="btn-secondary !h-[1.85rem] !w-[1.85rem] shrink-0 !p-0"
+              title="Créer un serveur absent du parc"
+              aria-label="Créer un serveur absent du parc"
+              disabled={pending}
+              onClick={() => setModaleServeur(true)}
+            >
+              <span aria-hidden className="text-sm leading-none">
+                ➕
+              </span>
+            </button>
             <select
               className="input !w-auto"
               value={nouvelEnv}
@@ -463,6 +490,25 @@ export function LiaisonsPanel({
         </div>
         {supprimer}
       </div>
+
+      {modaleServeur ? (
+        <ModaleServeur
+          onFermer={() => setModaleServeur(false)}
+          onCree={(serveur) => {
+            // Insérée dans l'ordre alphabétique, celui de la liste, et retenue
+            // aussitôt : c'est pour l'associer ici qu'on vient de la créer. Le
+            // bouton « Associer » reste le geste qui la pose — la modale crée
+            // la machine, elle ne décide pas de l'installation.
+            setParc((liste) =>
+              [...liste, { id: serveur.id, label: serveur.nom }].sort((a, b) =>
+                compareAlpha(a.label, b.label),
+              ),
+            );
+            setNouveauServeur(String(serveur.id));
+            setModaleServeur(false);
+          }}
+        />
+      ) : null}
     </div>
   );
 }

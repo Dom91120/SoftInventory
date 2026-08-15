@@ -68,7 +68,7 @@ export default async function ServeursPage({
           ajoute, le libellé n'a plus qu'à nommer ce qu'on ajoute. */}
       <PageHeader
         title="Serveurs"
-        subtitle="Le parc et ce qui y tourne (les installations se déclarent depuis la fiche de chaque logiciel)"
+        subtitle="Le parc et ce qui y tourne"
         actions={
           isAdmin ? (
             <Link href="/serveurs/nouveau" className="btn-primary" title="Nouveau serveur">
