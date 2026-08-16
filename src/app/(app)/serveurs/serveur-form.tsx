@@ -308,7 +308,7 @@ export function ServeurForm({
               placeholder="Ex : Windows Server 2022"
             />
           </Field>
-          <Field label="Localisation" htmlFor="localisation">
+          <Field label="Emplacement" htmlFor="localisation">
             <input
               id="localisation"
               name="localisation"

@@ -341,8 +341,13 @@ body {
   .data-table {
     @apply w-full text-sm;
   }
+  /* `truncate` sur l'en-tête comme sur les cellules : quand la colonne est
+     plus étroite que son titre, celui-ci se coupe sur trois points au lieu de
+     déborder sur la colonne voisine et de s'y mélanger. Sans effet sur les
+     tableaux à largeur automatique, où la colonne prend déjà la place de son
+     titre. */
   .data-table thead th {
-    @apply pb-1.5 pr-3 text-left text-xs font-semibold uppercase tracking-wide text-faint;
+    @apply truncate pb-1.5 pr-3 text-left text-xs font-semibold uppercase tracking-wide text-faint;
   }
   .data-table tbody tr {
     @apply border-t border-line transition;

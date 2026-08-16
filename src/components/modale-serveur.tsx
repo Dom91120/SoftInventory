@@ -167,7 +167,7 @@ export function ModaleServeur({
                     placeholder="Ex : Windows Server 2022"
                   />
                 </Field>
-                <Field label="Localisation" htmlFor="srv-localisation">
+                <Field label="Emplacement" htmlFor="srv-localisation">
                   <input
                     id="srv-localisation"
                     name="localisation"

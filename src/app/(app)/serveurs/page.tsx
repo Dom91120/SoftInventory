@@ -144,10 +144,10 @@ export default async function ServeursPage({
                 dont le contenu varie d'un serveur à l'autre. */}
             <table className="data-table table-fixed">
               <colgroup>
-                <col style={{ width: "22%" }} />
-                <col style={{ width: "12%" }} />
                 <col style={{ width: "18%" }} />
-                <col style={{ width: "48%" }} />
+                <col style={{ width: "10%" }} />
+                <col style={{ width: "12%" }} />
+                <col style={{ width: "60%" }} />
               </colgroup>
               <thead>
                 <tr>
@@ -159,7 +159,7 @@ export default async function ServeursPage({
                       version exacte reste sur la fiche, où l'on va quand on la
                       cherche. */}
                   <th>OS</th>
-                  <th>Localisation</th>
+                  <th>Emplacement</th>
                   <th>Logiciels installés</th>
                 </tr>
               </thead>
@@ -167,8 +167,10 @@ export default async function ServeursPage({
                 {serveurs.map((s) => (
                   // Hauteur plancher et non fixe : un serveur qui porte cinq
                   // logiciels prend la ligne qu'il lui faut, les autres gardent
-                  // le pas régulier de la liste des logiciels.
-                  <tr key={s.id} className="h-12">
+                  // le pas régulier de la liste des logiciels. Le rembourrage
+                  // vertical des cellules saute pour que ce plancher de 48 px
+                  // soit tenu tel quel — même geste que la liste des éditeurs.
+                  <tr key={s.id} className="h-12 [&>td]:py-0">
                     {/* Le nom mène à SA fiche, où le serveur se modifie et se
                         supprime — même geste que sur les listes de logiciels,
                         d'éditeurs et de marchés. */}
@@ -197,7 +199,7 @@ export default async function ServeursPage({
                       {s.logiciels.length === 0 ? (
                         <span className="text-faint">Aucun logiciel associé.</span>
                       ) : (
-                        <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                        <span className="flex flex-wrap items-center gap-x-3 gap-y-0">
                           {s.logiciels.map((ls) => (
                             <span
                               key={`${ls.logicielId}-${ls.environnement}`}
