@@ -252,7 +252,7 @@ export function LiaisonsPanel({
             {serveursLies.map((s) => (
               <li
                 key={`${s.serveurId}-${s.environnement}`}
-                className="flex items-center justify-between gap-3 py-2"
+                className="flex items-center justify-between gap-3 pt-2"
               >
                 <span>
                   {/* Le nom mène à la FICHE du serveur — son système, sa
@@ -370,7 +370,7 @@ export function LiaisonsPanel({
         ) : (
           <ul className="mb-3 divide-y divide-line text-sm">
             {interconnexions.map((ix) => (
-              <li key={ix.id} className="flex items-center justify-between gap-3 py-2">
+              <li key={ix.id} className="flex items-center justify-between gap-3 pt-2">
                 <span className="flex min-w-0 items-center gap-2">
                   {ix.direction === "sortante" ? (
                     <ArrowRight className="h-4 w-4 shrink-0 text-accent" />
