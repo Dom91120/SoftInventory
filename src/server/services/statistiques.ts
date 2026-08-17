@@ -73,6 +73,7 @@ export async function chargerStatistiques(): Promise<DonneesStatistiques> {
           criticiteId: true,
           technologieId: true,
           editeurId: true,
+          developpementInterne: true,
           dateMiseEnService: true,
           authentification: true,
           referentMetier: true,
@@ -209,7 +210,15 @@ export async function chargerStatistiques(): Promise<DonneesStatistiques> {
       label: "Service utilisateur",
       renseignes: logiciels.filter((l) => l.services.length > 0).length,
     },
-    { label: "Éditeur", renseignes: logiciels.filter((l) => l.editeurId !== null).length },
+    // « Développement interne » RÉPOND à la question « qui l'édite ? » : la
+    // fiche est renseignée, même si aucune ligne de l'annuaire n'est désignée.
+    // La sentinelle de la liste ne vit que dans l'écran — en base, c'est le
+    // booléen qui la porte —, et ne compter que `editeurId` reprochait à cinq
+    // fiches faites maison un champ qu'elles avaient bel et bien rempli.
+    {
+      label: "Éditeur",
+      renseignes: logiciels.filter((l) => l.editeurId !== null || l.developpementInterne).length,
+    },
     { label: "Technologie", renseignes: logiciels.filter((l) => l.technologieId !== null).length },
     { label: "Marché rattaché", renseignes: logiciels.filter((l) => l.contrats.length > 0).length },
     { label: "Serveur", renseignes: logiciels.filter((l) => l.serveurs.length > 0).length },
