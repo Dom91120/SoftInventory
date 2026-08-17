@@ -250,6 +250,34 @@ export async function addInterconnexionAction(
   }
 }
 
+/**
+ * Reprendre la description d'un flux déjà déclaré, sans le retirer ni le
+ * redéclarer. Mêmes bornes qu'à la déclaration — 300 caractères, tondus de
+ * leurs blancs —, et pas d'identifiant de fiche en paramètre : la ligne porte
+ * ses deux extrémités, ce sont elles qu'on rafraîchit, d'où qu'on l'ait éditée.
+ */
+export async function setDescriptionInterconnexionAction(
+  id: number,
+  description: string,
+): Promise<Result> {
+  await requireRole("admin");
+  if (!idValide(id)) return { ok: false, error: "Identifiant invalide." };
+  const desc = String(description ?? "").trim();
+  if (desc.length > 300)
+    return { ok: false, error: "Description trop longue (300 caractères max)." };
+  try {
+    const ix = await svc.setDescriptionInterconnexion(id, desc);
+    revalidatePath(`/logiciels/${ix.sourceId}`);
+    revalidatePath(`/logiciels/${ix.cibleId}`);
+    return { ok: true };
+  } catch (e) {
+    if ((e as { code?: string })?.code === "P2025") {
+      return { ok: false, error: "Interconnexion introuvable — la page n'est plus à jour." };
+    }
+    return inattendu(e);
+  }
+}
+
 export async function removeInterconnexionAction(id: number, logicielId: number): Promise<Result> {
   await requireRole("admin");
   if (!idValide(id) || !idValide(logicielId)) return { ok: false, error: "Identifiant invalide." };

@@ -199,6 +199,18 @@ export function addInterconnexion(sourceId: number, cibleId: number, description
   });
 }
 
+/**
+ * La description seule se reprend en place. Les deux bouts du flux, eux, ne se
+ * modifient pas : ils FONT l'interconnexion — en changer un ne corrige pas la
+ * ligne, il en désigne une autre. On la retire et on la déclare à nouveau.
+ *
+ * Rend la ligne mise à jour : l'appelant a besoin de ses deux extrémités pour
+ * rafraîchir les deux fiches où elle paraît.
+ */
+export function setDescriptionInterconnexion(id: number, description: string) {
+  return prisma.interconnexion.update({ where: { id }, data: { description } });
+}
+
 export function removeInterconnexion(id: number) {
   return prisma.interconnexion.delete({ where: { id } });
 }

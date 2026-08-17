@@ -117,9 +117,13 @@ export default async function EditeurPage({
                   Aucun logiciel de l'inventaire ne lui est rattaché.
                 </p>
               ) : (
-                <ul className="divide-y divide-line text-sm">
+                // Sans filets entre les lignes, comme les cartes de l'onglet
+                // Liaisons d'un logiciel : les logiciels d'un même éditeur se
+                // lisent comme une liste, pas comme des données distinctes
+                // qu'il faudrait séparer.
+                <ul className="text-sm">
                   {editeur.logiciels.map((l) => (
-                    <li key={l.id} className="py-2">
+                    <li key={l.id} className="pt-2">
                       <Link
                         href={`/logiciels/${l.id}`}
                         className="font-medium text-strong hover:text-accent"

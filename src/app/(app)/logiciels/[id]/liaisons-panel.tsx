@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, ArrowRight, Check, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Pencil, Plus, Trash2, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { type ReactNode, useEffect, useState, useTransition } from "react";
@@ -15,6 +15,7 @@ import {
   addServeurAction,
   removeInterconnexionAction,
   removeServeurAction,
+  setDescriptionInterconnexionAction,
   setServicesAction,
 } from "../actions";
 import type { Option } from "../fiche-form";
@@ -81,16 +82,24 @@ export function LiaisonsPanel({
   const [modaleServeur, setModaleServeur] = useState(false);
   const [nouvelleCible, setNouvelleCible] = useState("");
   const [nouvelleDesc, setNouvelleDesc] = useState("");
+  /**
+   * Le flux dont on reprend la description, et le texte en cours de frappe. En
+   * PLACE et non dans le formulaire du bas : celui-ci déclare un flux, il ne
+   * corrige pas celui d'à côté, et la ligne qu'on modifie doit rester sous les
+   * yeux. Un seul à la fois — ouvrir un autre crayon referme le précédent.
+   */
+  const [editIx, setEditIx] = useState<{ id: number; desc: string } | null>(null);
 
   const [saved, setSaved] = useState(false);
 
   /**
    * L'onglet n'a plus son propre verrou : ses trois cartes lisent LE mode
    * « je modifie cette fiche » de la barre d'onglets. Il s'y inscrit avec
-   * l'écart de ses CASES — elles seules attendent un enregistrement ; un
-   * serveur choisi ou un flux décrit sans avoir cliqué le bouton qui les
-   * applique ne sont qu'un geste en suspens, vidé sans question. Sa part du
-   * « Enregistrer » global est l'envoi de ces cases.
+   * l'écart de ses CASES, et d'une description reprise au crayon sans avoir
+   * cliqué son ✓ — un serveur choisi ou un flux décrit sans avoir cliqué le
+   * bouton qui les applique ne sont qu'un geste en suspens, vidé sans question.
+   * Sa part du « Enregistrer » global est l'envoi de ces cases, et de cette
+   * reprise restée ouverte.
    */
   const mode = useInscriptionModeFiche({
     // Les cases qui s'écartent de l'enregistré, mais aussi les gestes en
@@ -101,7 +110,8 @@ export function LiaisonsPanel({
       servicesLies.some((id) => !coches.has(id)) ||
       nouveauServeur !== "" ||
       nouvelleCible !== "" ||
-      nouvelleDesc !== "",
+      nouvelleDesc !== "" ||
+      descIxModifiee(),
     rendre: () => {
       setCoches(new Set(servicesLies));
       vider();
@@ -141,6 +151,16 @@ export function LiaisonsPanel({
         setError("Une interconnexion est décrite mais son logiciel cible n'est pas choisi.");
         return false;
       }
+      // Le crayon laissé ouvert sur un flux existant : « Enregistrer » applique
+      // sa reprise comme le ✓ de la ligne l'aurait fait.
+      if (editIx && descIxModifiee()) {
+        const res = await setDescriptionInterconnexionAction(editIx.id, editIx.desc);
+        if (!res.ok) {
+          setError(res.error ?? "Erreur.");
+          return false;
+        }
+      }
+      setEditIx(null);
       router.refresh();
       return true;
     },
@@ -149,20 +169,32 @@ export function LiaisonsPanel({
   const casesFigees = readOnly || pending || !ouvert;
   /**
    * Les deux autres cartes n'ont rien à enregistrer — associer un serveur,
-   * déclarer un flux, les retirer : tout s'applique au clic. Le mode n'y
-   * donne que le DROIT DE TOUCHER ; `pending` ne les fige pas, chaque bouton
-   * porte déjà son propre `disabled`.
+   * déclarer un flux, les retirer, reprendre une description : tout s'applique
+   * au clic, ✓ compris. Le mode n'y donne que le DROIT DE TOUCHER ; `pending`
+   * ne les fige pas, chaque bouton porte déjà son propre `disabled`.
    */
   const serveursFiges = readOnly || !ouvert;
   const intercosFigees = readOnly || !ouvert;
 
   /** Vide les saisies en cours : un serveur choisi sans le bouton qui
-   *  l'associe, une description de flux sans sa cible, n'attendent plus rien
-   *  une fois les cartes closes. */
+   *  l'associe, une description de flux sans sa cible, une reprise laissée
+   *  ouverte, n'attendent plus rien une fois les cartes closes. */
   function vider() {
     setNouveauServeur("");
     setNouvelleCible("");
     setNouvelleDesc("");
+    setEditIx(null);
+  }
+
+  /**
+   * Le crayon OUVERT ne salit rien à lui seul : c'est le texte qui s'écarte de
+   * l'enregistré qui attend un geste. Ouvrir une ligne pour la relire et
+   * refermer l'onglet ne doit pas réclamer de confirmation.
+   */
+  function descIxModifiee() {
+    if (!editIx) return false;
+    const ligne = interconnexions.find((i) => i.id === editIx.id);
+    return !!ligne && editIx.desc.trim() !== ligne.description;
   }
 
   /**
@@ -195,6 +227,22 @@ export function LiaisonsPanel({
         router.refresh();
       }
     });
+  }
+
+  /**
+   * Applique la reprise en cours et referme la ligne. Un texte inchangé ne part
+   * pas au serveur : refermer par ✓ sans avoir rien tapé n'est pas une écriture.
+   */
+  function appliquerEditIx() {
+    if (!editIx) return;
+    if (!descIxModifiee()) {
+      setEditIx(null);
+      return;
+    }
+    run(
+      () => setDescriptionInterconnexionAction(editIx.id, editIx.desc),
+      () => setEditIx(null),
+    );
   }
 
   return (
@@ -368,7 +416,11 @@ export function LiaisonsPanel({
             Aucune interconnexion déclarée (échanges de données avec d'autres logiciels).
           </p>
         ) : (
-          <ul className="mb-3 divide-y divide-line text-sm">
+          // Sans filets entre les lignes, comme les serveurs d'installation
+          // juste au-dessus : deux échanges déclarés pour un même logiciel se
+          // lisent comme une liste, pas comme deux données distinctes qu'il
+          // faudrait séparer.
+          <ul className="mb-3 text-sm">
             {interconnexions.map((ix) => (
               <li key={ix.id} className="flex items-center justify-between gap-3 pt-2">
                 <span className="flex min-w-0 items-center gap-2">
@@ -383,20 +435,77 @@ export function LiaisonsPanel({
                   >
                     {ix.autre.nom}
                   </Link>
-                  {ix.description ? (
+                  {/* La saisie prend la place du texte, à même la ligne : on
+                      corrige ce qu'on lit, sans quitter des yeux le flux dont
+                      il s'agit. Entrée applique, Échap renonce — la souris
+                      n'est pas obligatoire pour deux mots à reprendre. */}
+                  {editIx?.id === ix.id ? (
+                    <input
+                      // biome-ignore lint/a11y/noAutofocus: le curseur va où le crayon vient de cliquer.
+                      autoFocus
+                      className="input !h-7 !w-72 !py-0 text-xs"
+                      aria-label="Description du flux"
+                      maxLength={300}
+                      value={editIx.desc}
+                      disabled={pending}
+                      onChange={(e) => setEditIx({ id: ix.id, desc: e.target.value })}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") appliquerEditIx();
+                        if (e.key === "Escape") setEditIx(null);
+                      }}
+                    />
+                  ) : ix.description ? (
                     <span className="truncate text-xs text-muted">— {ix.description}</span>
                   ) : null}
                 </span>
                 {intercosFigees ? null : (
-                  <button
-                    type="button"
-                    className="btn-ghost !p-2 hover:!text-danger"
-                    title="Supprimer l'interconnexion"
-                    disabled={pending}
-                    onClick={() => run(() => removeInterconnexionAction(ix.id, logicielId))}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
+                  <span className="flex shrink-0 items-center gap-1">
+                    {/* Le crayon cède la place à ✓ / ✕ sur la ligne qu'il a
+                        ouverte : la reprise s'applique et se rend LÀ, sans
+                        remonter aux boutons du bas — ceux-ci restent le filet,
+                        pour le crayon laissé ouvert. */}
+                    {editIx?.id === ix.id ? (
+                      <>
+                        <button
+                          type="button"
+                          className="btn-ghost !p-2 hover:!text-ok"
+                          title="Appliquer la description"
+                          disabled={pending}
+                          onClick={appliquerEditIx}
+                        >
+                          <Check className="h-4 w-4" />
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-ghost !p-2"
+                          title="Renoncer à la reprise"
+                          disabled={pending}
+                          onClick={() => setEditIx(null)}
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        type="button"
+                        className="btn-ghost !p-2"
+                        title="Modifier la description du flux"
+                        disabled={pending}
+                        onClick={() => setEditIx({ id: ix.id, desc: ix.description })}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      className="btn-ghost !p-2 hover:!text-danger"
+                      title="Supprimer l'interconnexion"
+                      disabled={pending}
+                      onClick={() => run(() => removeInterconnexionAction(ix.id, logicielId))}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </span>
                 )}
               </li>
             ))}
@@ -453,10 +562,13 @@ export function LiaisonsPanel({
           ENTIÈRE : « Enregistrer » enregistre chaque onglet qui porte une
           saisie — ici, les cases —, « Annuler » rend tout et referme, le même
           geste que le crayon. Les serveurs et les interconnexions n'attendent
-          rien d'eux : ils s'appliquent AU CLIC, chacun dans sa carte. */}
+          rien d'eux : ils s'appliquent AU CLIC, chacun dans sa carte.
+
+          Ils ne paraissent qu'une fois la fiche touchée : ouvrir au crayon pour
+          relire ne donne rien à enregistrer ni rien à rendre. */}
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          {!readOnly && ouvert ? (
+          {!readOnly && ouvert && mode?.modifie ? (
             <>
               <button
                 type="button"
