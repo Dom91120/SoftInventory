@@ -74,6 +74,7 @@ export async function chargerStatistiques(): Promise<DonneesStatistiques> {
           technologieId: true,
           editeurId: true,
           developpementInterne: true,
+          sansServeur: true,
           dateMiseEnService: true,
           authentification: true,
           referentMetier: true,
@@ -221,7 +222,15 @@ export async function chargerStatistiques(): Promise<DonneesStatistiques> {
     },
     { label: "Technologie", renseignes: logiciels.filter((l) => l.technologieId !== null).length },
     { label: "Marché rattaché", renseignes: logiciels.filter((l) => l.contrats.length > 0).length },
-    { label: "Serveur", renseignes: logiciels.filter((l) => l.serveurs.length > 0).length },
+    // Même raison que l'éditeur : « aucun serveur » est une RÉPONSE — le
+    // logiciel tourne chez l'éditeur ou sur les postes. Sans elle, la jauge
+    // tombait à 32 % en comptant les trente-six SaaS et les neuf logiciels de
+    // poste comme autant de fiches à compléter, alors que la question ne s'y
+    // pose pas.
+    {
+      label: "Serveur",
+      renseignes: logiciels.filter((l) => l.serveurs.length > 0 || l.sansServeur).length,
+    },
     { label: "Criticité", renseignes: logiciels.filter((l) => l.criticiteId !== null).length },
     {
       label: "Référent métier",

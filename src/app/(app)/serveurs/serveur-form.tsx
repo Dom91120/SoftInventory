@@ -66,7 +66,7 @@ export function ServeurForm({
    * les deux identifiants —, alors le formulaire les pose juste après la
    * création, avant de partir vers la fiche.
    */
-  installationsEnAttente?: Array<{ logicielId: number; environnement: string }>;
+  installationsEnAttente?: Array<{ logicielId: number }>;
   /**
    * Les certificats que ce serveur équipe. Ils n'empêchent pas la suppression —
    * leur rattachement est en SetNull, le certificat survit à la machine — mais
@@ -175,7 +175,7 @@ export function ServeurForm({
         // redirection emporterait le message avec elle.
         let pose = true;
         for (const i of installationsEnAttente) {
-          const lien = await addServeurAction(i.logicielId, res.id, i.environnement);
+          const lien = await addServeurAction(i.logicielId, res.id);
           if (!lien.ok) {
             setError(
               `Le serveur est créé, mais une installation n'a pas pu être déclarée : ${lien.error ?? "erreur."} Reprenez-la depuis sa fiche.`,

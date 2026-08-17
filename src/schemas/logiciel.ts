@@ -59,7 +59,6 @@ export const MODES_AUTH = ["locale", "sso", "ldap", "mixte_ldap", "mixte_sso", "
 export const LOCALISATIONS = ["ue", "hors_ue", "mixte", "inconnue"] as const;
 /** Ce qu'est l'acte. Vide = non renseigné, d'où l'absence de valeur par défaut. */
 export const NATURES_MARCHE = ["marche", "contrat"] as const;
-export const ENVIRONNEMENTS = ["production", "test", "recette", "formation"] as const;
 
 // Libellés d'affichage des enums (une seule traduction pour toute l'app).
 // L'hébergement n'y est plus : ses libellés s'administrent dans Référentiels ›
@@ -90,12 +89,6 @@ export const LIBELLES = {
     inconnue: "Inconnue",
   },
   natureMarche: { marche: "Marché", contrat: "Contrat" },
-  environnement: {
-    production: "Production",
-    test: "Test",
-    recette: "Recette",
-    formation: "Formation",
-  },
 } as const;
 
 /**

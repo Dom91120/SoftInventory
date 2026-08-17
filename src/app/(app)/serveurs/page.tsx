@@ -4,7 +4,6 @@ import Link from "next/link";
 import { Pagination, pageDepuisParams, paginer } from "@/components/pagination";
 import { EmptyState, PageHeader } from "@/components/ui";
 import type { Role } from "@/generated/prisma/client";
-import { LIBELLES } from "@/schemas/logiciel";
 import { LIBELLES_TYPE_OS } from "@/schemas/serveur";
 import { requireUser } from "@/server/guards";
 import { listServeursAvecLogiciels } from "@/server/services/serveurs";
@@ -58,22 +57,6 @@ export default async function ServeursPage({
   // elles doivent en montrer la même tranche.
   const tous = await listServeursAvecLogiciels();
   const { page, pages, total, elements: serveurs } = paginer(tous, pageDepuisParams(params));
-
-  /**
-   * Pastille d'environnement, commune aux deux vues — au gabarit RESSERRÉ de la
-   * liste des logiciels (`px-2 py-0`, 11 px) : sur une liste, les pastilles se
-   * comptent par dizaines, et des pilules pleine taille y pèsent plus que ce
-   * qu'elles disent. Les fiches, où le badge est seul, gardent le gabarit
-   * normal. Les utilitaires l'emportent sans `!` — `.badge-*` vit dans la
-   * couche des composants, qui passe avant.
-   */
-  const badgeEnv = (environnement: keyof typeof LIBELLES.environnement) => (
-    <span
-      className={`${environnement === "production" ? "badge-ok" : "badge-muted"} px-2 py-0 text-[11px]`}
-    >
-      {LIBELLES.environnement[environnement]}
-    </span>
-  );
 
   return (
     <>
@@ -201,18 +184,13 @@ export default async function ServeursPage({
                       ) : (
                         <span className="flex flex-wrap items-center gap-x-3 gap-y-0">
                           {s.logiciels.map((ls) => (
-                            <span
-                              key={`${ls.logicielId}-${ls.environnement}`}
-                              className="inline-flex items-center gap-1.5"
+                            <Link
+                              key={ls.logicielId}
+                              href={`/logiciels/${ls.logiciel.id}`}
+                              className="font-medium text-strong hover:text-accent"
                             >
-                              <Link
-                                href={`/logiciels/${ls.logiciel.id}`}
-                                className="font-medium text-strong hover:text-accent"
-                              >
-                                {ls.logiciel.nom}
-                              </Link>
-                              {badgeEnv(ls.environnement)}
-                            </span>
+                              {ls.logiciel.nom}
+                            </Link>
                           ))}
                         </span>
                       )}
@@ -267,17 +245,13 @@ export default async function ServeursPage({
                 ) : (
                   <ul className="text-sm">
                     {s.logiciels.map((ls) => (
-                      <li
-                        key={`${ls.logicielId}-${ls.environnement}`}
-                        className="flex items-center justify-between gap-3 py-1.5"
-                      >
+                      <li key={ls.logicielId} className="py-1.5">
                         <Link
                           href={`/logiciels/${ls.logiciel.id}`}
                           className="font-medium text-strong hover:text-accent"
                         >
                           {ls.logiciel.nom}
                         </Link>
-                        {badgeEnv(ls.environnement)}
                       </li>
                     ))}
                   </ul>

@@ -8,10 +8,9 @@ import { ModaleLogiciel } from "@/components/modale-logiciel";
 import { useInscriptionModeFiche } from "@/components/mode-fiche";
 import { Card } from "@/components/ui";
 import { compareAlpha } from "@/lib/format";
-import { LIBELLES } from "@/schemas/logiciel";
 import { addServeurAction, removeServeurAction } from "../logiciels/actions";
 
-export type Installation = { logicielId: number; nom: string; environnement: string };
+export type Installation = { logicielId: number; nom: string };
 type Option = { id: number; label: string };
 type OptionCle = { cle: string; label: string };
 
@@ -72,7 +71,6 @@ export function LogicielsPanel({
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [nouveauLogiciel, setNouveauLogiciel] = useState("");
-  const [nouvelEnv, setNouvelEnv] = useState("production");
   /**
    * L'inventaire tenu localement : un logiciel créé depuis cette carte doit
    * paraître dans la liste SANS recharger la page, qui perdrait la saisie de la
@@ -90,17 +88,15 @@ export function LogicielsPanel({
     // identifiants, et la machine n'en a pas encore. L'installation rejoint la
     // liste en attente, que le formulaire posera après la création.
     if (serveurId === undefined) {
-      const deja = installations.some(
-        (i) => i.logicielId === logicielId && i.environnement === nouvelEnv,
-      );
+      const deja = installations.some((i) => i.logicielId === logicielId);
       if (!deja) {
         const nom = inventaire.find((l) => l.id === logicielId)?.label ?? "";
-        onChangeEnAttente?.([...installations, { logicielId, nom, environnement: nouvelEnv }]);
+        onChangeEnAttente?.([...installations, { logicielId, nom }]);
       }
       setNouveauLogiciel("");
       return true;
     }
-    const res = await addServeurAction(logicielId, serveurId, nouvelEnv);
+    const res = await addServeurAction(logicielId, serveurId);
     if (!res.ok) {
       setError(res.error ?? "Erreur.");
       return false;
@@ -122,15 +118,11 @@ export function LogicielsPanel({
   function retirer(i: Installation) {
     setError(null);
     if (serveurId === undefined) {
-      onChangeEnAttente?.(
-        installations.filter(
-          (x) => !(x.logicielId === i.logicielId && x.environnement === i.environnement),
-        ),
-      );
+      onChangeEnAttente?.(installations.filter((x) => x.logicielId !== i.logicielId));
       return;
     }
     startTransition(async () => {
-      const res = await removeServeurAction(i.logicielId, serveurId, i.environnement);
+      const res = await removeServeurAction(i.logicielId, serveurId);
       if (!res.ok) {
         setError(res.error ?? "Erreur.");
         return;
@@ -155,23 +147,13 @@ export function LogicielsPanel({
         // — même règle que les cartes de l'écran Serveurs.
         <ul className="mb-3 text-sm">
           {installations.map((i) => (
-            <li
-              key={`${i.logicielId}-${i.environnement}`}
-              className="flex items-center justify-between gap-3 py-2"
-            >
-              <span>
-                <Link
-                  href={`/logiciels/${i.logicielId}`}
-                  className="font-medium text-strong hover:text-accent"
-                >
-                  {i.nom}
-                </Link>
-                <span
-                  className={`ml-2 ${i.environnement === "production" ? "badge-ok" : "badge-muted"}`}
-                >
-                  {LIBELLES.environnement[i.environnement as keyof typeof LIBELLES.environnement]}
-                </span>
-              </span>
+            <li key={i.logicielId} className="flex items-center justify-between gap-3 pt-2">
+              <Link
+                href={`/logiciels/${i.logicielId}`}
+                className="font-medium text-strong hover:text-accent"
+              >
+                {i.nom}
+              </Link>
               {fige ? null : (
                 <button
                   type="button"
@@ -232,19 +214,6 @@ export function LogicielsPanel({
               ➕
             </span>
           </button>
-          <select
-            className="input !w-auto"
-            value={nouvelEnv}
-            onChange={(e) => setNouvelEnv(e.target.value)}
-            disabled={pending}
-            aria-label="Environnement"
-          >
-            {Object.entries(LIBELLES.environnement).map(([v, l]) => (
-              <option key={v} value={v}>
-                {l}
-              </option>
-            ))}
-          </select>
           <button
             type="button"
             className="btn-secondary"

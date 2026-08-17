@@ -6,7 +6,6 @@ import {
   contratSchema,
   devisSchema,
   EDITEUR_INTERNE,
-  ENVIRONNEMENTS,
   logicielRgpdSchema,
   logicielSchema,
   pieceContratSchema,
@@ -171,21 +170,42 @@ export async function setServicesAction(logicielId: number, serviceIds: number[]
   }
 }
 
-const envValide = (v: unknown): v is (typeof ENVIRONNEMENTS)[number] =>
-  typeof v === "string" && (ENVIRONNEMENTS as readonly string[]).includes(v);
-
-export async function addServeurAction(
+/**
+ * « Ce logiciel ne s'installe sur aucune machine du parc » — SaaS, poste de
+ * travail. Une réponse, et non une absence de réponse : la complétude de
+ * l'inventaire la compte comme telle.
+ *
+ * Le marqueur et les installations s'excluent : le service refuse de le poser
+ * sur un logiciel qui en porte, et ce refus-là se DIT — il nomme le conflit,
+ * là où `inattendu` ne dirait que « une erreur est survenue ». On rafraîchit
+ * aussi le parc, qui montre ce que chaque machine porte.
+ */
+export async function setSansServeurAction(
   logicielId: number,
-  serveurId: number,
-  environnement: string,
+  sansServeur: boolean,
 ): Promise<Result> {
+  await requireRole("admin");
+  if (!idValide(logicielId)) return { ok: false, error: "Identifiant invalide." };
+  try {
+    await svc.setSansServeur(logicielId, sansServeur === true);
+    revalidatePath(`/logiciels/${logicielId}`);
+    revalidatePath("/serveurs");
+    return { ok: true };
+  } catch (e) {
+    if (e instanceof Error && e.message.startsWith("Ce logiciel est déclaré sur")) {
+      return { ok: false, error: e.message };
+    }
+    return inattendu(e);
+  }
+}
+
+export async function addServeurAction(logicielId: number, serveurId: number): Promise<Result> {
   await requireRole("admin");
   if (!idValide(logicielId) || !idValide(serveurId)) {
     return { ok: false, error: "Identifiant invalide." };
   }
-  if (!envValide(environnement)) return { ok: false, error: "Environnement invalide." };
   try {
-    await svc.addServeur(logicielId, serveurId, environnement);
+    await svc.addServeur(logicielId, serveurId);
     revalidatePath(`/logiciels/${logicielId}`);
     // L'installation se déclare des DEUX côtés — onglet Liaisons du logiciel,
     // carte « Logiciels installés » du serveur — et se lit aussi sur la liste
@@ -201,18 +221,13 @@ export async function addServeurAction(
   }
 }
 
-export async function removeServeurAction(
-  logicielId: number,
-  serveurId: number,
-  environnement: string,
-): Promise<Result> {
+export async function removeServeurAction(logicielId: number, serveurId: number): Promise<Result> {
   await requireRole("admin");
   if (!idValide(logicielId) || !idValide(serveurId)) {
     return { ok: false, error: "Identifiant invalide." };
   }
-  if (!envValide(environnement)) return { ok: false, error: "Environnement invalide." };
   try {
-    await svc.removeServeur(logicielId, serveurId, environnement);
+    await svc.removeServeur(logicielId, serveurId);
     revalidatePath(`/logiciels/${logicielId}`);
     revalidatePath(`/serveurs/${serveurId}`);
     revalidatePath("/serveurs");

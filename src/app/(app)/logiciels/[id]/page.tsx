@@ -603,8 +603,8 @@ async function OngletLiaisons({
       serveursLies={logiciel.serveurs.map((s) => ({
         serveurId: s.serveurId,
         nom: s.serveur.nom,
-        environnement: s.environnement,
       }))}
+      sansServeur={logiciel.sansServeur}
       autresLogiciels={autres.map((l) => ({ id: l.id, label: l.nom }))}
       interconnexions={[
         ...logiciel.interconnexionsSource.map((ix) => ({

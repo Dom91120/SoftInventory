@@ -119,14 +119,6 @@ enum NatureMarche {
   contrat
 }
 
-/// Environnement d'une installation sur un serveur.
-enum Environnement {
-  production
-  test
-  recette
-  formation
-}
-
 // ============================================================
 //  Authentification (Better Auth) — formes contractuelles
 // ============================================================
@@ -452,6 +444,16 @@ model Logiciel {
   /// qui polluait l'annuaire et les listes de fournisseurs.
   developpementInterne Boolean  @default(false) @map("developpement_interne")
 
+  /// Ce logiciel ne s'installe sur AUCUNE machine du parc : il tourne chez
+  /// l'éditeur (SaaS) ou sur les postes des agents. Sans ce marqueur, une fiche
+  /// sans serveur ne se distinguait pas d'une fiche dont le serveur reste à
+  /// saisir, et la complétude allait chercher du travail là où il n'y en avait
+  /// pas — 32 % annoncés pour un champ qui ne concernait que la moitié du parc.
+  /// Même parti que `developpementInterne` : l'information est portée par le
+  /// logiciel, plutôt que par une machine sentinelle « Aucun » qui aurait
+  /// pollué le parc et tous ses décomptes.
+  sansServeur   Boolean      @default(false) @map("sans_serveur")
+
   hebergement   Hebergement  @default(on_premise)
   technologieId Int?         @map("technologie_id")
   technologie   Technologie? @relation(fields: [technologieId], references: [id], onDelete: SetNull)
@@ -527,15 +529,20 @@ model LogicielService {
 
 /// N-N logiciel ↔ serveur, qualifié par l'environnement : un même logiciel
 /// peut être installé sur le même serveur en prod ET en test.
+/// « Ce logiciel est installé sur cette machine », et rien de plus. La ligne
+/// portait aussi un environnement (production / test / recette / formation) :
+/// les trente installations de l'inventaire disaient toutes « production », le
+/// champ n'a jamais servi. Il coûtait une pastille sur chaque ligne de chaque
+/// écran et une liste à renseigner à chaque association, pour une information
+/// que le STATUT du logiciel donne déjà, en un seul endroit.
 model LogicielServeur {
-  logicielId    Int           @map("logiciel_id")
-  serveurId     Int           @map("serveur_id")
-  environnement Environnement @default(production)
+  logicielId Int @map("logiciel_id")
+  serveurId  Int @map("serveur_id")
 
   logiciel Logiciel @relation(fields: [logicielId], references: [id], onDelete: Cascade)
   serveur  Serveur  @relation(fields: [serveurId], references: [id], onDelete: Cascade)
 
-  @@id([logicielId, serveurId, environnement])
+  @@id([logicielId, serveurId])
   @@index([serveurId])
   @@map("logiciels_serveurs")
 }

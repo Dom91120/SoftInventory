@@ -107,7 +107,6 @@ export default async function ServeurPage({ params }: { params: Promise<{ id: st
               installations={serveur.logiciels.map((ls) => ({
                 logicielId: ls.logiciel.id,
                 nom: ls.logiciel.nom,
-                environnement: ls.environnement,
               }))}
               logiciels={logiciels.map((l) => ({ id: l.id, label: l.nom }))}
               referentiels={{

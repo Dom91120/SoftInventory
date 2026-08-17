@@ -9,13 +9,13 @@ import { ModaleServeur } from "@/components/modale-serveur";
 import { useInscriptionModeFiche } from "@/components/mode-fiche";
 import { Card } from "@/components/ui";
 import { compareAlpha } from "@/lib/format";
-import { LIBELLES } from "@/schemas/logiciel";
 import {
   addInterconnexionAction,
   addServeurAction,
   removeInterconnexionAction,
   removeServeurAction,
   setDescriptionInterconnexionAction,
+  setSansServeurAction,
   setServicesAction,
 } from "../actions";
 import type { Option } from "../fiche-form";
@@ -28,7 +28,7 @@ import type { Option } from "../fiche-form";
  */
 const SERVICE_FOURRE_TOUT = "Tous les services";
 
-type ServeurLie = { serveurId: number; nom: string; environnement: string };
+type ServeurLie = { serveurId: number; nom: string };
 type Interco = {
   id: number;
   direction: "sortante" | "entrante";
@@ -38,8 +38,9 @@ type Interco = {
 
 /**
  * Onglet Liaisons : services utilisateurs (cases à cocher + enregistrement du
- * delta), serveurs d'installation (serveur + environnement) et interconnexions
- * (flux orientés avec description, affichés dans les deux sens).
+ * delta), serveurs d'installation — ou la case qui dit qu'il n'y en a aucun —
+ * et interconnexions (flux orientés avec description, affichés dans les deux
+ * sens).
  */
 export function LiaisonsPanel({
   logicielId,
@@ -47,6 +48,7 @@ export function LiaisonsPanel({
   servicesLies,
   serveurs,
   serveursLies,
+  sansServeur,
   autresLogiciels,
   interconnexions,
   readOnly,
@@ -57,6 +59,8 @@ export function LiaisonsPanel({
   servicesLies: number[];
   serveurs: Option[];
   serveursLies: ServeurLie[];
+  /** « Ce logiciel ne s'installe sur aucune machine du parc » — SaaS, poste de travail. */
+  sansServeur: boolean;
   autresLogiciels: Option[];
   interconnexions: Interco[];
   readOnly: boolean;
@@ -71,8 +75,13 @@ export function LiaisonsPanel({
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [coches, setCoches] = useState<Set<number>>(new Set(servicesLies));
+  /**
+   * La case « aucun serveur », tenue LOCALEMENT : elle se coche et se décoche
+   * comme celles des services, et n'atteint la base qu'au « Enregistrer » de la
+   * fiche. Rien ne part au clic — on peut se raviser sans avoir rien écrit.
+   */
+  const [aucunServeur, setAucunServeur] = useState(sansServeur);
   const [nouveauServeur, setNouveauServeur] = useState("");
-  const [nouvelEnv, setNouvelEnv] = useState("production");
   /**
    * Le parc tenu localement : une machine créée depuis cette carte doit paraître
    * dans la liste SANS recharger la page, qui perdrait les cases en cours.
@@ -108,12 +117,14 @@ export function LiaisonsPanel({
     sale: () =>
       coches.size !== servicesLies.length ||
       servicesLies.some((id) => !coches.has(id)) ||
+      aucunServeur !== sansServeur ||
       nouveauServeur !== "" ||
       nouvelleCible !== "" ||
       nouvelleDesc !== "" ||
       descIxModifiee(),
     rendre: () => {
       setCoches(new Set(servicesLies));
+      setAucunServeur(sansServeur);
       vider();
     },
     enregistrer: async () => {
@@ -127,10 +138,19 @@ export function LiaisonsPanel({
         }
         setSaved(true);
       }
+      // La case « aucun serveur », si elle a bougé.
+      if (aucunServeur !== sansServeur) {
+        const res = await setSansServeurAction(logicielId, aucunServeur);
+        if (!res.ok) {
+          setError(res.error ?? "Erreur.");
+          return false;
+        }
+        setSaved(true);
+      }
       // Le serveur choisi mais pas encore associé : « Enregistrer » l'applique,
       // comme son bouton.
       if (nouveauServeur) {
-        const res = await addServeurAction(logicielId, Number(nouveauServeur), nouvelEnv);
+        const res = await addServeurAction(logicielId, Number(nouveauServeur));
         if (!res.ok) {
           setError(res.error ?? "Erreur.");
           return false;
@@ -289,7 +309,33 @@ export function LiaisonsPanel({
       </Card>
 
       <Card title="Serveurs d'installation">
-        {serveursLies.length === 0 ? (
+        {/* La case dit « la question ne se pose pas ici » : le logiciel tourne
+            chez l'éditeur ou sur les postes des agents. C'est une RÉPONSE, et
+            la complétude de l'inventaire la compte comme telle — sans elle,
+            une fiche sans serveur ne se distinguait pas d'une fiche dont le
+            serveur reste à saisir, et la jauge envoyait chercher du travail là
+            où il n'y en avait pas.
+
+            Elle ne paraît QUE tant qu'aucune machine n'est déclarée : dès
+            qu'une installation existe, la réponse est donnée — l'offrir encore
+            reviendrait à proposer de se contredire, et à mettre une corbeille
+            déguisée au milieu d'une carte.
+
+            Elle attend « Enregistrer », comme les cases de services : cocher
+            n'écrit rien, et l'on peut se raviser sans laisser de trace. */}
+        {serveursLies.length > 0 ? null : (
+          <label className="mb-3 flex items-center gap-2 text-sm text-body">
+            <input
+              type="checkbox"
+              className="h-4 w-4 accent-(--color-accent)"
+              checked={aucunServeur}
+              disabled={casesFigees}
+              onChange={(e) => setAucunServeur(e.target.checked)}
+            />
+            Aucun serveur : ce logiciel ne s'installe pas sur un serveur (SaaS, poste de travail).
+          </label>
+        )}
+        {aucunServeur ? null : serveursLies.length === 0 ? (
           <p className="mb-3 text-sm text-faint">Aucun serveur associé.</p>
         ) : (
           // Sans filets entre les lignes : deux installations d'un même
@@ -298,36 +344,24 @@ export function LiaisonsPanel({
           // l'écran Serveurs.
           <ul className="mb-3 text-sm">
             {serveursLies.map((s) => (
-              <li
-                key={`${s.serveurId}-${s.environnement}`}
-                className="flex items-center justify-between gap-3 pt-2"
-              >
-                <span>
-                  {/* Le nom mène à la FICHE du serveur — son système, sa
-                      localisation, le reste de ce qu'il porte. Comme les
-                      interconnexions mènent à la fiche du logiciel d'en face :
-                      un nom d'objet de l'inventaire est un lien vers cet objet. */}
-                  <Link
-                    href={`/serveurs/${s.serveurId}`}
-                    className="font-medium text-strong hover:text-accent"
-                  >
-                    {s.nom}
-                  </Link>
-                  <span
-                    className={`ml-2 ${s.environnement === "production" ? "badge-ok" : "badge-muted"}`}
-                  >
-                    {LIBELLES.environnement[s.environnement as keyof typeof LIBELLES.environnement]}
-                  </span>
-                </span>
+              <li key={s.serveurId} className="flex items-center justify-between gap-3 pt-2">
+                {/* Le nom mène à la FICHE du serveur — son système, son
+                    emplacement, le reste de ce qu'il porte. Comme les
+                    interconnexions mènent à la fiche du logiciel d'en face :
+                    un nom d'objet de l'inventaire est un lien vers cet objet. */}
+                <Link
+                  href={`/serveurs/${s.serveurId}`}
+                  className="font-medium text-strong hover:text-accent"
+                >
+                  {s.nom}
+                </Link>
                 {serveursFiges ? null : (
                   <button
                     type="button"
                     className="btn-ghost !p-2 hover:!text-danger"
                     title="Retirer"
                     disabled={pending}
-                    onClick={() =>
-                      run(() => removeServeurAction(logicielId, s.serveurId, s.environnement))
-                    }
+                    onClick={() => run(() => removeServeurAction(logicielId, s.serveurId))}
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>
@@ -336,7 +370,7 @@ export function LiaisonsPanel({
             ))}
           </ul>
         )}
-        {serveursFiges ? null : (
+        {serveursFiges || aucunServeur ? null : (
           <div className="flex flex-wrap items-center gap-2">
             {parc.length === 0 ? (
               <p className="basis-full text-sm text-faint">
@@ -379,26 +413,13 @@ export function LiaisonsPanel({
                 ➕
               </span>
             </button>
-            <select
-              className="input !w-auto"
-              value={nouvelEnv}
-              onChange={(e) => setNouvelEnv(e.target.value)}
-              disabled={pending}
-              aria-label="Environnement"
-            >
-              {Object.entries(LIBELLES.environnement).map(([v, l]) => (
-                <option key={v} value={v}>
-                  {l}
-                </option>
-              ))}
-            </select>
             <button
               type="button"
               className="btn-secondary"
               disabled={pending || !nouveauServeur}
               onClick={() =>
                 run(
-                  () => addServeurAction(logicielId, Number(nouveauServeur), nouvelEnv),
+                  () => addServeurAction(logicielId, Number(nouveauServeur)),
                   () => setNouveauServeur(""),
                 )
               }

@@ -169,26 +169,37 @@ export function setServices(logicielId: number, serviceIds: number[]) {
   ]);
 }
 
-export function addServeur(
-  logicielId: number,
-  serveurId: number,
-  environnement: "production" | "test" | "recette" | "formation",
-) {
+export function addServeur(logicielId: number, serveurId: number) {
   return prisma.logicielServeur.upsert({
-    where: { logicielId_serveurId_environnement: { logicielId, serveurId, environnement } },
+    where: { logicielId_serveurId: { logicielId, serveurId } },
     update: {},
-    create: { logicielId, serveurId, environnement },
+    create: { logicielId, serveurId },
   });
 }
 
-export function removeServeur(
-  logicielId: number,
-  serveurId: number,
-  environnement: "production" | "test" | "recette" | "formation",
-) {
-  return prisma.logicielServeur.deleteMany({
-    where: { logicielId, serveurId, environnement },
-  });
+export function removeServeur(logicielId: number, serveurId: number) {
+  return prisma.logicielServeur.deleteMany({ where: { logicielId, serveurId } });
+}
+
+/**
+ * Le marqueur « ce logiciel ne s'installe sur aucune machine du parc ».
+ *
+ * Il REFUSE de se poser sur un logiciel qui porte des installations : les deux
+ * réponses s'excluent, et le geste raisonnable n'est pas d'effacer les
+ * secondes au profit de la première — c'est de dire qu'on se contredit. La
+ * carte masque déjà la case dès qu'une machine est déclarée ; cette garde est
+ * là parce qu'une case absente n'engage à rien.
+ */
+export async function setSansServeur(logicielId: number, sansServeur: boolean) {
+  if (sansServeur) {
+    const installations = await prisma.logicielServeur.count({ where: { logicielId } });
+    if (installations > 0) {
+      throw new Error(
+        `Ce logiciel est déclaré sur ${installations} machine(s) du parc : retirez ces installations avant de dire qu'il ne s'installe sur aucune.`,
+      );
+    }
+  }
+  return prisma.logiciel.update({ where: { id: logicielId }, data: { sansServeur } });
 }
 
 export function addInterconnexion(sourceId: number, cibleId: number, description: string) {
