@@ -168,6 +168,13 @@ export function FicheForm({
     enregistrer: enregistrerFormulaire,
   });
   const ouvert = mode ? mode.actif : id === undefined;
+  /**
+   * Les deux issues du mode ne paraissent qu'une fois la fiche TOUCHÉE : ouvrir
+   * au crayon pour relire ne donne rien à enregistrer ni rien à rendre, et deux
+   * boutons offerts pour rien invitent à un geste qui ne fait rien. En CRÉATION,
+   * où il n'y a pas de mode, elles sont là d'emblée — c'est par elles qu'on crée.
+   */
+  const issues = mode ? mode.actif && mode.modifie : id === undefined;
   const dis = readOnly || pending || !ouvert;
 
   /**
@@ -641,7 +648,7 @@ export function FicheForm({
               « Annuler » y veut dire quitter, et il est toujours offert — on entre
               parfois ici par erreur. */}
           <div className="flex items-center gap-3">
-            {id !== undefined && !ouvert ? (
+            {id !== undefined && !issues ? (
               <button
                 type="button"
                 onClick={quitter}

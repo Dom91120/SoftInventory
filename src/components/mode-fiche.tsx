@@ -47,10 +47,19 @@ type Inscription = {
 type ContexteModeFiche = {
   /** Vrai quand la fiche est ouverte en modification. */
   actif: boolean;
+  /**
+   * Vrai dès qu'un panneau, n'importe lequel, porte une saisie non
+   * enregistrée. Le `sale()` du registre répond à la demande, sur un tour de
+   * table ; celui-ci est un ÉTAT, qui fait re-rendre ce qui le lit — c'est ce
+   * qu'il faut pour faire paraître « Enregistrer » et « Annuler » à la frappe.
+   */
+  modifie: boolean;
   /** Vrai pendant qu'un « Enregistrer » de la fiche court. */
   occupe: boolean;
   /** Déclare un panneau au mode ; renvoie sa clé et sa radiation. */
   inscrire: (i: Inscription) => { cle: symbol; radier: () => void };
+  /** Un panneau annonce qu'il vient de se salir, ou de se rendre propre. */
+  signalerSale: (cle: symbol, sale: boolean) => void;
   /** Enregistre TOUS les panneaux qui portent une saisie, puis referme si tout a abouti. */
   enregistrerTout: () => Promise<void>;
   /** Rend TOUS les panneaux à leurs valeurs enregistrées et referme — le geste du crayon. */
@@ -67,6 +76,8 @@ const Contexte = createContext<ContexteModeFiche | null>(null);
 /** Ce qu'un panneau reçoit du mode — nul hors d'un provider (écrans de création). */
 export type ModeFiche = {
   actif: boolean;
+  /** Vrai dès qu'un panneau de la fiche porte une saisie non enregistrée. */
+  modifie: boolean;
   occupe: boolean;
   enregistrerTout: () => Promise<void>;
   annulerTout: () => Promise<void>;
@@ -94,6 +105,28 @@ export function useInscriptionModeFiche(inscription: Inscription): ModeFiche | n
   ref.current = inscription;
   const cleRef = useRef<symbol | undefined>(undefined);
   const inscrire = brut?.inscrire;
+
+  /**
+   * Le `sale` du panneau, relevé À CHAQUE RENDU et poussé au mode quand il
+   * change. C'est ici et nulle part ailleurs : le hook se rejoue à chaque
+   * frappe du panneau — puisque `sale` lit son état —, si bien qu'aucun panneau
+   * n'a à penser à prévenir. Le mode, lui, ne se rendrait jamais compte de rien
+   * : rien ne le re-rend quand un enfant tape.
+   */
+  const signalerSale = brut?.signalerSale;
+  const idRef = useRef<symbol | undefined>(undefined);
+  if (!idRef.current) idRef.current = Symbol("panneau");
+  const id = idRef.current;
+  const sale = inscription.sale();
+  useEffect(() => {
+    if (!signalerSale) return;
+    signalerSale(id, sale);
+    // Un panneau démonté — on change d'onglet, la fiche se referme — ne laisse
+    // pas sa saleté derrière lui : elle ferait paraître les deux boutons pour
+    // une saisie qui n'est plus à l'écran.
+    return () => signalerSale(id, false);
+  }, [signalerSale, id, sale]);
+
   // `enregistrer` déclaré ou non : relevé au premier rendu, il ne change pas
   // de statut en cours de vie — c'est la nature du panneau, pas son état.
   const [avecEnregistrer] = useState(() => inscription.enregistrer !== undefined);
@@ -117,6 +150,7 @@ export function useInscriptionModeFiche(inscription: Inscription): ModeFiche | n
       brut
         ? {
             actif: brut.actif,
+            modifie: brut.modifie,
             occupe: brut.occupe,
             enregistrerTout: brut.enregistrerTout,
             annulerTout: brut.annulerTout,
@@ -144,8 +178,20 @@ export function ModeFicheProvider({
   const [actif, setActif] = useState(false);
   const [occupe, setOccupe] = useState(false);
   const registre = useRef(new Map<symbol, Inscription>());
+  /** Les panneaux qui se sont annoncés sales — voir `modifie`. */
+  const [sales, setSales] = useState<ReadonlySet<symbol>>(() => new Set());
   /** Garde de réentrance : un double clic ne doit pas enregistrer deux fois. */
   const enCoursRef = useRef(false);
+
+  const signalerSale = useCallback((cle: symbol, sale: boolean) => {
+    setSales((avant) => {
+      if (avant.has(cle) === sale) return avant;
+      const apres = new Set(avant);
+      if (sale) apres.add(cle);
+      else apres.delete(cle);
+      return apres;
+    });
+  }, []);
 
   const inscrire = useCallback((i: Inscription) => {
     const cle = Symbol();
@@ -223,8 +269,17 @@ export function ModeFicheProvider({
   }
 
   const valeur = useMemo(
-    () => ({ actif, occupe, inscrire, enregistrerTout, annulerTout, fermerSiPropre }),
-    [actif, occupe, inscrire, enregistrerTout, annulerTout, fermerSiPropre],
+    () => ({
+      actif,
+      modifie: sales.size > 0,
+      occupe,
+      inscrire,
+      signalerSale,
+      enregistrerTout,
+      annulerTout,
+      fermerSiPropre,
+    }),
+    [actif, sales, occupe, inscrire, signalerSale, enregistrerTout, annulerTout, fermerSiPropre],
   );
 
   return (
@@ -250,10 +305,15 @@ export function ModeFicheProvider({
 
 /**
  * La ligne d'actions des onglets SANS formulaire propre (contacts, marchés,
- * devis, tâches, documents…) : « Quitter » tant que la fiche est fermée, et les
- * DEUX issues du mode dès qu'elle est ouverte — « Enregistrer » et « Annuler »
- * portent la fiche entière, ils doivent donc se trouver sous chaque onglet, pas
- * seulement sous ceux qui ont un formulaire.
+ * devis, tâches, documents…) : « Quitter » tant qu'il n'y a rien à enregistrer,
+ * et les DEUX issues du mode dès qu'une saisie attend quelque part — elles
+ * portent la fiche entière, elles doivent donc se trouver sous chaque onglet,
+ * pas seulement sous ceux qui ont un formulaire.
+ *
+ * Ouvrir la fiche au crayon ne les fait PAS paraître : tant qu'on n'a rien
+ * touché, il n'y a rien à enregistrer ni rien à rendre, et deux boutons offerts
+ * pour rien invitent à un geste qui ne fait rien. Ils paraissent à la première
+ * frappe, et le crayon suffit à refermer une fiche qu'on n'a fait que relire.
  */
 export function LigneActionsFiche({
   quitter,
@@ -268,7 +328,7 @@ export function LigneActionsFiche({
   return (
     <div className="mt-3 flex items-start justify-between gap-3">
       <div className="flex items-center gap-3">
-        {brut?.actif ? (
+        {brut?.actif && brut.modifie ? (
           <>
             <button
               type="button"

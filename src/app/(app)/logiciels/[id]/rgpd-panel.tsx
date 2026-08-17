@@ -203,8 +203,10 @@ export function RgpdPanel({
           {/* Comme dans l'onglet Synthèse, la ligne suit l'état du MODE, et
               ses deux boutons portent la FICHE ENTIÈRE : « Enregistrer »
               enregistre chaque onglet qui porte une saisie, « Annuler » rend
-              tout et referme — le même geste que le crayon. */}
-          {!readOnly && ouvert ? (
+              tout et referme — le même geste que le crayon. Ils ne paraissent
+              qu'une fois la fiche touchée : ouvrir au crayon pour relire ne
+              donne rien à enregistrer ni rien à rendre. */}
+          {!readOnly && ouvert && mode?.modifie ? (
             <>
               <button type="submit" disabled={pending || mode?.occupe} className="btn-primary">
                 {pending || mode?.occupe ? "Enregistrement…" : "Enregistrer"}

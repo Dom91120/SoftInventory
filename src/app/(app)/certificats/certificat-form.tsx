@@ -160,6 +160,13 @@ export function CertificatForm({
     enregistrer: enregistrerFormulaire,
   });
   const ouvert = mode ? mode.actif : id === undefined;
+  /**
+   * Les deux issues du mode ne paraissent qu'une fois la fiche TOUCHÉE : ouvrir
+   * au crayon pour relire ne donne rien à enregistrer ni rien à rendre, et deux
+   * boutons offerts pour rien invitent à un geste qui ne fait rien. En CRÉATION,
+   * où il n'y a pas de mode, elles sont là d'emblée — c'est par elles qu'on crée.
+   */
+  const issues = mode ? mode.actif && mode.modifie : id === undefined;
   const dis = readOnly || pending || !ouvert;
 
   useEffect(() => {
@@ -497,7 +504,7 @@ export function CertificatForm({
               enregistrer et le seul geste qui reste est de partir ; le crayon
               l'ouvre, et les deux issues de la modification paraissent
               aussitôt. */}
-          {id !== undefined && !ouvert ? (
+          {id !== undefined && !issues ? (
             <button
               type="button"
               onClick={quitter}

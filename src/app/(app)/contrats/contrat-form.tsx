@@ -169,6 +169,13 @@ export function ContratForm({
     enregistrer: enregistrerFormulaire,
   });
   const ouvert = mode ? mode.actif : id === undefined;
+  /**
+   * Les deux issues du mode ne paraissent qu'une fois la fiche TOUCHÉE : ouvrir
+   * au crayon pour relire ne donne rien à enregistrer ni rien à rendre, et deux
+   * boutons offerts pour rien invitent à un geste qui ne fait rien. En CRÉATION,
+   * où il n'y a pas de mode, elles sont là d'emblée — c'est par elles qu'on crée.
+   */
+  const issues = mode ? mode.actif && mode.modifie : id === undefined;
   const dis = readOnly || pending || !ouvert;
 
   /**
@@ -231,7 +238,7 @@ export function ContratForm({
       {error ? <p className="alert-error">{error}</p> : null}
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          {id !== undefined && !ouvert ? (
+          {id !== undefined && !issues ? (
             <button
               type="button"
               onClick={quitter}
