@@ -28,7 +28,7 @@ export type FiltresCertificats = {
   q?: string;
   fournisseurId?: number;
   serviceId?: number;
-  statut?: "valide" | "revoque" | "expire" | "suspendu";
+  statut?: "valide" | "revoque" | "suspendu";
   usage?: "signature" | "authentification" | "cachet" | "autre";
 };
 

@@ -768,18 +768,20 @@ enum SupportCertificat {
   autre
 }
 
-/// Où en est le certificat, INDÉPENDAMMENT de sa date de fin : celle-ci dit
-/// s'il est périmé, le statut dit ce qu'on en fait. Un certificat révoqué avant
-/// terme n'est plus utilisable alors que sa date court encore ; un certificat
-/// suspendu le redeviendra, et son échéance continue donc de compter.
+/// Ce qu'on a DÉCIDÉ du certificat — et rien de ce que les dates disent déjà.
+/// Un certificat révoqué avant terme n'est plus utilisable alors que sa date
+/// court encore ; un certificat suspendu le redeviendra, et son échéance
+/// continue donc de compter.
 ///
-/// « En renouvellement » a disparu : il décrivait une commande en cours, pas
-/// l'état du certificat, qui reste valide jusqu'à son terme. Aucune fiche ne
-/// le portait.
+/// « Expiré » n'en est pas : il SE DÉDUIT de la date de fin, et en faire un
+/// choix de liste ouvrait deux façons de dire la même chose — qui pouvaient
+/// se contredire. Les écrans le calculent (voir `pastilleValidite`).
+///
+/// « En renouvellement » a disparu de même : il décrivait une commande en
+/// cours, pas l'état du certificat.
 enum StatutCertificat {
   valide
   revoque
-  expire
   suspendu
 }
 

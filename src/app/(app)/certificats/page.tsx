@@ -15,7 +15,7 @@ import {
 import { requireUser } from "@/server/guards";
 import { listAutoritesCertification, listCertificats } from "@/server/services/certificats";
 import { listServicesUtilisateurs } from "@/server/services/referentiels";
-import { filtresDepuisParams, joursAvantExpiration, libelleEcheance, tonEcheance } from "./shared";
+import { filtresDepuisParams, joursAvantExpiration, pastilleValidite } from "./shared";
 
 export const metadata: Metadata = { title: "Certificats" };
 
@@ -120,7 +120,7 @@ export default async function CertificatsPage({
               <tbody>
                 {elements.map((c) => {
                   const jours = joursAvantExpiration(c.dateFin, aujourdhui);
-                  const ton = tonEcheance(jours);
+                  const pastille = pastilleValidite(c, jours);
                   return (
                     <tr key={c.id} className="h-12">
                       <td>
@@ -161,17 +161,9 @@ export default async function CertificatsPage({
                           {" → "}
                           {c.dateFin ? DATE_FMT_FR_UTC.format(c.dateFin) : "—"}
                         </span>
-                        <span
-                          className={
-                            ton === "danger"
-                              ? "badge-danger mt-0.5"
-                              : ton === "warn"
-                                ? "badge-warn mt-0.5"
-                                : "badge-muted mt-0.5"
-                          }
-                        >
+                        <span className={`${pastille.classe} mt-0.5`}>
                           <CalendarClock className="h-3.5 w-3.5" />
-                          {libelleEcheance(jours)}
+                          {pastille.texte}
                         </span>
                       </td>
                       <td className="pr-0 text-right tabular-nums text-muted">

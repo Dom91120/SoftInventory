@@ -1,3 +1,4 @@
+import { CalendarClock } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -6,8 +7,7 @@ import { FlecheVoisin } from "@/components/fleche-voisin";
 import { ModeFicheProvider } from "@/components/mode-fiche";
 import { PageHeader } from "@/components/ui";
 import type { Role } from "@/generated/prisma/client";
-import type { StatutCertificat } from "@/generated/prisma/enums";
-import { LIBELLES_CERTIFICAT, nomTitulaire } from "@/schemas/certificat";
+import { nomTitulaire } from "@/schemas/certificat";
 import { requireUser } from "@/server/guards";
 import { getCertificat, voisinsCertificat } from "@/server/services/certificats";
 import { listEditeurs } from "@/server/services/editeurs";
@@ -16,26 +16,9 @@ import { listServeurs } from "@/server/services/serveurs";
 import { CertificatForm } from "../certificat-form";
 import { CodesPanel } from "../codes-panel";
 import { ongletCertificat } from "../onglets";
+import { joursAvantExpiration, pastilleValidite } from "../shared";
 
 export const metadata: Metadata = { title: "Certificat" };
-
-/**
- * La couleur du statut, dans l'en-tête de la fiche. Elle dit s'il y a lieu de
- * s'inquiéter, le libellé dit quoi : « révoqué » et « expiré » partagent le
- * rouge parce qu'ils disent la même chose de l'usage — ce certificat ne sert
- * plus —, et se distinguent par le mot, pas par la teinte. « Suspendu » est
- * ambre : c'est un retrait provisoire, il reviendra.
- *
- * Seules les COULEURS sont ici ; les libellés viennent de
- * `LIBELLES_CERTIFICAT`, qui les donne déjà au formulaire, au filtre et à
- * l'export — deux tables auraient fini par se contredire.
- */
-const COULEUR_STATUT: Record<StatutCertificat, string> = {
-  valide: "badge-ok",
-  suspendu: "badge-warn",
-  revoque: "badge-danger",
-  expire: "badge-danger",
-};
 
 /** Horodatage d'un dépôt : une heure locale, pas une date de calendrier. */
 const FMT_DEPOT = new Intl.DateTimeFormat("fr-FR", {
@@ -73,6 +56,14 @@ export default async function CertificatPage({
 
   const { onglet } = await searchParams;
   const actif = ongletCertificat(onglet);
+
+  // L'état montré par l'en-tête : le statut déclaré, ou l'expiration
+  // constatée sur la date de fin. Même fonction que la liste — deux lectures
+  // séparées auraient fini par diverger.
+  const pastille = pastilleValidite(
+    certificat,
+    joursAvantExpiration(certificat.dateFin, new Date()),
+  );
 
   return (
     <>
@@ -125,9 +116,16 @@ export default async function CertificatPage({
                   ) : null}
                 </span>
                 {/* Le même décalage que le sous-titre (mt-0.5) : les deux
-                    lignes partent alors du même pixel. */}
-                <span className={`mt-0.5 ${COULEUR_STATUT[certificat.statut]}`}>
-                  {LIBELLES_CERTIFICAT.statut[certificat.statut]}
+                    lignes partent alors du même pixel.
+
+                    Et la MÊME pastille que la colonne « Validité » de la
+                    liste — même lecture, même couleur, même horloge. L'en-tête
+                    déduit donc lui aussi l'expiration de la date, sans quoi
+                    une fiche au terme franchi se dirait « Valide » ici et
+                    « Expiré » là-bas. */}
+                <span className={`mt-0.5 ${pastille.classe}`}>
+                  <CalendarClock className="h-3.5 w-3.5" />
+                  {pastille.texte}
                 </span>
               </span>
             }

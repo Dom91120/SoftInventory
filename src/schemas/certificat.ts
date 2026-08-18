@@ -6,7 +6,7 @@ import { z } from "zod";
 export const CIVILITES = ["m", "mme"] as const;
 export const USAGES_CERTIFICAT = ["signature", "authentification", "cachet", "autre"] as const;
 export const SUPPORTS_CERTIFICAT = ["carte", "cle_usb", "logiciel", "autre"] as const;
-export const STATUTS_CERTIFICAT = ["valide", "revoque", "expire", "suspendu"] as const;
+export const STATUTS_CERTIFICAT = ["valide", "revoque", "suspendu"] as const;
 
 export const LIBELLES_CERTIFICAT = {
   civilite: { m: "M.", mme: "Mme" },
@@ -22,10 +22,11 @@ export const LIBELLES_CERTIFICAT = {
     logiciel: "Fichier logiciel",
     autre: "Autre",
   },
+  // « Expiré » n'y figure pas : ce n'est pas un statut, c'est une lecture de
+  // la date de fin. Son libellé vit avec le calcul, dans `shared.ts`.
   statut: {
     valide: "Valide",
     revoque: "Révoqué",
-    expire: "Expiré",
     suspendu: "Suspendu",
   },
 } as const;
