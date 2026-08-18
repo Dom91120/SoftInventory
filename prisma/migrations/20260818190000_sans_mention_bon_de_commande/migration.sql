@@ -1,0 +1,12 @@
+-- La mention qui accompagnait la date du bon de commande est retirée.
+--
+-- Elle disait « envoyé par courrier en AR » sur dix fiches, « signé et envoyé
+-- par courrier en AR » sur deux autres, et rien sur les sept dernières : le
+-- mode d'envoi d'un bon signé n'est pas un renseignement qu'on vienne chercher
+-- dans un inventaire, et une colonne qui redit la même chose des deux tiers
+-- des lignes ne distingue rien.
+--
+-- La DATE de signature reste : elle, se trie et se relit.
+--
+-- Sauvegarde prise avant application (voir sauvegardes/).
+ALTER TABLE "certificats" DROP COLUMN "bon_commande_note";

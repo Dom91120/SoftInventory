@@ -171,7 +171,6 @@ export default async function CertificatPage({
             montantTtc: certificat.montantTtc === null ? "" : String(certificat.montantTtc),
             imputation: certificat.imputation,
             bonCommandeLe: jour(certificat.bonCommandeLe),
-            bonCommandeNote: certificat.bonCommandeNote,
             statut: certificat.statut,
             notes: certificat.notes,
           }}

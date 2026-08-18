@@ -846,11 +846,11 @@ model Certificat {
   /// pour le bon de commande.
   imputation String   @default("")
 
-  /// Bon de commande : la date de signature et, à côté, la façon dont il est
-  /// parti (« par courrier en AR »). Deux champs et non un seul texte, pour que
-  /// la date se trie et se relise.
-  bonCommandeLe   DateTime? @map("bon_commande_le") @db.Date
-  bonCommandeNote String    @default("") @map("bon_commande_note")
+  /// Date de signature du bon de commande. La MENTION qui l'accompagnait
+  /// (« envoyé par courrier en AR ») a été retirée : elle redisait la même
+  /// chose de douze fiches sur dix-neuf, et le mode d'envoi d'un bon signé
+  /// n'apprend rien qu'on vienne chercher dans un inventaire.
+  bonCommandeLe DateTime? @map("bon_commande_le") @db.Date
 
   /// Codes remis par l'autorité, à garder sous la main le jour où il faut agir
   /// vite : le code de RÉVOCATION invalide le certificat (perte, vol, départ du

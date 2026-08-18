@@ -47,7 +47,6 @@ function parse(formData: FormData) {
     montantTtc: get("montantTtc"),
     imputation: get("imputation"),
     bonCommandeLe: get("bonCommandeLe"),
-    bonCommandeNote: get("bonCommandeNote"),
     statut: get("statut"),
     notes: get("notes"),
   });

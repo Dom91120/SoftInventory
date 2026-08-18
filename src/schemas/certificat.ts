@@ -136,10 +136,6 @@ export const certificatSchema = z
     montantTtc: montantOptionnel,
     imputation: z.string().trim().max(30, "Imputation trop longue (30 caractères max)."),
     bonCommandeLe: dateOptionnelle,
-    bonCommandeNote: z
-      .string()
-      .trim()
-      .max(200, "Mention du bon de commande trop longue (200 caractères max)."),
     // Le statut, lui, a une valeur par défaut : un certificat qu'on saisit est
     // valide jusqu'à preuve du contraire.
     statut: z

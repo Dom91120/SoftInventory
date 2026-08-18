@@ -71,7 +71,6 @@ type Ligne = {
   dateFin: string;
   montantTtc?: number;
   bonCommandeLe?: string;
-  bonCommandeNote: string;
   /** Certificat de machine : il équipe un serveur plutôt qu'une personne. */
   cachet?: boolean;
 };
@@ -84,7 +83,6 @@ const LIGNES: Ligne[] = [
     dateDebut: "2026-05-20",
     dateFin: "2029-05-19",
     bonCommandeLe: "2026-05-20",
-    bonCommandeNote: "envoyé par courrier en AR",
   },
   {
     titulaire: "Mme DORFIAC",
@@ -93,7 +91,6 @@ const LIGNES: Ligne[] = [
     dateDebut: "2023-10-18",
     dateFin: "2026-10-17",
     bonCommandeLe: "2026-05-20",
-    bonCommandeNote: "envoyé par courrier en AR",
   },
   {
     titulaire: "M. ADJROUD",
@@ -102,7 +99,6 @@ const LIGNES: Ligne[] = [
     dateDebut: "2026-04-10",
     dateFin: "2029-04-09",
     bonCommandeLe: "2026-04-10",
-    bonCommandeNote: "envoyé par courrier en AR",
   },
   {
     titulaire: "M. MOUTON",
@@ -111,7 +107,6 @@ const LIGNES: Ligne[] = [
     dateDebut: "2026-04-10",
     dateFin: "2029-04-09",
     bonCommandeLe: "2026-04-10",
-    bonCommandeNote: "envoyé par courrier en AR",
   },
   {
     // Année tronquée dans le tableau (« 19/05/209 ») : l'échéance tranche.
@@ -121,7 +116,6 @@ const LIGNES: Ligne[] = [
     dateDebut: "2026-05-20",
     dateFin: "2029-05-19",
     bonCommandeLe: "2023-06-14",
-    bonCommandeNote: "",
   },
   {
     // Bon de commande daté 2026 dans le tableau, corrigé en 2025.
@@ -132,7 +126,6 @@ const LIGNES: Ligne[] = [
     dateFin: "2028-12-30",
     montantTtc: 300,
     bonCommandeLe: "2025-12-19",
-    bonCommandeNote: "envoyé par courrier en AR",
   },
   {
     titulaire: "Mme GUERTIN",
@@ -142,7 +135,6 @@ const LIGNES: Ligne[] = [
     dateFin: "2029-04-19",
     montantTtc: 420,
     bonCommandeLe: "2026-04-20",
-    bonCommandeNote: "envoyé par courrier en AR",
   },
   {
     titulaire: "Mme LINARES-CRUZ",
@@ -152,7 +144,6 @@ const LIGNES: Ligne[] = [
     dateFin: "2029-04-19",
     montantTtc: 420,
     bonCommandeLe: "2026-04-20",
-    bonCommandeNote: "envoyé par courrier en AR",
   },
   {
     titulaire: "Mme MILLARD-REVENEAU",
@@ -161,7 +152,6 @@ const LIGNES: Ligne[] = [
     dateDebut: "2026-05-12",
     dateFin: "2029-05-11",
     bonCommandeLe: "2026-05-12",
-    bonCommandeNote: "envoyé par courrier en AR",
   },
   {
     titulaire: "M. LARFA TAILLANDIER",
@@ -171,7 +161,6 @@ const LIGNES: Ligne[] = [
     dateDebut: "2026-04-20",
     dateFin: "2029-04-19",
     bonCommandeLe: "2026-04-20",
-    bonCommandeNote: "envoyé par courrier en AR",
   },
   {
     titulaire: "M. ROL",
@@ -182,7 +171,6 @@ const LIGNES: Ligne[] = [
     dateFin: "2028-10-05",
     montantTtc: 900,
     bonCommandeLe: "2025-07-28",
-    bonCommandeNote: "signé et envoyé par courrier en AR",
   },
   {
     titulaire: "M. PALAIN",
@@ -193,7 +181,6 @@ const LIGNES: Ligne[] = [
     dateFin: "2028-10-05",
     montantTtc: 900,
     bonCommandeLe: "2025-07-28",
-    bonCommandeNote: "signé et envoyé par courrier en AR",
   },
   {
     titulaire: "M. ZYZAK",
@@ -203,7 +190,6 @@ const LIGNES: Ligne[] = [
     dateDebut: "2025-06-07",
     dateFin: "2028-06-06",
     bonCommandeLe: "2025-05-13",
-    bonCommandeNote: "",
   },
   {
     titulaire: "Mme TOMASZEWSKI",
@@ -214,7 +200,6 @@ const LIGNES: Ligne[] = [
     dateFin: "2028-03-04",
     montantTtc: 300,
     bonCommandeLe: "2025-03-11",
-    bonCommandeNote: "",
   },
   {
     // Fin de validité en MAI dans le tableau, en février selon l'échéance.
@@ -228,7 +213,6 @@ const LIGNES: Ligne[] = [
     dateFin: "2028-02-24",
     montantTtc: 300,
     bonCommandeLe: "2025-03-11",
-    bonCommandeNote: "",
   },
   {
     titulaire: "Mme WEINGAND",
@@ -239,7 +223,6 @@ const LIGNES: Ligne[] = [
     dateFin: "2029-07-15",
     montantTtc: 390,
     bonCommandeLe: "2026-07-16",
-    bonCommandeNote: "envoyé par courrier en AR",
   },
   {
     titulaire: "M. AGOUDJIL",
@@ -250,7 +233,6 @@ const LIGNES: Ligne[] = [
     dateFin: "2027-07-17",
     montantTtc: 342,
     bonCommandeLe: "2025-07-29",
-    bonCommandeNote: "",
   },
   {
     // Début 2026 dans le tableau : deux ans de validité seulement, et un bon de
@@ -263,7 +245,6 @@ const LIGNES: Ligne[] = [
     dateFin: "2028-05-04",
     montantTtc: 420,
     bonCommandeLe: "2025-05-13",
-    bonCommandeNote: "",
   },
   {
     titulaire: "SERVEUR CLIENT RGS",
@@ -274,7 +255,6 @@ const LIGNES: Ligne[] = [
     dateFin: "2027-07-17",
     montantTtc: 792,
     bonCommandeLe: "2024-07-29",
-    bonCommandeNote: "",
     cachet: true,
   },
 ];
@@ -343,7 +323,6 @@ async function main() {
       montantTtc: l.montantTtc ?? null,
       imputation: "60632",
       bonCommandeLe: l.bonCommandeLe ? j(l.bonCommandeLe) : null,
-      bonCommandeNote: l.bonCommandeNote,
       notes: "Repris du tableau de suivi des certificats.",
     };
 

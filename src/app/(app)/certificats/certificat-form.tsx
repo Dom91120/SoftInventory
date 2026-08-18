@@ -38,7 +38,6 @@ export type CertificatValues = {
   montantTtc: string;
   imputation: string;
   bonCommandeLe: string;
-  bonCommandeNote: string;
   statut: string;
   notes: string;
 };
@@ -62,7 +61,6 @@ export const CERTIFICAT_VIDE: CertificatValues = {
   montantTtc: "",
   imputation: "",
   bonCommandeLe: "",
-  bonCommandeNote: "",
   statut: "valide",
   notes: "",
 };
@@ -505,18 +503,7 @@ export function CertificatForm({
               className="input"
             />
           </Field>
-          <div className="sm:col-span-3">
-            <Field label="Mention du bon de commande" htmlFor="bonCommandeNote">
-              <input
-                id="bonCommandeNote"
-                name="bonCommandeNote"
-                placeholder="Ex : envoyé par courrier en AR"
-                defaultValue={values.bonCommandeNote}
-                disabled={dis}
-                className="input"
-              />
-            </Field>
-          </div>
+          <div className="sm:col-span-3"></div>
           <div className="sm:col-span-3">
             <Field label="Observations" htmlFor="notes">
               <textarea
