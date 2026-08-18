@@ -1,5 +1,10 @@
 import type { Prisma } from "@/generated/prisma/client";
-import type { CertificatInput, CodesCertificatInput } from "@/schemas/certificat";
+import type { Civilite } from "@/generated/prisma/enums";
+import {
+  type CertificatInput,
+  type CodesCertificatInput,
+  nomTitulaire,
+} from "@/schemas/certificat";
 import { prisma } from "@/server/db";
 import { deleteDocument } from "@/server/services/documents";
 
@@ -157,12 +162,12 @@ export async function voisinsCertificat(id: number): Promise<{
 }> {
   const tous = await prisma.certificat.findMany({
     orderBy: [{ dateFin: { sort: "asc", nulls: "last" } }, { titulaire: "asc" }, { id: "asc" }],
-    select: { id: true, titulaire: true },
+    select: { id: true, civilite: true, titulaire: true },
   });
   const i = tous.findIndex((c) => c.id === id);
   if (i === -1) return { precedent: null, suivant: null };
-  const nommer = (c?: { id: number; titulaire: string }) =>
-    c ? { id: c.id, nom: c.titulaire } : null;
+  const nommer = (c?: { id: number; civilite: Civilite | null; titulaire: string }) =>
+    c ? { id: c.id, nom: nomTitulaire(c) } : null;
   return { precedent: nommer(tous[i - 1]), suivant: nommer(tous[i + 1]) };
 }
 

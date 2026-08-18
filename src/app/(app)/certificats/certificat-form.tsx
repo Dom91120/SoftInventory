@@ -9,6 +9,7 @@ import { useInscriptionModeFiche } from "@/components/mode-fiche";
 import { useSaisieEnCours } from "@/components/saisie-en-cours";
 import { Card, Field } from "@/components/ui";
 import {
+  CIVILITES,
   LIBELLES_CERTIFICAT,
   STATUTS_CERTIFICAT,
   SUPPORTS_CERTIFICAT,
@@ -19,6 +20,7 @@ import { ONGLETS_CERTIFICAT, type OngletCertificat } from "./onglets";
 
 /** Le formulaire est NON CONTRÔLÉ : des chaînes, que le DOM rend au `reset()`. */
 export type CertificatValues = {
+  civilite: string;
   titulaire: string;
   fonction: string;
   email: string;
@@ -41,6 +43,7 @@ export type CertificatValues = {
 };
 
 export const CERTIFICAT_VIDE: CertificatValues = {
+  civilite: "",
   titulaire: "",
   fonction: "",
   email: "",
@@ -275,12 +278,32 @@ export function CertificatForm({
       {/* Qui le porte. */}
       <Card title="Titulaire">
         <div className="grid items-end gap-x-3 gap-y-2 sm:grid-cols-3">
+          {/* La civilité DEVANT le nom, comme on la lit — et à part de lui :
+              collée au patronyme, elle rangeait « Mme AZZAZ » sous M avec les
+              dix-sept autres. « — aucune — » n'est pas un trou à combler : un
+              certificat de machine n'a personne à nommer. */}
+          <Field label="Civilité" htmlFor="civilite">
+            <select
+              id="civilite"
+              name="civilite"
+              defaultValue={values.civilite}
+              disabled={dis}
+              className="input"
+            >
+              <option value="">— aucune —</option>
+              {CIVILITES.map((c) => (
+                <option key={c} value={c}>
+                  {LIBELLES_CERTIFICAT.civilite[c]}
+                </option>
+              ))}
+            </select>
+          </Field>
           <Field label="Titulaire" htmlFor="titulaire" required>
             <input
               id="titulaire"
               name="titulaire"
               required
-              placeholder="Ex : Mme AZZAZ, SRV-CHORUS"
+              placeholder="Ex : AZZAZ, SRV-CHORUS"
               defaultValue={values.titulaire}
               disabled={dis}
               className="input"

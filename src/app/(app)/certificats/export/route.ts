@@ -1,6 +1,6 @@
 import { csvResponse } from "@/lib/csv";
 import { DATE_FMT_FR_UTC } from "@/lib/format";
-import { LIBELLES_CERTIFICAT } from "@/schemas/certificat";
+import { LIBELLES_CERTIFICAT, nomTitulaire } from "@/schemas/certificat";
 import { reponseApi, requireRoleApi } from "@/server/guards-api";
 import { listCertificats } from "@/server/services/certificats";
 import { filtresDepuisParams } from "../shared";
@@ -48,7 +48,7 @@ export function GET(request: Request): Promise<Response> {
         "Observations",
       ],
       ...certificats.map((c) => [
-        c.titulaire,
+        nomTitulaire(c),
         c.fonction,
         c.service?.nom ?? "",
         c.serveur?.nom ?? "",

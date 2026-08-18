@@ -1,6 +1,7 @@
 import { emailButton } from "@/lib/email-theme";
 import { greeting } from "@/lib/mail-render";
 import { dateCalendaire, joursAvantEcheance, rappelDu, seuilRappel } from "@/lib/taches-core";
+import { nomTitulaire } from "@/schemas/certificat";
 import { getAppUrl, getConfigMany, seuilsRappel } from "@/server/config";
 import { prisma } from "@/server/db";
 import { sendTemplatedMail } from "@/server/services/mail-send";
@@ -191,6 +192,7 @@ export async function envoyerRappelsEcheances(): Promise<{
       },
       select: {
         id: true,
+        civilite: true,
         titulaire: true,
         fonction: true,
         dateFin: true,
@@ -220,7 +222,7 @@ export async function envoyerRappelsEcheances(): Promise<{
           kind: "certificat_rappel",
           vars: {
             salutation: greeting(""),
-            titulaire: c.titulaire,
+            titulaire: nomTitulaire(c),
             fonction: c.fonction,
             echeance: fmtDate.format(c.dateFin),
             details,

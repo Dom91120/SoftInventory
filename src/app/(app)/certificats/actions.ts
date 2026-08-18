@@ -29,6 +29,7 @@ function inattendu(e: unknown): Result {
 function parse(formData: FormData) {
   const get = (k: string) => String(formData.get(k) ?? "");
   return certificatSchema.safeParse({
+    civilite: get("civilite"),
     titulaire: get("titulaire"),
     fonction: get("fonction"),
     email: get("email"),

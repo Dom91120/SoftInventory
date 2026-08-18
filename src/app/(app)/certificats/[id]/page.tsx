@@ -6,6 +6,7 @@ import { FlecheVoisin } from "@/components/fleche-voisin";
 import { ModeFicheProvider } from "@/components/mode-fiche";
 import { PageHeader } from "@/components/ui";
 import type { Role } from "@/generated/prisma/client";
+import { nomTitulaire } from "@/schemas/certificat";
 import { requireUser } from "@/server/guards";
 import { getCertificat, voisinsCertificat } from "@/server/services/certificats";
 import { listEditeurs } from "@/server/services/editeurs";
@@ -77,7 +78,7 @@ export default async function CertificatPage({
               d'être un lien plutôt qu'une mention accolée à la fonction. */}
           <PageHeader
             className=""
-            title={certificat.titulaire}
+            title={nomTitulaire(certificat)}
             subtitle={certificat.fonction || "Certificat électronique"}
             actions={
               certificat.fournisseur ? (
@@ -114,6 +115,7 @@ export default async function CertificatPage({
           services={services.map((s) => ({ id: s.id, nom: s.nom }))}
           serveurs={serveurs.map((s) => ({ id: s.id, nom: s.nom }))}
           values={{
+            civilite: certificat.civilite ?? "",
             titulaire: certificat.titulaire,
             fonction: certificat.fonction,
             email: certificat.email,

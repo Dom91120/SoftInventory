@@ -740,6 +740,17 @@ model Devis {
 /// Ce que le certificat permet de faire. Un même titulaire en porte parfois
 /// deux — un pour signer, un pour s'authentifier — d'où une fiche par
 /// certificat et non par personne.
+/// Civilité du titulaire d'un certificat. Séparée du nom plutôt que collée
+/// devant lui : « M. » n'est pas un bout du patronyme, et la tenir à part rend
+/// le tri et la recherche justes — « Mme AZZAZ » se rangeait sous M, avec les
+/// dix-sept autres. NULLE quand il n'y a personne à nommer : un certificat de
+/// machine (« SERVEUR CLIENT RGS ») n'a pas de civilité, et lui en inventer une
+/// serait pire que la laisser vide.
+enum Civilite {
+  m
+  mme
+}
+
 enum UsageCertificat {
   signature
   authentification
@@ -786,9 +797,13 @@ model Certificat {
   /// null pour un certificat nominatif, le cas courant.
   serveurId     Int? @map("serveur_id")
 
-  /// Qui le porte : une personne (« Mme AZZAZ ») ou une machine (« SERVEUR
-  /// CLIENT RGS »). Texte libre et non un compte de l'application : les élus
-  /// n'en ont pas, et un certificat survit au compte de son titulaire.
+  /// Civilité du titulaire, DEVANT son nom sur la fiche comme dans la liste.
+  /// Nulle pour un certificat de machine.
+  civilite  Civilite?
+  /// Qui le porte : une personne (« AZZAZ ») ou une machine (« SERVEUR CLIENT
+  /// RGS »). Texte libre et non un compte de l'application : les élus n'en ont
+  /// pas, et un certificat survit au compte de son titulaire. SANS la civilité,
+  /// qui a désormais sa colonne.
   titulaire String
   /// La qualité au titre de laquelle il signe — Maire, Adjoint, DGA, Agent.
   /// C'est elle qui donne sa portée juridique à la signature, pas le service.

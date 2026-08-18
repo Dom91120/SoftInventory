@@ -1,4 +1,5 @@
 import { dateCalendaire, estEnRetard } from "@/lib/taches-core";
+import { nomTitulaire } from "@/schemas/certificat";
 import { seuilsRappel } from "@/server/config";
 import { prisma } from "@/server/db";
 
@@ -161,6 +162,7 @@ export async function chargerDashboard(): Promise<DonneesDashboard> {
       where: { dateFin: { lte: fenetreCertificat }, statut: { not: "revoque" } },
       select: {
         id: true,
+        civilite: true,
         titulaire: true,
         fonction: true,
         dateFin: true,
@@ -251,7 +253,7 @@ export async function chargerDashboard(): Promise<DonneesDashboard> {
     .filter((c) => c.dateFin !== null)
     .map((c) => ({
       id: c.id,
-      titulaire: c.titulaire,
+      titulaire: nomTitulaire(c),
       detail:
         [c.fonction || c.service?.nom, c.fournisseur?.nom].filter(Boolean).join(" · ") ||
         "Certificat électronique",

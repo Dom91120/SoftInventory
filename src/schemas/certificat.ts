@@ -3,11 +3,13 @@ import { z } from "zod";
 // Schémas zod du certificat électronique — SOURCE UNIQUE des règles et
 // messages, partagée par le formulaire client et les server actions.
 
+export const CIVILITES = ["m", "mme"] as const;
 export const USAGES_CERTIFICAT = ["signature", "authentification", "cachet", "autre"] as const;
 export const SUPPORTS_CERTIFICAT = ["carte", "cle_usb", "logiciel", "autre"] as const;
 export const STATUTS_CERTIFICAT = ["actif", "en_renouvellement", "revoque"] as const;
 
 export const LIBELLES_CERTIFICAT = {
+  civilite: { m: "M.", mme: "Mme" },
   usage: {
     signature: "Signature",
     authentification: "Authentification",
@@ -26,6 +28,19 @@ export const LIBELLES_CERTIFICAT = {
     revoque: "Révoqué",
   },
 } as const;
+
+/**
+ * Le titulaire tel qu'on le LIT : « Mme AZZAZ ». La civilité est stockée à
+ * part — c'est ce qui rend le tri juste —, mais elle ne se lit jamais séparée
+ * de son nom. Une seule fonction pour les six endroits qui nomment un
+ * titulaire (liste, fiche, tableau de bord, export, rappel par courriel,
+ * flèches voisin), sans quoi ils auraient fini par ne plus dire la même chose.
+ */
+export function nomTitulaire(c: { civilite: string | null; titulaire: string }): string {
+  const civ =
+    c.civilite === "m" || c.civilite === "mme" ? LIBELLES_CERTIFICAT.civilite[c.civilite] : "";
+  return civ ? `${civ} ${c.titulaire}` : c.titulaire;
+}
 
 /** "" → null, sinon date valide (les <input type="date"> envoient AAAA-MM-JJ). */
 const dateOptionnelle = z
@@ -75,6 +90,9 @@ const enumOptionnel = <T extends readonly string[]>(valeurs: T, quoi: string) =>
  */
 export const certificatSchema = z
   .object({
+    // Nulle plutôt que « » : un certificat de machine n'a pas de civilité, et
+    // la liste s'ouvre sur « — aucune — » plutôt que sur un « M. » présumé.
+    civilite: enumOptionnel(CIVILITES, "Civilité"),
     titulaire: z
       .string()
       .trim()

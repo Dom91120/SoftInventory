@@ -6,7 +6,12 @@ import { Pagination, pageDepuisParams, paginer } from "@/components/pagination";
 import { EmptyState, PageHeader } from "@/components/ui";
 import type { Role } from "@/generated/prisma/client";
 import { DATE_FMT_FR_UTC } from "@/lib/format";
-import { LIBELLES_CERTIFICAT, STATUTS_CERTIFICAT, USAGES_CERTIFICAT } from "@/schemas/certificat";
+import {
+  LIBELLES_CERTIFICAT,
+  nomTitulaire,
+  STATUTS_CERTIFICAT,
+  USAGES_CERTIFICAT,
+} from "@/schemas/certificat";
 import { requireUser } from "@/server/guards";
 import { listAutoritesCertification, listCertificats } from "@/server/services/certificats";
 import { listServicesUtilisateurs } from "@/server/services/referentiels";
@@ -123,10 +128,10 @@ export default async function CertificatsPage({
                             dessous, comme la technologie sous le logiciel. */}
                         <Link
                           href={`/certificats/${c.id}`}
-                          title={c.titulaire}
+                          title={nomTitulaire(c)}
                           className="block truncate font-medium text-strong hover:text-accent"
                         >
-                          {c.titulaire}
+                          {nomTitulaire(c)}
                         </Link>
                         <span className="block truncate text-xs text-faint">
                           {[c.fonction, c.usage ? LIBELLES_CERTIFICAT.usage[c.usage] : ""]
