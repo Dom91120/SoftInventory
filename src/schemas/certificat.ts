@@ -6,7 +6,7 @@ import { z } from "zod";
 export const CIVILITES = ["m", "mme"] as const;
 export const USAGES_CERTIFICAT = ["signature", "authentification", "cachet", "autre"] as const;
 export const SUPPORTS_CERTIFICAT = ["carte", "cle_usb", "logiciel", "autre"] as const;
-export const STATUTS_CERTIFICAT = ["actif", "en_renouvellement", "revoque"] as const;
+export const STATUTS_CERTIFICAT = ["valide", "revoque", "expire", "suspendu"] as const;
 
 export const LIBELLES_CERTIFICAT = {
   civilite: { m: "M.", mme: "Mme" },
@@ -23,23 +23,31 @@ export const LIBELLES_CERTIFICAT = {
     autre: "Autre",
   },
   statut: {
-    actif: "Actif",
-    en_renouvellement: "En renouvellement",
+    valide: "Valide",
     revoque: "Révoqué",
+    expire: "Expiré",
+    suspendu: "Suspendu",
   },
 } as const;
 
 /**
- * Le titulaire tel qu'on le LIT : « Mme AZZAZ ». La civilité est stockée à
- * part — c'est ce qui rend le tri juste —, mais elle ne se lit jamais séparée
- * de son nom. Une seule fonction pour les six endroits qui nomment un
- * titulaire (liste, fiche, tableau de bord, export, rappel par courriel,
- * flèches voisin), sans quoi ils auraient fini par ne plus dire la même chose.
+ * Le titulaire tel qu'on le LIT : « Mme MILLARD REVENEAU Marie-Christine ».
+ * Civilité, NOM, prénom — l'ordre du tableau d'origine, celui sous lequel ces
+ * fiches ont toujours été lues. Les trois sont stockés à part, c'est ce qui
+ * rend le tri et la recherche justes, mais ils ne se lisent jamais séparés.
+ *
+ * Une seule fonction pour les six endroits qui nomment un titulaire (liste,
+ * fiche, tableau de bord, export, rappel par courriel, flèches voisin), sans
+ * quoi ils auraient fini par ne plus dire la même chose.
  */
-export function nomTitulaire(c: { civilite: string | null; titulaire: string }): string {
+export function nomTitulaire(c: {
+  civilite: string | null;
+  titulaire: string;
+  prenom?: string;
+}): string {
   const civ =
     c.civilite === "m" || c.civilite === "mme" ? LIBELLES_CERTIFICAT.civilite[c.civilite] : "";
-  return civ ? `${civ} ${c.titulaire}` : c.titulaire;
+  return [civ, c.titulaire, c.prenom?.trim()].filter(Boolean).join(" ");
 }
 
 /** "" → null, sinon date valide (les <input type="date"> envoient AAAA-MM-JJ). */
@@ -98,6 +106,9 @@ export const certificatSchema = z
       .trim()
       .min(1, "Le titulaire est obligatoire.")
       .max(150, "Titulaire trop long (150 caractères max)."),
+    // Facultatif, et il le restera : une machine n'en a pas, et l'inventaire
+    // n'a longtemps porté que des patronymes.
+    prenom: z.string().trim().max(80, "Prénom trop long (80 caractères max)."),
     fonction: z.string().trim().max(120, "Fonction trop longue (120 caractères max)."),
     email: emailOptionnel,
     fournisseurId: idOptionnel,
@@ -129,7 +140,7 @@ export const certificatSchema = z
       .trim()
       .max(200, "Mention du bon de commande trop longue (200 caractères max)."),
     // Le statut, lui, a une valeur par défaut : un certificat qu'on saisit est
-    // actif jusqu'à preuve du contraire.
+    // valide jusqu'à preuve du contraire.
     statut: z
       .string()
       .trim()

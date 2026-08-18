@@ -31,6 +31,7 @@ function parse(formData: FormData) {
   return certificatSchema.safeParse({
     civilite: get("civilite"),
     titulaire: get("titulaire"),
+    prenom: get("prenom"),
     fonction: get("fonction"),
     email: get("email"),
     fournisseurId: get("fournisseurId"),

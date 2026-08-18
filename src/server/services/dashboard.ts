@@ -164,6 +164,7 @@ export async function chargerDashboard(): Promise<DonneesDashboard> {
         id: true,
         civilite: true,
         titulaire: true,
+        prenom: true,
         fonction: true,
         dateFin: true,
         fournisseur: { select: { nom: true } },

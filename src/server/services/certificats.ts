@@ -28,20 +28,24 @@ export type FiltresCertificats = {
   q?: string;
   fournisseurId?: number;
   serviceId?: number;
-  statut?: "actif" | "en_renouvellement" | "revoque";
+  statut?: "valide" | "revoque" | "expire" | "suspendu";
   usage?: "signature" | "authentification" | "cachet" | "autre";
 };
 
 function buildWhere(f: FiltresCertificats): Prisma.CertificatWhereInput {
   const q = f.q?.trim();
   return {
-    // La recherche porte sur le TITULAIRE et le numéro de série : dans cette
-    // liste, on part d'un nom (« qui a un certificat ? ») ou d'un numéro relevé
-    // sur le support. La fonction et le service ont leurs propres filtres.
+    // La recherche porte sur le NOM, le PRÉNOM et le numéro de série : dans
+    // cette liste, on part d'un nom (« qui a un certificat ? ») ou d'un numéro
+    // relevé sur le support. La fonction et le service ont leurs propres
+    // filtres. Le prénom y figure depuis qu'il a sa colonne : il se cherchait
+    // très bien tant qu'il était collé au patronyme, et l'en sortir sans
+    // l'ajouter ici aurait retiré à la recherche ce qu'elle savait déjà faire.
     ...(q
       ? {
           OR: [
             { titulaire: { contains: q, mode: "insensitive" } },
+            { prenom: { contains: q, mode: "insensitive" } },
             { numeroSerie: { contains: q, mode: "insensitive" } },
           ],
         }
@@ -162,12 +166,16 @@ export async function voisinsCertificat(id: number): Promise<{
 }> {
   const tous = await prisma.certificat.findMany({
     orderBy: [{ dateFin: { sort: "asc", nulls: "last" } }, { titulaire: "asc" }, { id: "asc" }],
-    select: { id: true, civilite: true, titulaire: true },
+    select: { id: true, civilite: true, titulaire: true, prenom: true },
   });
   const i = tous.findIndex((c) => c.id === id);
   if (i === -1) return { precedent: null, suivant: null };
-  const nommer = (c?: { id: number; civilite: Civilite | null; titulaire: string }) =>
-    c ? { id: c.id, nom: nomTitulaire(c) } : null;
+  const nommer = (c?: {
+    id: number;
+    civilite: Civilite | null;
+    titulaire: string;
+    prenom: string;
+  }) => (c ? { id: c.id, nom: nomTitulaire(c) } : null);
   return { precedent: nommer(tous[i - 1]), suivant: nommer(tous[i + 1]) };
 }
 

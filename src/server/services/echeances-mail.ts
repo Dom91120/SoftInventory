@@ -194,6 +194,7 @@ export async function envoyerRappelsEcheances(): Promise<{
         id: true,
         civilite: true,
         titulaire: true,
+        prenom: true,
         fonction: true,
         dateFin: true,
         rappelEnvoyeLe: true,

@@ -771,11 +771,16 @@ enum SupportCertificat {
 /// Où en est le certificat, INDÉPENDAMMENT de sa date de fin : celle-ci dit
 /// s'il est périmé, le statut dit ce qu'on en fait. Un certificat révoqué avant
 /// terme n'est plus utilisable alors que sa date court encore ; un certificat
-/// périmé dont le remplaçant est commandé se marque « en renouvellement ».
+/// suspendu le redeviendra, et son échéance continue donc de compter.
+///
+/// « En renouvellement » a disparu : il décrivait une commande en cours, pas
+/// l'état du certificat, qui reste valide jusqu'à son terme. Aucune fiche ne
+/// le portait.
 enum StatutCertificat {
-  actif
-  en_renouvellement
+  valide
   revoque
+  expire
+  suspendu
 }
 
 /// Certificat électronique nominatif (élu, agent) ou de serveur.
@@ -802,9 +807,13 @@ model Certificat {
   civilite  Civilite?
   /// Qui le porte : une personne (« AZZAZ ») ou une machine (« SERVEUR CLIENT
   /// RGS »). Texte libre et non un compte de l'application : les élus n'en ont
-  /// pas, et un certificat survit au compte de son titulaire. SANS la civilité,
-  /// qui a désormais sa colonne.
+  /// pas, et un certificat survit au compte de son titulaire. Le NOM seul —
+  /// la civilité et le prénom ont chacun leur colonne.
   titulaire String
+  /// Le prénom, à part du nom pour la même raison que la civilité : c'est le
+  /// NOM qui trie et qui se cherche. Vide pour une machine, et vide tant qu'on
+  /// ne l'a pas saisi — l'inventaire n'a longtemps porté que des patronymes.
+  prenom    String @default("")
   /// La qualité au titre de laquelle il signe — Maire, Adjoint, DGA, Agent.
   /// C'est elle qui donne sa portée juridique à la signature, pas le service.
   fonction  String @default("")
@@ -852,7 +861,7 @@ model Certificat {
   codeRevocation String @default("") @map("code_revocation")
   codeRetrait    String @default("") @map("code_retrait")
 
-  statut         StatutCertificat @default(actif)
+  statut         StatutCertificat @default(valide)
   /// Date de fin pour laquelle le rappel a déjà été envoyé (anti-doublon du
   /// cron ; remise à null quand la date change). Même mécanique que les marchés.
   rappelEnvoyeLe DateTime?        @map("rappel_envoye_le") @db.Date

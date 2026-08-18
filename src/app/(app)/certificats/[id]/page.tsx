@@ -6,7 +6,8 @@ import { FlecheVoisin } from "@/components/fleche-voisin";
 import { ModeFicheProvider } from "@/components/mode-fiche";
 import { PageHeader } from "@/components/ui";
 import type { Role } from "@/generated/prisma/client";
-import { nomTitulaire } from "@/schemas/certificat";
+import type { StatutCertificat } from "@/generated/prisma/enums";
+import { LIBELLES_CERTIFICAT, nomTitulaire } from "@/schemas/certificat";
 import { requireUser } from "@/server/guards";
 import { getCertificat, voisinsCertificat } from "@/server/services/certificats";
 import { listEditeurs } from "@/server/services/editeurs";
@@ -17,6 +18,24 @@ import { CodesPanel } from "../codes-panel";
 import { ongletCertificat } from "../onglets";
 
 export const metadata: Metadata = { title: "Certificat" };
+
+/**
+ * La couleur du statut, dans l'en-tête de la fiche. Elle dit s'il y a lieu de
+ * s'inquiéter, le libellé dit quoi : « révoqué » et « expiré » partagent le
+ * rouge parce qu'ils disent la même chose de l'usage — ce certificat ne sert
+ * plus —, et se distinguent par le mot, pas par la teinte. « Suspendu » est
+ * ambre : c'est un retrait provisoire, il reviendra.
+ *
+ * Seules les COULEURS sont ici ; les libellés viennent de
+ * `LIBELLES_CERTIFICAT`, qui les donne déjà au formulaire, au filtre et à
+ * l'export — deux tables auraient fini par se contredire.
+ */
+const COULEUR_STATUT: Record<StatutCertificat, string> = {
+  valide: "badge-ok",
+  suspendu: "badge-warn",
+  revoque: "badge-danger",
+  expire: "badge-danger",
+};
 
 /** Horodatage d'un dépôt : une heure locale, pas une date de calendrier. */
 const FMT_DEPOT = new Intl.DateTimeFormat("fr-FR", {
@@ -81,15 +100,36 @@ export default async function CertificatPage({
             title={nomTitulaire(certificat)}
             subtitle={certificat.fonction || "Certificat électronique"}
             actions={
-              certificat.fournisseur ? (
-                <Link
-                  href={`/editeurs/${certificat.fournisseur.id}`}
-                  title={`Ouvrir la fiche de ${certificat.fournisseur.nom}`}
-                  className="text-sm font-medium text-muted hover:text-accent"
-                >
-                  {certificat.fournisseur.nom}
-                </Link>
-              ) : undefined
+              // EMPILÉES et non côte à côte : l'autorité dit chez qui, la
+              // pastille dit où en est le certificat — deux renseignements de
+              // nature différente, que la même ligne aurait donnés à lire
+              // comme un seul. La pastille est TOUJOURS là, l'autorité
+              // seulement quand elle est renseignée.
+              <span className="flex flex-col items-end">
+                {/* Deux colonnes, une seule trame : ce bloc reprend la
+                    hauteur de ligne du TITRE (text-2xl, 2rem) pour sa
+                    première ligne, si bien que l'autorité se centre sur le
+                    nom et que la pastille tombe sur le sous-titre, au pixel
+                    près. La hauteur est tenue même SANS autorité : la
+                    pastille ne doit pas remonter d'une ligne selon que
+                    l'autorité est renseignée ou non. */}
+                <span className="flex h-8 items-center">
+                  {certificat.fournisseur ? (
+                    <Link
+                      href={`/editeurs/${certificat.fournisseur.id}`}
+                      title={`Ouvrir la fiche de ${certificat.fournisseur.nom}`}
+                      className="text-sm font-medium text-muted hover:text-accent"
+                    >
+                      {certificat.fournisseur.nom}
+                    </Link>
+                  ) : null}
+                </span>
+                {/* Le même décalage que le sous-titre (mt-0.5) : les deux
+                    lignes partent alors du même pixel. */}
+                <span className={`mt-0.5 ${COULEUR_STATUT[certificat.statut]}`}>
+                  {LIBELLES_CERTIFICAT.statut[certificat.statut]}
+                </span>
+              </span>
             }
           />
         </div>
@@ -117,6 +157,7 @@ export default async function CertificatPage({
           values={{
             civilite: certificat.civilite ?? "",
             titulaire: certificat.titulaire,
+            prenom: certificat.prenom,
             fonction: certificat.fonction,
             email: certificat.email,
             fournisseurId: texte(certificat.fournisseurId),

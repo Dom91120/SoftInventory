@@ -22,6 +22,7 @@ import { ONGLETS_CERTIFICAT, type OngletCertificat } from "./onglets";
 export type CertificatValues = {
   civilite: string;
   titulaire: string;
+  prenom: string;
   fonction: string;
   email: string;
   fournisseurId: string;
@@ -45,6 +46,7 @@ export type CertificatValues = {
 export const CERTIFICAT_VIDE: CertificatValues = {
   civilite: "",
   titulaire: "",
+  prenom: "",
   fonction: "",
   email: "",
   fournisseurId: "",
@@ -61,7 +63,7 @@ export const CERTIFICAT_VIDE: CertificatValues = {
   imputation: "",
   bonCommandeLe: "",
   bonCommandeNote: "",
-  statut: "actif",
+  statut: "valide",
   notes: "",
 };
 
@@ -309,6 +311,19 @@ export function CertificatForm({
               className="input"
             />
           </Field>
+          {/* Le prénom SUIT le nom, comme on le lit sur ces fiches et comme
+              le tableau d'origine l'écrivait. Facultatif : une machine n'en a
+              pas, et le nom seul suffit à retrouver quelqu'un. */}
+          <Field label="Prénom" htmlFor="prenom">
+            <input
+              id="prenom"
+              name="prenom"
+              placeholder="Ex : Marie-Christine"
+              defaultValue={values.prenom}
+              disabled={dis}
+              className="input"
+            />
+          </Field>
           {/* La FONCTION et non le grade : c'est elle qui donne sa portée à
                 la signature (« Maire », « Adjoint à la Maire », « DGA »). */}
           <Field label="Fonction" htmlFor="fonction">
@@ -335,21 +350,6 @@ export function CertificatForm({
           {/* Un certificat de machine désigne SA machine ; le laisser vide est
                 le cas courant, celui d'un certificat nominatif. */}
           {selectOption("serveurId", "Serveur équipé", serveurs, "— aucun (nominatif) —")}
-          <Field label="Statut" htmlFor="statut">
-            <select
-              id="statut"
-              name="statut"
-              defaultValue={values.statut || "actif"}
-              disabled={dis}
-              className="input"
-            >
-              {STATUTS_CERTIFICAT.map((s) => (
-                <option key={s} value={s}>
-                  {LIBELLES_CERTIFICAT.statut[s]}
-                </option>
-              ))}
-            </select>
-          </Field>
         </div>
       </Card>
 
@@ -447,6 +447,27 @@ export function CertificatForm({
               disabled={dis}
               className="input"
             />
+          </Field>
+          {/* Le statut vit ICI, à la suite des dates, et non dans la carte du
+              titulaire : il dit où en est LE CERTIFICAT, pas qui le porte.
+              Juste après la fin de validité, parce que les deux se lisent
+              ensemble — la date dit s'il est périmé, le statut ce qu'on en
+              fait, et « Révoqué » sur une date qui court encore ne se comprend
+              qu'à côté d'elle. */}
+          <Field label="Statut" htmlFor="statut">
+            <select
+              id="statut"
+              name="statut"
+              defaultValue={values.statut || "valide"}
+              disabled={dis}
+              className="input"
+            >
+              {STATUTS_CERTIFICAT.map((s) => (
+                <option key={s} value={s}>
+                  {LIBELLES_CERTIFICAT.statut[s]}
+                </option>
+              ))}
+            </select>
           </Field>
         </div>
       </Card>
