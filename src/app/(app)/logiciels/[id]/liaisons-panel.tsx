@@ -335,9 +335,11 @@ export function LiaisonsPanel({
             Aucun serveur : ce logiciel ne s'installe pas sur un serveur (SaaS, poste de travail).
           </label>
         )}
-        {aucunServeur ? null : serveursLies.length === 0 ? (
-          <p className="mb-3 text-sm text-faint">Aucun serveur associé.</p>
-        ) : (
+        {/* Pas d'invite « Aucun serveur associé. » quand la liste est vide : la
+            case juste au-dessus pose déjà la question, et la liste de choix
+            juste en dessous attend déjà la réponse. Une ligne pour dire qu'il
+            n'y a rien entre les deux ne faisait que les éloigner. */}
+        {aucunServeur || serveursLies.length === 0 ? null : (
           // Sans filets entre les lignes : deux installations d'un même
           // logiciel se lisent comme une liste, pas comme deux données
           // distinctes qu'il faudrait séparer — même règle que les cartes de
