@@ -13,7 +13,11 @@ import { FormulairePiece, type PieceContratRow, usePieceContrat } from "@/compon
 import { Card, EmptyState } from "@/components/ui";
 import { DATE_FMT_FR_UTC, formatEuros } from "@/lib/format";
 import { LIBELLES } from "@/schemas/logiciel";
-import { createContratAction, updateContratAction } from "../actions";
+import {
+  createContratAction,
+  updateContratAction,
+  updateMentionSansContratAction,
+} from "../actions";
 
 export type { PieceContratRow };
 
@@ -142,6 +146,15 @@ function estARenouveler(dateFin: string, aujourdhui: string, limite: string): bo
 const CATEGORIE_PAR_DEFAUT = "Contrat";
 
 /**
+ * Message de l'encadré quand la fiche n'a aucun marché. Il s'efface derrière
+ * `mentionSansContrat` quand elle est renseignée : certaines fiches n'auront
+ * jamais de marché ici parce qu'il est porté ailleurs — « Contrat géré par le
+ * CCAS » — et sans ce mot le vide se lisait comme un trou dans l'inventaire.
+ */
+const TEXTE_SANS_CONTRAT =
+  "Aucun contrat enregistré. Un contrat ou marché regroupe les pièces engagées auprès d'une même société.";
+
+/**
  * Onglet Contrats : les contrats et marchés du logiciel et, sous chacun, ses
  * pièces. Même organisation que l'onglet Devis, pour la même raison : le marché
  * dit AVEC QUI on s'engage, sous quelle référence, pour COMBIEN AU TOTAL et
@@ -160,6 +173,7 @@ const CATEGORIE_PAR_DEFAUT = "Contrat";
 export function ContratsPanel({
   logicielId,
   contrats,
+  mentionSansContrat,
   categories,
   editeurs,
   editeurDuLogicielId,
@@ -172,6 +186,8 @@ export function ContratsPanel({
 }: {
   logicielId: number;
   contrats: ContratRow[];
+  /** Mention qui remplace le message standard du vide ; "" = message standard. */
+  mentionSansContrat: string;
   /** Référentiel des catégories, pour la liste du formulaire d'une pièce. */
   categories: CategorieOption[];
   /** Annuaire des sociétés, pour désigner un revendeur. */
@@ -214,6 +230,11 @@ export function ContratsPanel({
     contratId: number;
     row: PieceContratRow | null;
   } | null>(null);
+  // Saisie de la mention du vide : null = fermée, sinon la valeur en cours.
+  // Ouverte sur la valeur enregistrée, elle n'est « sale » qu'une fois changée
+  // — ouvrir puis refermer sans toucher ne doit rien demander à personne.
+  const [mentionForm, setMentionForm] = useState<string | null>(null);
+  const mentionSale = mentionForm !== null && mentionForm.trim() !== mentionSansContrat;
   const piece = usePieceContrat(setError);
   /** Poignées sur les formulaires ouverts, pour le « Enregistrer » global. */
   const formMarcheRef = useRef<HTMLFormElement>(null);
@@ -243,6 +264,24 @@ export function ContratsPanel({
   }
 
   /**
+   * Enregistre la mention du vide — même régime attendable qu'`envoyerMarche` :
+   * le bouton de son formulaire l'appelle, le « Enregistrer » global aussi.
+   * Vider le champ rend le message standard : "" est une valeur, pas un oubli.
+   */
+  async function envoyerMention(): Promise<boolean> {
+    if (mentionForm === null) return true;
+    setError(null);
+    const res = await updateMentionSansContratAction(logicielId, mentionForm.trim());
+    if (!res.ok) {
+      setError(res.error);
+      return false;
+    }
+    setMentionForm(null);
+    router.refresh();
+    return true;
+  }
+
+  /**
    * L'onglet lit LE mode « je modifie cette fiche » de la barre d'onglets, et
    * s'y inscrit avec ses formulaires OUVERTS : un marché ou une pièce en cours
    * de saisie est l'œuvre du même utilisateur que le reste de la fiche.
@@ -251,10 +290,11 @@ export function ContratsPanel({
    * du fichier choisi.
    */
   const mode = useInscriptionModeFiche({
-    sale: () => marcheForm !== null || pieceForm !== null,
+    sale: () => marcheForm !== null || pieceForm !== null || mentionSale,
     rendre: () => {
       setMarcheForm(null);
       setPieceForm(null);
+      setMentionForm(null);
     },
     enregistrer: async () => {
       if (marcheForm && formMarcheRef.current) {
@@ -262,6 +302,9 @@ export function ContratsPanel({
       }
       if (pieceForm && formPieceRef.current) {
         if (!(await piece.soumettreViaFormulaire(formPieceRef.current))) return false;
+      }
+      if (mentionSale) {
+        if (!(await envoyerMention())) return false;
       }
       return true;
     },
@@ -428,8 +471,67 @@ export function ContratsPanel({
 
         {contrats.length === 0 ? (
           <EmptyState>
-            Aucun contrat enregistré. Un contrat ou marché regroupe les pièces engagées auprès d'une
-            même société.
+            {mentionForm !== null ? (
+              /* La saisie prend la place du texte qu'elle remplace, comme le
+                  formulaire d'un marché prend la place de sa ligne de titre.
+                  Ses deux boutons sont ceux de tous les sous-formulaires de
+                  l'onglet — et le « Enregistrer » global la soumet aussi. */
+              <form
+                className="mx-auto max-w-xl space-y-2 text-left"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  startTransition(async () => {
+                    await envoyerMention();
+                  });
+                }}
+              >
+                <input
+                  className="input"
+                  value={mentionForm}
+                  onChange={(e) => setMentionForm(e.target.value)}
+                  maxLength={200}
+                  disabled={pending}
+                  // biome-ignore lint/a11y/noAutofocus: la saisie vient d'être demandée d'un clic sur le crayon.
+                  autoFocus
+                  aria-label="Libellé affiché en l'absence de contrat"
+                  placeholder="Contrat géré par le CCAS, par exemple"
+                />
+                <p className="text-xs">
+                  Ce texte remplace le message standard sur cette fiche tant qu'aucun contrat n'y
+                  est rattaché. Laissez-le vide pour retrouver le message standard.
+                </p>
+                <div className="flex gap-3">
+                  <button type="submit" disabled={pending} className="btn-primary">
+                    {pending ? "Enregistrement…" : "Enregistrer"}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-warn"
+                    disabled={pending}
+                    onClick={() => setMentionForm(null)}
+                  >
+                    Annuler
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <span className="inline-flex flex-wrap items-center justify-center gap-1">
+                <span>{mentionSansContrat || TEXTE_SANS_CONTRAT}</span>
+                {/* Le crayon ne paraît que sous le mode modification : ce
+                    libellé est un champ de la fiche comme les autres. */}
+                {fige ? null : (
+                  <button
+                    type="button"
+                    className="btn-ghost !p-1.5"
+                    title="Modifier ce libellé"
+                    disabled={pending}
+                    onClick={() => setMentionForm(mentionSansContrat)}
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </span>
+            )}
           </EmptyState>
         ) : (
           <div className="space-y-5">

@@ -8,6 +8,7 @@ import {
   EDITEUR_INTERNE,
   logicielRgpdSchema,
   logicielSchema,
+  mentionSansContratSchema,
   pieceContratSchema,
 } from "@/schemas/logiciel";
 import { AUDIT, recordAudit } from "@/server/audit";
@@ -129,6 +130,27 @@ export async function updateRgpdAction(id: number, formData: FormData): Promise<
   }
   try {
     await svc.updateLogicielRgpd(id, parsed.data);
+    revalidatePath(`/logiciels/${id}`);
+    return { ok: true, id };
+  } catch (e) {
+    return inattendu(e);
+  }
+}
+
+/**
+ * Mention qui remplace le « Aucun contrat enregistré » de l'onglet Contrats.
+ * Valeur simple plutôt que FormData, comme `setServicesAction` : un seul champ,
+ * porté par un panneau qui n'a pas de formulaire de fiche.
+ */
+export async function updateMentionSansContratAction(id: number, mention: string): Promise<Result> {
+  await requireRole("admin");
+  if (!idValide(id)) return { ok: false, error: "Identifiant invalide." };
+  const parsed = mentionSansContratSchema.safeParse({ mentionSansContrat: mention });
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "Données invalides." };
+  }
+  try {
+    await svc.updateMentionSansContrat(id, parsed.data);
     revalidatePath(`/logiciels/${id}`);
     return { ok: true, id };
   } catch (e) {

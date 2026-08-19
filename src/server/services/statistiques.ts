@@ -75,6 +75,7 @@ export async function chargerStatistiques(): Promise<DonneesStatistiques> {
           editeurId: true,
           developpementInterne: true,
           sansServeur: true,
+          mentionSansContrat: true,
           dateMiseEnService: true,
           authentification: true,
           referentMetier: true,
@@ -221,7 +222,15 @@ export async function chargerStatistiques(): Promise<DonneesStatistiques> {
       renseignes: logiciels.filter((l) => l.editeurId !== null || l.developpementInterne).length,
     },
     { label: "Technologie", renseignes: logiciels.filter((l) => l.technologieId !== null).length },
-    { label: "Marché rattaché", renseignes: logiciels.filter((l) => l.contrats.length > 0).length },
+    // Même raison que l'éditeur et le serveur : la mention qui remplace le
+    // « Aucun contrat enregistré » de l'onglet Contrats est une RÉPONSE —
+    // « Contrat géré par le CCAS » dit pourquoi aucun marché ne sera jamais
+    // rattaché ici. Une fiche qui l'a remplie n'a plus rien à compléter.
+    {
+      label: "Marché rattaché",
+      renseignes: logiciels.filter((l) => l.contrats.length > 0 || l.mentionSansContrat !== "")
+        .length,
+    },
     // Même raison que l'éditeur : « aucun serveur » est une RÉPONSE — le
     // logiciel tourne chez l'éditeur ou sur les postes. Sans elle, la jauge
     // tombait à 32 % en comptant les trente-six SaaS et les neuf logiciels de

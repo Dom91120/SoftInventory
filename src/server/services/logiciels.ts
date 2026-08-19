@@ -6,6 +6,7 @@ import type {
   DevisInput,
   LogicielInput,
   LogicielRgpdInput,
+  MentionSansContratInput,
   PieceContratInput,
 } from "@/schemas/logiciel";
 import { prisma } from "@/server/db";
@@ -144,6 +145,10 @@ export function updateLogiciel(id: number, data: LogicielInput) {
 }
 
 export function updateLogicielRgpd(id: number, data: LogicielRgpdInput) {
+  return prisma.logiciel.update({ where: { id }, data });
+}
+
+export function updateMentionSansContrat(id: number, data: MentionSansContratInput) {
   return prisma.logiciel.update({ where: { id }, data });
 }
 

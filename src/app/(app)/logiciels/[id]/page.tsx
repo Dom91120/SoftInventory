@@ -394,6 +394,7 @@ async function OngletContrats({
   return (
     <ContratsPanel
       logicielId={logiciel.id}
+      mentionSansContrat={logiciel.mentionSansContrat}
       nbUtilisateurs={logiciel.nbUtilisateurs}
       nbMaxUtilisateurs={logiciel.nbMaxUtilisateurs}
       readOnly={readOnly}

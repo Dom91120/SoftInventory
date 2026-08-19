@@ -487,6 +487,12 @@ model Logiciel {
   nbMaxUtilisateurs Int?                 @map("nb_max_utilisateurs")
   referentMetier    String               @default("") @map("referent_metier")
   referentTechnique String               @default("") @map("referent_technique")
+  /// Remplace, quand elle est renseignée, le « Aucun contrat enregistré » de
+  /// l'onglet Contrats. Certaines fiches n'auront jamais de marché ICI parce
+  /// qu'il est porté ailleurs — « Contrat géré par le CCAS » — et sans ce mot
+  /// le vide se lisait comme un trou dans l'inventaire. Vide = message
+  /// standard ; sans objet dès qu'un marché est rattaché.
+  mentionSansContrat String              @default("") @map("mention_sans_contrat")
 
   // ── Volet RGPD (simple) ──
   donneesPersonnelles Boolean             @default(false) @map("donnees_personnelles")

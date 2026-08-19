@@ -172,6 +172,16 @@ export const logicielRgpdSchema = z.object({
 export type LogicielRgpdInput = z.infer<typeof logicielRgpdSchema>;
 
 /**
+ * Mention qui remplace le « Aucun contrat enregistré » de l'onglet Contrats —
+ * « Contrat géré par le CCAS ». Une phrase, pas un pavé : elle se loge dans
+ * l'encadré du vide. Vide = message standard.
+ */
+export const mentionSansContratSchema = z.object({
+  mentionSansContrat: z.string().trim().max(200, "Mention trop longue (200 caractères max)."),
+});
+export type MentionSansContratInput = z.infer<typeof mentionSansContratSchema>;
+
+/**
  * Contrat ou marché (onglet Contrats) : ce qui l'IDENTIFIE, plus ce qui
  * l'engage globalement — montant annuel et date de fin.
  *
