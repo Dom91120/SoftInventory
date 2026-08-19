@@ -155,15 +155,14 @@ export const certificatSchema = z
 export type CertificatInput = z.infer<typeof certificatSchema>;
 
 /**
- * Les deux codes remis par l'autorité, SÉPARÉS du reste de la fiche.
+ * Le code de révocation remis par l'autorité, SÉPARÉ du reste de la fiche.
  *
- * Ils voyagent dans leur propre schéma parce qu'ils voyagent dans leur propre
- * formulaire, réservé aux admins : un lecteur ne les reçoit pas du serveur, et
- * son enregistrement de la fiche ne peut donc pas les effacer par omission —
- * ce qui serait arrivé s'ils avaient partagé le POST des autres champs.
+ * Il voyage dans son propre schéma parce qu'il voyage dans son propre
+ * formulaire, réservé aux admins : un lecteur ne le reçoit pas du serveur, et
+ * son enregistrement de la fiche ne peut donc pas l'effacer par omission —
+ * ce qui serait arrivé s'il avait partagé le POST des autres champs.
  */
 export const codesCertificatSchema = z.object({
   codeRevocation: z.string().trim().max(100, "Code de révocation trop long (100 caractères max)."),
-  codeRetrait: z.string().trim().max(100, "Code de retrait trop long (100 caractères max)."),
 });
 export type CodesCertificatInput = z.infer<typeof codesCertificatSchema>;

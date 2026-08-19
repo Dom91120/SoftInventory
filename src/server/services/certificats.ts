@@ -12,16 +12,16 @@ import { deleteDocument } from "@/server/services/documents";
  * Certificats électroniques — couche données. Fonctions fines, non gardées :
  * les gardes vivent dans les server actions.
  *
- * LES DEUX CODES (révocation, retrait) NE SORTENT PAS D'ICI par les lectures
- * ordinaires : `SANS_CODES` les retire de chaque `findMany`/`findUnique`. Un
- * compte lecteur ne peut donc pas les obtenir, même en lisant la réponse du
- * serveur dans son navigateur — la garde est dans la requête, pas dans le
- * rendu. Une seule fonction les lit, `getCodesCertificat`, et l'action qui
- * l'appelle exige le rôle admin.
+ * LE CODE DE RÉVOCATION NE SORT PAS D'ICI par les lectures ordinaires :
+ * `SANS_CODES` le retire de chaque `findMany`/`findUnique`. Un compte lecteur
+ * ne peut donc pas l'obtenir, même en lisant la réponse du serveur dans son
+ * navigateur — la garde est dans la requête, pas dans le rendu. Une seule
+ * fonction le lit, `getCodesCertificat`, et l'action qui l'appelle exige le
+ * rôle admin.
  */
 
 /** Ce que toute lecture ordinaire laisse en base. */
-const SANS_CODES = { codeRevocation: true, codeRetrait: true } as const;
+const SANS_CODES = { codeRevocation: true } as const;
 
 /** Filtres de la liste, tous facultatifs et cumulatifs. */
 export type FiltresCertificats = {
@@ -101,7 +101,7 @@ export async function getCertificat(id: number) {
 export async function getCodesCertificat(id: number) {
   return prisma.certificat.findUnique({
     where: { id },
-    select: { codeRevocation: true, codeRetrait: true },
+    select: { codeRevocation: true },
   });
 }
 

@@ -104,17 +104,15 @@ export async function deleteCertificatAction(id: number): Promise<Result> {
 }
 
 /**
- * Les deux codes de l'autorité, à la DEMANDE et pour les seuls admins.
+ * Le code de révocation, à la DEMANDE et pour les seuls admins.
  *
- * Ils ne partent pas avec le rendu de la fiche : tant que personne ne clique,
- * ils ne quittent pas la base. Un secret qu'on n'a pas envoyé est un secret qui
- * ne traîne ni dans le HTML d'un onglet resté ouvert, ni dans le cache.
+ * Il ne part pas avec le rendu de la fiche : tant que personne ne clique, il
+ * ne quitte pas la base. Un secret qu'on n'a pas envoyé est un secret qui ne
+ * traîne ni dans le HTML d'un onglet resté ouvert, ni dans le cache.
  */
 export async function lireCodesAction(
   id: number,
-): Promise<
-  { ok: true; codeRevocation: string; codeRetrait: string } | { ok: false; error: string }
-> {
+): Promise<{ ok: true; codeRevocation: string } | { ok: false; error: string }> {
   await requireRole("admin");
   if (!Number.isInteger(id) || id < 1) return { ok: false, error: "Identifiant invalide." };
   try {
@@ -132,7 +130,6 @@ export async function updateCodesAction(id: number, formData: FormData): Promise
   if (!(await getCertificat(id))) return { ok: false, error: "Certificat introuvable." };
   const parsed = codesCertificatSchema.safeParse({
     codeRevocation: String(formData.get("codeRevocation") ?? ""),
-    codeRetrait: String(formData.get("codeRetrait") ?? ""),
   });
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Données invalides." };

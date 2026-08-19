@@ -858,16 +858,17 @@ model Certificat {
   /// n'apprend rien qu'on vienne chercher dans un inventaire.
   bonCommandeLe DateTime? @map("bon_commande_le") @db.Date
 
-  /// Codes remis par l'autorité, à garder sous la main le jour où il faut agir
-  /// vite : le code de RÉVOCATION invalide le certificat (perte, vol, départ du
-  /// titulaire), le code de RETRAIT sert à le récupérer et l'activer.
+  /// Code remis par l'autorité, à garder sous la main le jour où il faut agir
+  /// vite : il invalide le certificat (perte, vol, départ du titulaire). Le
+  /// code de RETRAIT qui l'accompagnait a été retiré : aucune fiche n'en avait,
+  /// et il ne sert qu'à l'installation — un geste qui ne passe pas par
+  /// l'inventaire.
   ///
-  /// Ce sont des SECRETS OPÉRATOIRES : révoquer le certificat d'un élu bloque
-  /// ses signatures. Ils ne sont donc ni lus ni écrits pour un compte lecteur —
-  /// la garde est côté serveur (le service ne les met pas dans son `select`),
-  /// pas seulement dans l'affichage.
+  /// C'est un SECRET OPÉRATOIRE : révoquer le certificat d'un élu bloque ses
+  /// signatures. Il n'est donc ni lu ni écrit pour un compte lecteur — la
+  /// garde est côté serveur (le service ne le met pas dans son `select`), pas
+  /// seulement dans l'affichage.
   codeRevocation String @default("") @map("code_revocation")
-  codeRetrait    String @default("") @map("code_retrait")
 
   statut         StatutCertificat @default(valide)
   /// Date de fin pour laquelle le rappel a déjà été envoyé (anti-doublon du
