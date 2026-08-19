@@ -3,7 +3,11 @@
 import { Upload, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useRef, useState, useTransition } from "react";
-import { deleteDocumentAction, updateDocumentCategorieAction } from "@/app/(app)/documents/actions";
+import {
+  deleteDocumentAction,
+  renameDocumentAction,
+  updateDocumentCategorieAction,
+} from "@/app/(app)/documents/actions";
 import {
   createPieceContratAction,
   deletePieceContratAction,
@@ -152,16 +156,30 @@ export function usePieceContrat(onErreur: (message: string | null) => void) {
           conclure(false);
           return;
         }
-      } else if (cible.row?.document && categorieId !== cible.row.document.categorieId) {
-        // Pas de nouveau fichier, mais la catégorie a bougé : elle s'applique au
-        // document déjà rattaché. Comparaison utile — sans elle, chaque
-        // enregistrement rejouerait une écriture inutile.
-        const maj = await updateDocumentCategorieAction(cible.row.document.id, categorieId);
-        if (!maj.ok) {
-          onErreur(`Pièce enregistrée, mais la catégorie du fichier n'a pas suivi : ${maj.error}`);
-          router.refresh();
-          conclure(false);
-          return;
+      } else if (cible.row?.document) {
+        // Pas de nouveau fichier : le nom et la catégorie saisis s'appliquent
+        // au document déjà rattaché. Comparaisons utiles — sans elles, chaque
+        // enregistrement rejouerait des écritures inutiles.
+        const nomVoulu = String(form.get("nomFichier") ?? "").trim();
+        if (nomVoulu !== "" && nomVoulu !== cible.row.document.nomOriginal) {
+          const ren = await renameDocumentAction(cible.row.document.id, nomVoulu);
+          if (!ren.ok) {
+            onErreur(`Pièce enregistrée, mais le fichier n'a pas pu être renommé : ${ren.error}`);
+            router.refresh();
+            conclure(false);
+            return;
+          }
+        }
+        if (categorieId !== cible.row.document.categorieId) {
+          const maj = await updateDocumentCategorieAction(cible.row.document.id, categorieId);
+          if (!maj.ok) {
+            onErreur(
+              `Pièce enregistrée, mais la catégorie du fichier n'a pas suivi : ${maj.error}`,
+            );
+            router.refresh();
+            conclure(false);
+            return;
+          }
         }
       }
       onFini();
@@ -248,12 +266,39 @@ export function FormulairePiece({
   return (
     <form ref={refForm} onSubmit={(e) => onSubmit(e, fichier)} className={className}>
       <div className="flex flex-wrap items-start gap-4">
-        <div className="w-full sm:w-44">
+        {/* Renommage du fichier DÉJÀ déposé — donc seulement au crayon, et
+            caché dès qu'un remplaçant est choisi : c'est alors le nouveau
+            fichier qui apportera son nom. En première position : on rouvre
+            plus souvent une pièce pour corriger son nom que pour la re-déposer.
+            L'action serveur conserve l'extension d'elle-même. */}
+        {row?.document && !fichier ? (
+          <div className="w-full sm:w-56">
+            <Field
+              label="Nom du fichier"
+              htmlFor="nomFichier"
+              hint="Renomme le fichier déposé"
+            >
+              <input
+                id="nomFichier"
+                name="nomFichier"
+                type="text"
+                required
+                maxLength={180}
+                defaultValue={row.document.nomOriginal}
+                disabled={pending}
+                className="input"
+              />
+            </Field>
+          </div>
+        ) : null}
+        {/* `w-48` : la largeur du plus long de ses deux libellés — « Remplacer
+            le fichier » se pliait en deux dans `w-44`. */}
+        <div className="w-full sm:w-48">
           <Field
             label="Fichier"
             hint={
               row?.document && !fichier
-                ? `Actuel : ${row.document.nomOriginal}. En choisir un autre le remplace.`
+                ? `Actuel : ${row.document.nomOriginal}`
                 : "PDF, Office, images, zip — 25 Mo max."
             }
           >
@@ -270,7 +315,9 @@ export function FormulairePiece({
               onClick={() => fileRef.current?.click()}
             >
               <Upload className="h-4 w-4" />
-              Déposer un fichier
+              {/* Le verbe suit l'aide d'à côté : un fichier en place se
+                  REMPLACE, il ne se dépose pas une seconde fois. */}
+              {row?.document ? "Remplacer le fichier" : "Déposer un fichier"}
             </button>
             {fichier ? (
               <p className="mt-1 flex min-w-0 items-center gap-1">
@@ -310,19 +357,26 @@ export function FormulairePiece({
             </select>
           </Field>
         </div>
-        <div className="shrink-0">
+        {/* `w-36` et non `shrink-0` : sans largeur, c'est l'AIDE — la plus
+            longue phrase de la rangée — qui dictait celle de la colonne, et
+            l'arrivée du champ « Nom du fichier » rejetait la date à la ligne.
+            Bornée au plus près du champ, l'aide se replie dessous. */}
+        <div className="w-full sm:w-36">
           <Field
             label="Date de la pièce"
             htmlFor="datePiece"
-            hint="Date du document : signature, notification. L'échéance, elle, se saisit sur le marché."
+            hint="Date du document"
           >
+            {/* `!w-32` et non `!w-auto` : la largeur naturelle du contrôle
+                (152 px) compte large — 128 px suffisent à « 12/07/2024 » et au
+                calendrier, vérifié à l'écran. */}
             <input
               id="datePiece"
               name="datePiece"
               type="date"
               defaultValue={row?.datePiece ?? ""}
               disabled={pending}
-              className="input !w-auto"
+              className="input !w-32"
             />
           </Field>
         </div>
