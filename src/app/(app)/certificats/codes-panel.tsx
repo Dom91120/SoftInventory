@@ -68,9 +68,10 @@ export function CodesPanel({ id }: { id: number }) {
   const mode = useInscriptionModeFiche({
     // Une frappe non enregistrée pèse dans la question du crayon.
     sale: () => codes !== null && saisie !== null && saisie.codeRevocation !== codes.codeRevocation,
-    // « Rendre » remballe : montrer une frappe abandonnée comme si elle
-    // était le code serait pire que de devoir recliquer « Afficher ».
-    rendre: masquer,
+    // « Rendre » jette la frappe abandonnée et remet la valeur enregistrée,
+    // SANS remballer : « Afficher » vit hors du mode, et le crayon qui se
+    // referme n'a pas à retirer un affichage qu'il n'a pas donné.
+    rendre: () => setSaisie(codes),
     // Sa part du « Enregistrer » global de la fiche.
     enregistrer: enregistrerCodes,
   });
@@ -105,7 +106,7 @@ export function CodesPanel({ id }: { id: number }) {
 
   return (
     <Card
-      title="Code de l'autorité"
+      title="Code de révocation"
       hint="Réservé aux administrateurs"
       actions={
         codes === null ? (
@@ -143,7 +144,7 @@ export function CodesPanel({ id }: { id: number }) {
           {/* Le gabarit deux colonnes reste : le champ garde la largeur qu'il
               avait quand le code de retrait occupait l'autre moitié. */}
           <div className="grid items-end gap-x-3 gap-y-2 sm:grid-cols-2">
-            <Field label="Code de révocation" htmlFor="codeRevocation">
+            <Field label="Code" htmlFor="codeRevocation">
               <input
                 id="codeRevocation"
                 name="codeRevocation"
