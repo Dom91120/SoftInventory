@@ -10,8 +10,11 @@ export const metadata: Metadata = { title: "Nouveau certificat" };
 
 export default async function NouveauCertificatPage() {
   await requireRole("admin");
+  // Seules les AUTORITÉS de certification : c'est ce que le champ désigne.
+  // Tant qu'aucune fiche n'est requalifiée, la liste est vide — qualifier
+  // CERTINOMIS et consorts dans l'annuaire la remplit.
   const [editeurs, services, serveurs] = await Promise.all([
-    listEditeurs(),
+    listEditeurs({ categorie: "autorite_certification" }),
     listServicesUtilisateurs(),
     listServeurs(),
   ]);

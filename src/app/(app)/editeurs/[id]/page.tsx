@@ -6,6 +6,7 @@ import { FlecheVoisin } from "@/components/fleche-voisin";
 import { ModeFicheProvider } from "@/components/mode-fiche";
 import { Card, PageHeader } from "@/components/ui";
 import type { Role } from "@/generated/prisma/client";
+import { LIBELLES_CATEGORIE_EDITEUR } from "@/schemas/editeur";
 import { requireUser } from "@/server/guards";
 import { getEditeur, voisinsEditeur } from "@/server/services/editeurs";
 import { listCategoriesDocuments } from "@/server/services/referentiels";
@@ -54,10 +55,15 @@ export default async function EditeurPage({
           {/* « — modifiable » disait à l'admin ce que les champs actifs et le
               bouton d'enregistrement lui montrent déjà. La mention de lecture
               seule reste : elle, apprend quelque chose. */}
+          {/* Le sous-titre dit ce qu'EST la société — « Autorité de
+              certification », pas un « Fiche éditeur » qui mentirait sur les
+              fournisseurs et les autorités. */}
           <PageHeader
             className=""
             title={editeur.nom}
-            subtitle={isAdmin ? "Fiche éditeur" : "Fiche éditeur (lecture seule)"}
+            subtitle={
+              LIBELLES_CATEGORIE_EDITEUR[editeur.categorie] + (isAdmin ? "" : " (lecture seule)")
+            }
           />
         </div>
         <FlecheVoisin
@@ -81,6 +87,7 @@ export default async function EditeurPage({
           onglet={actif}
           values={{
             nom: editeur.nom,
+            categorie: editeur.categorie,
             adresse: editeur.adresse,
             codePostal: editeur.codePostal,
             ville: editeur.ville,

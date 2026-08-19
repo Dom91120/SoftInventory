@@ -47,6 +47,16 @@ enum CycleDeVie {
   abandonne
 }
 
+/// Ce qu'est la société de l'annuaire pour nous : celle qui FAIT le logiciel,
+/// celle qui nous le VEND (revendeur, centrale type UGAP), ou celle qui émet
+/// nos certificats. L'annuaire mêle les trois — c'est voulu, un marché désigne
+/// indifféremment l'une ou l'autre — et cette étiquette permet de les relire.
+enum CategorieEditeur {
+  editeur
+  fournisseur
+  autorite_certification
+}
+
 /// Modèle de diffusion.
 enum TypeSource {
   opensource
@@ -270,6 +280,10 @@ model ThrottleBucket {
 model Editeur {
   id                   Int      @id @default(autoincrement())
   nom                  String   @unique
+  /// Voir l'enum. Défaut « editeur » — demandé par Dominique : l'annuaire est
+  /// né pour eux, les fournisseurs purs et les autorités sont l'exception, à
+  /// requalifier fiche par fiche.
+  categorie            CategorieEditeur @default(editeur)
   adresse              String   @default("")
   codePostal           String   @default("") @map("code_postal")
   ville                String   @default("")

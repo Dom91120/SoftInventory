@@ -8,11 +8,14 @@ import { FicheOnglets } from "@/components/fiche-onglets";
 import { useInscriptionModeFiche } from "@/components/mode-fiche";
 import { useSaisieEnCours } from "@/components/saisie-en-cours";
 import { Card, Field } from "@/components/ui";
+import { CATEGORIES_EDITEUR, LIBELLES_CATEGORIE_EDITEUR } from "@/schemas/editeur";
 import { createEditeurAction, deleteEditeurAction, updateEditeurAction } from "./actions";
 import { ONGLETS_EDITEUR, type OngletEditeur } from "./onglets";
 
 export type EditeurValues = {
   nom: string;
+  /** Clé de `CATEGORIES_EDITEUR` : editeur, fournisseur, autorite_certification. */
+  categorie: string;
   adresse: string;
   codePostal: string;
   ville: string;
@@ -42,6 +45,7 @@ export type EditeurValues = {
 
 const VIDE: EditeurValues = {
   nom: "",
+  categorie: "editeur",
   adresse: "",
   codePostal: "",
   ville: "",
@@ -355,24 +359,50 @@ export function EditeurForm({
   const carteCoordonnees = (
     <Card title="Coordonnées">
       <div className="grid gap-x-3 gap-y-2 sm:grid-cols-2">
-        <Field label="Nom de l'éditeur" htmlFor="nom" required>
-          <input
-            id="nom"
-            name="nom"
-            defaultValue={values.nom}
-            required
-            disabled={dis}
-            className="input"
-          />
-        </Field>
-        {champ("siteWeb", "Site web", { type: "url", placeholder: "https://…" })}
+        {/* Première ligne en 3/8 - 1/4 - 3/8 — nom, catégorie, site — la
+            catégorie collée au nom : elle dit ce qu'EST la société, avant où
+            la joindre. Étroite : c'est une liste à trois choix, le nom et
+            l'URL ont plus à montrer. */}
+        <div className="grid gap-x-3 gap-y-2 sm:col-span-2 sm:grid-cols-[3fr_2fr_3fr]">
+          <Field label="Nom de l'éditeur" htmlFor="nom" required>
+            <input
+              id="nom"
+              name="nom"
+              defaultValue={values.nom}
+              required
+              disabled={dis}
+              className="input"
+            />
+          </Field>
+          <Field label="Catégorie" htmlFor="categorie">
+            <select
+              id="categorie"
+              name="categorie"
+              defaultValue={values.categorie}
+              disabled={dis}
+              className="input"
+            >
+              {CATEGORIES_EDITEUR.map((c) => (
+                <option key={c} value={c}>
+                  {LIBELLES_CATEGORIE_EDITEUR[c]}
+                </option>
+              ))}
+            </select>
+          </Field>
+          {champ("siteWeb", "Site web", { type: "url", placeholder: "https://…" })}
+        </div>
         {champ("adresse", "Adresse")}
         <div className="grid grid-cols-[8rem_1fr] gap-4">
           {champ("codePostal", "Code postal")}
           {champ("ville", "Ville")}
         </div>
-        {champ("telephone", "Téléphone standard", { type: "tel" })}
-        {champ("email", "E-mail", { type: "email" })}
+        {/* Téléphone et e-mail en tiers, comme la première ligne : le dernier
+            tiers reste vide, un numéro et une adresse n'ont pas à s'étaler
+            sur des demi-largeurs. */}
+        <div className="grid gap-x-3 gap-y-2 sm:col-span-2 sm:grid-cols-3">
+          {champ("telephone", "Téléphone standard", { type: "tel" })}
+          {champ("email", "E-mail", { type: "email" })}
+        </div>
         {/* Pleine largeur : c'est de la prose, elle ne se lit pas en
                 colonne de 8 rem comme un code postal. */}
         <div className="sm:col-span-2">

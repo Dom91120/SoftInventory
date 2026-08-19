@@ -12,6 +12,10 @@ export type DonneesDashboard = {
   nbLogiciels: number;
   nbEnProduction: number;
   nbEditeurs: number;
+  /** Dont, parmi eux : les exceptions à la catégorie « éditeur » de l'annuaire.
+   *  À zéro tant que les fiches ne sont pas requalifiées — la tuile se tait. */
+  nbFournisseurs: number;
+  nbAutorites: number;
   /** Marchés et contrats, tous confondus — l'engagement en cours comme le passé. */
   nbContrats: number;
   nbServeurs: number;
@@ -91,7 +95,7 @@ export async function chargerDashboard(): Promise<DonneesDashboard> {
   const [
     logiciels,
     coutDesMarches,
-    nbEditeurs,
+    editeursParCategorie,
     nbContrats,
     nbServeurs,
     nbCertificats,
@@ -119,7 +123,9 @@ export async function chargerDashboard(): Promise<DonneesDashboard> {
     // elles ne sont plus comptées, sans quoi un marché dont le montant a été
     // ressaisi le serait deux fois.)
     prisma.contrat.aggregate({ _sum: { montantAnnuel: true } }),
-    prisma.editeur.count(),
+    // Compté par catégorie : la tuile annonce le total et détaille les
+    // exceptions — fournisseurs, autorités — quand il y en a.
+    prisma.editeur.groupBy({ by: ["categorie"], _count: true }),
     prisma.contrat.count(),
     prisma.serveur.count(),
     // Les RÉVOQUÉS ne comptent pas : le parc, c'est ce dont on dispose, et un
@@ -275,10 +281,15 @@ export async function chargerDashboard(): Promise<DonneesDashboard> {
     ...(nonEvalues > 0 ? [{ label: "Non évaluée", couleur: "#94a3b8", nb: nonEvalues }] : []),
   ];
 
+  const parCategorie = (c: string) =>
+    editeursParCategorie.find((g) => g.categorie === c)?._count ?? 0;
+
   return {
     nbLogiciels: logiciels.length,
     nbEnProduction: logiciels.filter((l) => l.statut === "production").length,
-    nbEditeurs,
+    nbEditeurs: editeursParCategorie.reduce((n, g) => n + g._count, 0),
+    nbFournisseurs: parCategorie("fournisseur"),
+    nbAutorites: parCategorie("autorite_certification"),
     nbContrats,
     nbServeurs,
     nbCertificats,

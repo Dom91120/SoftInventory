@@ -1,31 +1,36 @@
+import type { CategorieEditeur } from "@/generated/prisma/client";
 import { compareAlpha } from "@/lib/format";
 import type { EditeurInput } from "@/schemas/editeur";
 import { prisma } from "@/server/db";
 
 /**
- * L'annuaire, éventuellement filtré par une recherche libre. `q` porte sur ce
- * que la liste MONTRE — nom, site web, contact commercial — plutôt que sur le
- * nom seul : on cherche aussi bien « Dupont » qu'« Arpège ». La ville reste
- * cherchable bien que sa colonne ait cédé la place au commercial : elle est
- * toujours sur la fiche, et « Rennes » trouvait ses éditeurs jusqu'ici.
+ * L'annuaire, éventuellement filtré par une recherche libre et une catégorie.
+ * `q` porte sur ce que la liste MONTRE — nom, site web, contact commercial —
+ * plutôt que sur le nom seul : on cherche aussi bien « Dupont » qu'« Arpège ».
+ * La ville reste cherchable bien que sa colonne ait cédé la place au
+ * commercial : elle est toujours sur la fiche, et « Rennes » trouvait ses
+ * éditeurs jusqu'ici.
  *
  * Sans filtre (le cas de tous les autres appelants : listes déroulantes de
  * fournisseurs, formulaires), le comportement est inchangé.
  */
-export async function listEditeurs(filtres: { q?: string } = {}) {
+export async function listEditeurs(filtres: { q?: string; categorie?: CategorieEditeur } = {}) {
   const q = filtres.q?.trim();
   const editeurs = await prisma.editeur.findMany({
-    where: q
-      ? {
-          OR: [
-            { nom: { contains: q, mode: "insensitive" } },
-            { ville: { contains: q, mode: "insensitive" } },
-            { siteWeb: { contains: q, mode: "insensitive" } },
-            { commercialContact: { contains: q, mode: "insensitive" } },
-            { commercialEmail: { contains: q, mode: "insensitive" } },
-          ],
-        }
-      : undefined,
+    where: {
+      ...(filtres.categorie ? { categorie: filtres.categorie } : {}),
+      ...(q
+        ? {
+            OR: [
+              { nom: { contains: q, mode: "insensitive" } },
+              { ville: { contains: q, mode: "insensitive" } },
+              { siteWeb: { contains: q, mode: "insensitive" } },
+              { commercialContact: { contains: q, mode: "insensitive" } },
+              { commercialEmail: { contains: q, mode: "insensitive" } },
+            ],
+          }
+        : {}),
+    },
     orderBy: [{ nom: "asc" }, { id: "asc" }],
   });
   return editeurs.sort((a, b) => compareAlpha(a.nom, b.nom));

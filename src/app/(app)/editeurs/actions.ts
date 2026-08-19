@@ -24,6 +24,7 @@ function messageErreur(e: unknown): string {
 function parseForm(formData: FormData) {
   return editeurSchema.safeParse({
     nom: formData.get("nom") ?? "",
+    categorie: formData.get("categorie") ?? "editeur",
     adresse: formData.get("adresse") ?? "",
     codePostal: formData.get("codePostal") ?? "",
     ville: formData.get("ville") ?? "",

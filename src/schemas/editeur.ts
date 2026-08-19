@@ -20,6 +20,14 @@ const urlOptionnelle = (max: number) =>
       "URL invalide (elle doit commencer par http:// ou https://).",
     );
 
+/** Ce qu'est la société pour nous. Clés portées par l'enum Prisma `CategorieEditeur`. */
+export const CATEGORIES_EDITEUR = ["editeur", "fournisseur", "autorite_certification"] as const;
+export const LIBELLES_CATEGORIE_EDITEUR: Record<(typeof CATEGORIES_EDITEUR)[number], string> = {
+  editeur: "Éditeur",
+  fournisseur: "Fournisseur",
+  autorite_certification: "Autorité de certification",
+};
+
 /** Fiche éditeur/fournisseur, canaux de support compris. */
 export const editeurSchema = z.object({
   nom: z
@@ -27,6 +35,7 @@ export const editeurSchema = z.object({
     .trim()
     .min(1, "Le nom de l'éditeur est obligatoire.")
     .max(150, "Nom trop long (150 caractères max)."),
+  categorie: z.enum(CATEGORIES_EDITEUR, "Catégorie invalide."),
   adresse: texte(300, "Adresse"),
   codePostal: texte(10, "Code postal"),
   ville: texte(120, "Ville"),

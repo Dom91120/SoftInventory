@@ -1,4 +1,5 @@
 import { csvResponse } from "@/lib/csv";
+import { CATEGORIES_EDITEUR, LIBELLES_CATEGORIE_EDITEUR } from "@/schemas/editeur";
 import { reponseApi, requireRoleApi } from "@/server/guards-api";
 import { listEditeurs } from "@/server/services/editeurs";
 
@@ -14,11 +15,16 @@ export function GET(request: Request): Promise<Response> {
     await requireRoleApi("lecteur", "/editeurs/export");
 
     const url = new URL(request.url);
-    const editeurs = await listEditeurs({ q: url.searchParams.get("q") ?? undefined });
+    const categorie = CATEGORIES_EDITEUR.find((c) => c === url.searchParams.get("categorie"));
+    const editeurs = await listEditeurs({
+      q: url.searchParams.get("q") ?? undefined,
+      categorie,
+    });
 
     const rows: (string | number)[][] = [
       [
         "Éditeur",
+        "Catégorie",
         "Site web",
         "Adresse",
         "Code postal",
@@ -47,6 +53,7 @@ export function GET(request: Request): Promise<Response> {
       ],
       ...editeurs.map((e) => [
         e.nom,
+        LIBELLES_CATEGORIE_EDITEUR[e.categorie],
         e.siteWeb,
         e.adresse,
         e.codePostal,

@@ -81,7 +81,7 @@ export async function chargerStatistiques(): Promise<DonneesStatistiques> {
           referentMetier: true,
           donneesPersonnelles: true,
           registreRef: true,
-          editeur: { select: { nom: true } },
+          editeur: { select: { nom: true, categorie: true } },
           technologie: { select: { label: true } },
           services: { select: { service: { select: { nom: true } } } },
           serveurs: { select: { serveur: { select: { nom: true } } } },
@@ -156,10 +156,14 @@ export async function chargerStatistiques(): Promise<DonneesStatistiques> {
     compter(logiciels.map((l) => l.technologie?.label ?? "").filter(Boolean)),
     8,
   );
+  // Les autorités de certification sont écartées : elles n'ÉDITENT rien, et
+  // une fiche qui en désignerait une par erreur fausserait un palmarès qui
+  // compte des logiciels fournis. Les fournisseurs restent — un revendeur
+  // désigné comme éditeur d'un logiciel le fournit bel et bien.
   const topEditeurs = top(
     compter(
       logiciels
-        .filter((l) => l.editeur)
+        .filter((l) => l.editeur && l.editeur.categorie !== "autorite_certification")
         .map((l) => l.editeur?.nom ?? "")
         .filter(Boolean),
     ),

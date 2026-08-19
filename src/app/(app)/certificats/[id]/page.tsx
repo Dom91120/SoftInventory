@@ -44,15 +44,23 @@ export default async function CertificatPage({
   const id = Number(idStr);
   if (!Number.isInteger(id) || id < 1) notFound();
 
-  const [certificat, editeurs, services, serveurs, categories, voisins] = await Promise.all([
+  // Seules les AUTORITÉS de certification dans la liste : c'est ce que le
+  // champ désigne. L'autorité DÉJÀ inscrite sur la fiche y est rajoutée même
+  // sans l'étiquette — sinon sa valeur disparaîtrait du menu et un simple
+  // enregistrement la perdrait.
+  const [certificat, autorites, services, serveurs, categories, voisins] = await Promise.all([
     getCertificat(id),
-    listEditeurs(),
+    listEditeurs({ categorie: "autorite_certification" }),
     listServicesUtilisateurs(),
     listServeurs(),
     listCategoriesDocuments(),
     voisinsCertificat(id),
   ]);
   if (!certificat) notFound();
+  const editeurs =
+    certificat.fournisseur && !autorites.some((a) => a.id === certificat.fournisseur?.id)
+      ? [...autorites, certificat.fournisseur].sort((a, b) => a.nom.localeCompare(b.nom, "fr"))
+      : autorites;
 
   const { onglet } = await searchParams;
   const actif = ongletCertificat(onglet);

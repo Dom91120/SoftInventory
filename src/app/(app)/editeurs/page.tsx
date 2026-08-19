@@ -6,6 +6,7 @@ import { Pagination, pageDepuisParams, paginer } from "@/components/pagination";
 import { EmptyState, PageHeader } from "@/components/ui";
 import type { Role } from "@/generated/prisma/client";
 import { formatTel } from "@/lib/format";
+import { CATEGORIES_EDITEUR, LIBELLES_CATEGORIE_EDITEUR } from "@/schemas/editeur";
 import { requireUser } from "@/server/guards";
 import { listEditeurs } from "@/server/services/editeurs";
 
@@ -29,7 +30,10 @@ export default async function EditeursPage({
   const session = await requireUser();
   const isAdmin = (session.user as { role?: Role }).role === "admin";
   const params = await searchParams;
-  const tous = await listEditeurs({ q: params.q });
+  // Filtre validé contre la liste des clés : une valeur forgée dans l'URL est
+  // simplement ignorée.
+  const categorie = CATEGORIES_EDITEUR.find((c) => c === params.categorie);
+  const tous = await listEditeurs({ q: params.q, categorie });
   const { page, pages, total, elements } = paginer(tous, pageDepuisParams(params));
 
   return (
@@ -49,7 +53,20 @@ export default async function EditeursPage({
           ) : undefined
         }
       />
-      <BarreListe rechercheLabel="Rechercher un éditeur" exportHref="/editeurs/export" />
+      <BarreListe
+        rechercheLabel="Rechercher un éditeur"
+        exportHref="/editeurs/export"
+        selects={[
+          {
+            key: "categorie",
+            label: "Catégorie",
+            options: CATEGORIES_EDITEUR.map((c) => ({
+              value: c,
+              label: LIBELLES_CATEGORIE_EDITEUR[c],
+            })),
+          },
+        ]}
+      />
       {total === 0 ? (
         <EmptyState>
           {params.q
@@ -83,12 +100,22 @@ export default async function EditeursPage({
                   // pousse encore sa rangée.
                   <tr key={e.id} className="h-12 [&>td]:py-0">
                     <td>
-                      <Link
-                        href={`/editeurs/${e.id}`}
-                        className="font-medium text-strong hover:text-accent"
-                      >
-                        {e.nom}
-                      </Link>
+                      <span className="flex items-center gap-2">
+                        <Link
+                          href={`/editeurs/${e.id}`}
+                          className="font-medium text-strong hover:text-accent"
+                        >
+                          {e.nom}
+                        </Link>
+                        {/* Le badge ne marque que l'EXCEPTION : l'annuaire est
+                            fait d'éditeurs, étiqueter les 70 ordinaires aurait
+                            noyé les quelques fournisseurs et autorités. */}
+                        {e.categorie !== "editeur" ? (
+                          <span className="badge-muted shrink-0">
+                            {LIBELLES_CATEGORIE_EDITEUR[e.categorie]}
+                          </span>
+                        ) : null}
+                      </span>
                       {/* Le site s'ouvre dans un onglet à part : la liste reste
                           où elle en était, recherche et page comprises. */}
                       {e.siteWeb ? (

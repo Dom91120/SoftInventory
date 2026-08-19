@@ -3,6 +3,7 @@
 import { useRef, useState, useTransition } from "react";
 import { createEditeurAction } from "@/app/(app)/editeurs/actions";
 import { Card, Field } from "@/components/ui";
+import { CATEGORIES_EDITEUR, LIBELLES_CATEGORIE_EDITEUR } from "@/schemas/editeur";
 
 /**
  * Création d'une société absente de l'annuaire sans quitter la saisie en cours.
@@ -38,7 +39,9 @@ export function ModaleSociete({
     // Faute de <form>, on reconstitue le FormData depuis les champs nommés :
     // les mêmes clés que la page éditeur, donc la même server action.
     const form = new FormData();
-    for (const el of conteneur.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>("[name]")) {
+    for (const el of conteneur.querySelectorAll<
+      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+    >("[name]")) {
       form.set(el.name, el.value);
     }
     const nom = String(form.get("nom") ?? "").trim();
@@ -137,26 +140,47 @@ export function ModaleSociete({
         <div ref={champsRef} className="space-y-3">
           <Card title="Coordonnées">
             <div className="grid gap-x-3 gap-y-2 sm:grid-cols-2">
-              <Field label="Nom de l'éditeur" htmlFor="soc-nom" required>
-                <input
-                  // biome-ignore lint/a11y/noAutofocus: la modale vient d'être ouverte par un clic délibéré sur « + ».
-                  autoFocus
-                  id="soc-nom"
-                  name="nom"
-                  required
-                  maxLength={150}
-                  disabled={pending}
-                  className="input"
-                />
-              </Field>
-              {champ("siteWeb", "Site web", { type: "url", placeholder: "https://…" })}
+              {/* Première ligne en 3/8 - 1/4 - 3/8, comme sur la fiche. */}
+              <div className="grid gap-x-3 gap-y-2 sm:col-span-2 sm:grid-cols-[3fr_2fr_3fr]">
+                <Field label="Nom de l'éditeur" htmlFor="soc-nom" required>
+                  <input
+                    // biome-ignore lint/a11y/noAutofocus: la modale vient d'être ouverte par un clic délibéré sur « + ».
+                    autoFocus
+                    id="soc-nom"
+                    name="nom"
+                    required
+                    maxLength={150}
+                    disabled={pending}
+                    className="input"
+                  />
+                </Field>
+                <Field label="Catégorie" htmlFor="soc-categorie">
+                  <select
+                    id="soc-categorie"
+                    name="categorie"
+                    defaultValue="editeur"
+                    disabled={pending}
+                    className="input"
+                  >
+                    {CATEGORIES_EDITEUR.map((c) => (
+                      <option key={c} value={c}>
+                        {LIBELLES_CATEGORIE_EDITEUR[c]}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                {champ("siteWeb", "Site web", { type: "url", placeholder: "https://…" })}
+              </div>
               {champ("adresse", "Adresse")}
               <div className="grid grid-cols-[8rem_1fr] gap-4">
                 {champ("codePostal", "Code postal")}
                 {champ("ville", "Ville")}
               </div>
-              {champ("telephone", "Téléphone standard", { type: "tel" })}
-              {champ("email", "E-mail", { type: "email" })}
+              {/* Téléphone et e-mail en tiers, comme sur la fiche. */}
+              <div className="grid gap-x-3 gap-y-2 sm:col-span-2 sm:grid-cols-3">
+                {champ("telephone", "Téléphone standard", { type: "tel" })}
+                {champ("email", "E-mail", { type: "email" })}
+              </div>
               {/* Pleine largeur : c'est de la prose, elle ne se lit pas en
                   colonne de 8 rem comme un code postal. */}
               <div className="sm:col-span-2">
