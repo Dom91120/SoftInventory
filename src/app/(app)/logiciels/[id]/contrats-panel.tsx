@@ -657,9 +657,12 @@ export function ContratsPanel({
                           // seul le fournisseur s'affadissait — sa colonne se
                           // lisait comme une mention accessoire alors qu'elle
                           // dit avec qui l'on s'est engagé.
+                          // `text-right` : la colonne borde les actions du
+                          // marché, et son contenu vient s'y adosser — le
+                          // montant de la rangée du dessous fait de même.
                           <Link
                             href={`/editeurs/${c.fournisseurId}`}
-                            className="truncate hover:text-accent"
+                            className="truncate text-right hover:text-accent"
                             title={c.fournisseurNom ?? undefined}
                           >
                             {c.fournisseurNom}
@@ -694,7 +697,7 @@ export function ContratsPanel({
                           actes n'en fixent pas. `title` porte les libellés
                           entiers, la colonne tronquant au besoin. */}
                         <span
-                          className="truncate tabular-nums"
+                          className="truncate text-right tabular-nums"
                           title={
                             [
                               c.montantAnnuel
