@@ -19,12 +19,6 @@ import { filtresDepuisParams, joursAvantExpiration, pastilleValidite } from "./s
 
 export const metadata: Metadata = { title: "Certificats" };
 
-const FMT_EUROS = new Intl.NumberFormat("fr-FR", {
-  style: "currency",
-  currency: "EUR",
-  maximumFractionDigits: 0,
-});
-
 export default async function CertificatsPage({
   searchParams,
 }: {
@@ -114,7 +108,7 @@ export default async function CertificatsPage({
                   <th>Service</th>
                   <th>Autorité</th>
                   <th>Validité</th>
-                  <th className="pr-0 text-right">Montant TTC</th>
+                  <th>Type / Modèle</th>
                 </tr>
               </thead>
               <tbody>
@@ -151,7 +145,7 @@ export default async function CertificatsPage({
                         {/* La période en clair, et sous elle le compte à rebours
                             coloré : l'une répond « jusqu'à quand ? », l'autre
                             « est-ce urgent ? ». */}
-                        <span className="block whitespace-nowrap text-muted tabular-nums">
+                        <span className="block whitespace-nowrap text-xs text-muted tabular-nums">
                           {c.dateDebut ? DATE_FMT_FR_UTC.format(c.dateDebut) : "—"}
                           {" → "}
                           {c.dateFin ? DATE_FMT_FR_UTC.format(c.dateFin) : "—"}
@@ -161,8 +155,10 @@ export default async function CertificatsPage({
                           {pastille.texte}
                         </span>
                       </td>
-                      <td className="pr-0 text-right tabular-nums text-muted">
-                        {c.montantTtc === null ? "—" : FMT_EUROS.format(Number(c.montantTtc))}
+                      <td>
+                        <span className="block truncate text-muted" title={c.niveau || undefined}>
+                          {c.niveau || "—"}
+                        </span>
                       </td>
                     </tr>
                   );

@@ -274,73 +274,82 @@ export function CertificatForm({
       {/* Qui le porte. */}
       <Card title="Titulaire">
         <div className="grid items-end gap-x-3 gap-y-2 sm:grid-cols-3">
-          {/* La civilité DEVANT le nom, comme on la lit — et à part de lui :
-              collée au patronyme, elle rangeait « Mme AZZAZ » sous M avec les
-              dix-sept autres. « — aucune — » n'est pas un trou à combler : un
-              certificat de machine n'a personne à nommer. */}
-          <Field label="Civilité" htmlFor="civilite">
-            <select
-              id="civilite"
-              name="civilite"
-              defaultValue={values.civilite}
-              disabled={dis}
-              className="input"
-            >
-              <option value="">— aucune —</option>
-              {CIVILITES.map((c) => (
-                <option key={c} value={c}>
-                  {LIBELLES_CERTIFICAT.civilite[c]}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label="Titulaire" htmlFor="titulaire" required>
-            <input
-              id="titulaire"
-              name="titulaire"
-              required
-              placeholder="Ex : AZZAZ, SRV-CHORUS"
-              defaultValue={values.titulaire}
-              disabled={dis}
-              className="input"
-            />
-          </Field>
-          {/* Le prénom SUIT le nom, comme on le lit sur ces fiches et comme
-              le tableau d'origine l'écrivait. Facultatif : une machine n'en a
-              pas, et le nom seul suffit à retrouver quelqu'un. */}
-          <Field label="Prénom" htmlFor="prenom">
-            <input
-              id="prenom"
-              name="prenom"
-              placeholder="Ex : Marie-Christine"
-              defaultValue={values.prenom}
-              disabled={dis}
-              className="input"
-            />
-          </Field>
-          {/* La FONCTION et non le grade : c'est elle qui donne sa portée à
+          {/* Première ligne : 120 px FIXES pour la civilité — un mot de trois
+              lettres —, le nom et le prénom se partagent le reste. */}
+          <div className="grid items-end gap-x-3 gap-y-2 sm:col-span-3 sm:grid-cols-[120px_1fr_1fr]">
+            {/* La civilité DEVANT le nom, comme on la lit — et à part de lui :
+                collée au patronyme, elle rangeait « Mme AZZAZ » sous M avec les
+                dix-sept autres. « — aucune — » n'est pas un trou à combler : un
+                certificat de machine n'a personne à nommer. */}
+            <Field label="Civilité" htmlFor="civilite">
+              <select
+                id="civilite"
+                name="civilite"
+                defaultValue={values.civilite}
+                disabled={dis}
+                className="input"
+              >
+                <option value="">— aucune —</option>
+                {CIVILITES.map((c) => (
+                  <option key={c} value={c}>
+                    {LIBELLES_CERTIFICAT.civilite[c]}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Titulaire" htmlFor="titulaire" required>
+              <input
+                id="titulaire"
+                name="titulaire"
+                required
+                placeholder="Ex : AZZAZ, SRV-CHORUS"
+                defaultValue={values.titulaire}
+                disabled={dis}
+                className="input"
+              />
+            </Field>
+            {/* Le prénom SUIT le nom, comme on le lit sur ces fiches et comme
+                le tableau d'origine l'écrivait. Facultatif : une machine n'en a
+                pas, et le nom seul suffit à retrouver quelqu'un. */}
+            <Field label="Prénom" htmlFor="prenom">
+              <input
+                id="prenom"
+                name="prenom"
+                placeholder="Ex : Marie-Christine"
+                defaultValue={values.prenom}
+                disabled={dis}
+                className="input"
+              />
+            </Field>
+          </div>
+          {/* Seconde ligne : 220 px FIXES pour le service — les noms de
+              services sont courts —, l'adresse et la fonction se partagent le
+              reste. */}
+          <div className="grid items-end gap-x-3 gap-y-2 sm:col-span-3 sm:grid-cols-[1fr_1fr_220px]">
+            <Field label="Adresse e-mail" htmlFor="email">
+              <input
+                id="email"
+                name="email"
+                type="email"
+                defaultValue={values.email}
+                disabled={dis}
+                className="input"
+              />
+            </Field>
+            {/* La FONCTION et non le grade : c'est elle qui donne sa portée à
                 la signature (« Maire », « Adjoint à la Maire », « DGA »). */}
-          <Field label="Fonction" htmlFor="fonction">
-            <input
-              id="fonction"
-              name="fonction"
-              placeholder="Ex : Maire, Adjoint, Agent"
-              defaultValue={values.fonction}
-              disabled={dis}
-              className="input"
-            />
-          </Field>
-          <Field label="Adresse e-mail" htmlFor="email">
-            <input
-              id="email"
-              name="email"
-              type="email"
-              defaultValue={values.email}
-              disabled={dis}
-              className="input"
-            />
-          </Field>
-          {selectOption("serviceId", "Service", services, "— aucun —")}
+            <Field label="Fonction" htmlFor="fonction">
+              <input
+                id="fonction"
+                name="fonction"
+                placeholder="Ex : Maire, Adjoint, Agent"
+                defaultValue={values.fonction}
+                disabled={dis}
+                className="input"
+              />
+            </Field>
+            {selectOption("serviceId", "Service", services, "— aucun —")}
+          </div>
         </div>
       </Card>
 
