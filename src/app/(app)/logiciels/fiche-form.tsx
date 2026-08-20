@@ -526,7 +526,7 @@ export function FicheForm({
                 name="description"
                 defaultValue={values.description}
                 disabled={dis}
-                rows={4}
+                rows={3}
                 className="input"
                 placeholder="À quoi sert ce logiciel, pour qui… puis historique, particularités, points de vigilance."
               />
