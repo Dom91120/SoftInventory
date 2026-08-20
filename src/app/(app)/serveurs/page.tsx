@@ -1,5 +1,6 @@
 import { LayoutGrid, List, Plus } from "lucide-react";
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import Link from "next/link";
 import { Pagination, pageDepuisParams, paginer } from "@/components/pagination";
 import { EmptyState, PageHeader } from "@/components/ui";
@@ -7,6 +8,7 @@ import type { Role } from "@/generated/prisma/client";
 import { LIBELLES_TYPE_OS } from "@/schemas/serveur";
 import { requireUser } from "@/server/guards";
 import { listServeursAvecLogiciels } from "@/server/services/serveurs";
+import { MemoireVue } from "./memoire-vue";
 
 export const metadata: Metadata = { title: "Serveurs" };
 
@@ -23,7 +25,9 @@ export const metadata: Metadata = { title: "Serveurs" };
  *
  * Le choix vit dans l'URL (`?vue=cartes`) plutôt que dans un état : la vue se
  * met en favori et se partage telle quelle, et la page reste rendue côté
- * serveur.
+ * serveur. Quand l'URL se tait, un cookie ressert la dernière vue affichée
+ * (voir `MemoireVue`) — revenir sur l'écran ne défait pas le choix qu'on y
+ * avait fait.
  */
 const VUES = [
   { cle: "liste", label: "Liste", Icone: List },
@@ -48,18 +52,27 @@ export default async function ServeursPage({
   const session = await requireUser();
   const isAdmin = (session.user as { role?: Role }).role === "admin";
   const params = await searchParams;
-  // Tout ce qui n'est pas « cartes » retombe sur la liste : une adresse
-  // bricolée montre le parc, jamais une page vide.
-  const active: VueCle = params.vue === "cartes" ? "cartes" : "liste";
+  // L'URL d'abord, le cookie ensuite, la liste enfin : une adresse explicite
+  // (`?vue=…`) fait loi, une adresse nue ressert la dernière vue affichée, et
+  // tout ce qui n'est ni « cartes » ni un souvenir retombe sur la liste — une
+  // adresse bricolée montre le parc, jamais une page vide.
+  const memoVue = (await cookies()).get("vue-serveurs")?.value;
+  const active: VueCle =
+    params.vue === "cartes" || (params.vue === undefined && memoVue === "cartes")
+      ? "cartes"
+      : "liste";
 
-  // Dix par page, comme les listes de logiciels, d'éditeurs et de marchés —
-  // et le même découpage pour les DEUX vues : elles montrent le même parc,
-  // elles doivent en montrer la même tranche.
+  // Dix par page en LISTE, comme les listes de logiciels, d'éditeurs et de
+  // marchés. Les CARTES, elles, montrent tout le parc d'un coup : c'est la vue
+  // d'ensemble de qui porte quoi, la feuilleter par tranches de dix la casserait.
   const tous = await listServeursAvecLogiciels();
-  const { page, pages, total, elements: serveurs } = paginer(tous, pageDepuisParams(params));
+  const { page, pages, total, elements } = paginer(tous, pageDepuisParams(params));
+  const serveurs = active === "liste" ? elements : tous;
 
   return (
     <>
+      {/* Note la vue affichée pour la ressortir à la prochaine adresse nue. */}
+      <MemoireVue vue={active} />
       {/* La ligne du titre porte la COMMANDE de l'écran — ajouter une machine —
           comme sur les autres listes de l'inventaire. Le « + » dit qu'on
           ajoute, le libellé n'a plus qu'à nommer ce qu'on ajoute. */}
@@ -204,7 +217,12 @@ export default async function ServeursPage({
       ) : (
         <div className="grid gap-x-3 gap-y-2 lg:grid-cols-2">
           {serveurs.map((s) => (
-            <section key={s.id} className="card">
+            /* `flex flex-col` + `grow` sur le corps + `h-full` sur la grille :
+               la grille des cartes égalise les hauteurs d'une rangée de
+               cartes, et cette chaîne fait descendre les filets verticaux
+               jusqu'en bas du corps — sans elle, le trait d'une carte courte
+               s'arrêtait à sa ligne de texte quand sa voisine la dépassait. */
+            <section key={s.id} className="card flex flex-col">
               {/* Le nom du serveur devient un EN-TÊTE DE PANNEAU, dans la forme
                   exacte des cartes de fiche (`card-header` + `card-title`,
                   `globals.css`) : même barre d'accent, même hauteur plancher,
@@ -239,31 +257,64 @@ export default async function ServeursPage({
                   {s.typeOs ? LIBELLES_TYPE_OS[s.typeOs] : ""}
                 </span>
               </header>
-              <div className="card-body">
+              <div className="card-body grow">
                 {s.logiciels.length === 0 ? (
                   <p className="text-sm text-faint">Aucun logiciel associé.</p>
                 ) : (
-                  <ul className="text-sm">
-                    {s.logiciels.map((ls) => (
-                      <li key={ls.logicielId} className="py-1.5">
-                        <Link
-                          href={`/logiciels/${ls.logiciel.id}`}
-                          className="font-medium text-strong hover:text-accent"
-                        >
-                          {ls.logiciel.nom}
-                        </Link>
-                      </li>
+                  /* Trois tiers fixes plutôt qu'un flux : les noms s'alignent en
+                     colonnes d'une carte à l'autre, et une machine chargée se
+                     lit ligne à ligne. Un nom plus large que son tiers se
+                     tronque — le titre complet est à un survol ou un clic.
+
+                     Trois PILES et non une grille en rangées : chaque tiers
+                     empile ses logiciels (le 1er, le 4e… dans la première, même
+                     ordre visuel qu'une grille) et les centre verticalement —
+                     un nom seul dans sa colonne se pose au milieu du corps au
+                     lieu de rester collé en haut quand la carte est plus haute
+                     que lui. L'ordre de lecture reste ligne à ligne. */
+                  <div className="relative grid h-full grid-cols-3 text-sm">
+                    {/* Les filets verticaux sont posés en absolu sur toute la
+                        hauteur : ils traversent rangées et interlignes d'un
+                        seul trait, là où une bordure de cellule s'arrêtait à sa
+                        rangée. Le second attend le deuxième logiciel : chaque
+                        tiers occupé est borné à sa droite, mais un logiciel
+                        seul n'a pas à traîner deux traits derrière lui. */}
+                    <span aria-hidden className="absolute inset-y-0 left-1/3 w-px bg-sub" />
+                    {s.logiciels.length >= 2 && (
+                      <span aria-hidden className="absolute inset-y-0 left-2/3 w-px bg-sub" />
+                    )}
+                    {[0, 1, 2].map((colonne) => (
+                      <ul
+                        key={colonne}
+                        className="flex min-w-0 flex-col justify-center gap-y-1.5 px-2"
+                      >
+                        {s.logiciels
+                          .filter((_, i) => i % 3 === colonne)
+                          .map((ls) => (
+                            <li key={ls.logicielId} className="min-w-0 text-center">
+                              <Link
+                                href={`/logiciels/${ls.logiciel.id}`}
+                                title={ls.logiciel.nom}
+                                className="block truncate font-medium text-strong hover:text-accent"
+                              >
+                                {ls.logiciel.nom}
+                              </Link>
+                            </li>
+                          ))}
+                      </ul>
                     ))}
-                  </ul>
+                  </div>
                 )}
               </div>
             </section>
           ))}
         </div>
       )}
-      {/* Le pavé des autres listes, à la même place — sous ce qu'il feuillette,
-          et sous les deux vues : c'est le même parc qu'elles découpent. */}
-      <Pagination page={page} pages={pages} total={total} params={params} />
+      {/* Le pavé des autres listes, à la même place — mais sous la LISTE
+          seulement : les cartes montrent déjà tout, il n'y a rien à feuilleter. */}
+      {active === "liste" && (
+        <Pagination page={page} pages={pages} total={total} params={params} />
+      )}
     </>
   );
 }
