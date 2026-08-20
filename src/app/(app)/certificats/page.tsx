@@ -58,14 +58,14 @@ export default async function CertificatsPage({
         exportHref="/certificats/export"
         selects={[
           {
-            key: "fournisseur",
-            label: "Autorité",
-            options: autorites.map((a) => ({ value: String(a.id), label: a.nom })),
-          },
-          {
             key: "service",
             label: "Service",
             options: services.map((s) => ({ value: String(s.id), label: s.nom })),
+          },
+          {
+            key: "fournisseur",
+            label: "Autorité",
+            options: autorites.map((a) => ({ value: String(a.id), label: a.nom })),
           },
           {
             key: "usage",
