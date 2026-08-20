@@ -483,50 +483,54 @@ export function CertificatForm({
 
       {/* Ce qu'il a coûté et comment il a été commandé. */}
       <Card title="Commande">
-        <div className="grid items-end gap-x-3 gap-y-2 sm:grid-cols-3">
-          <Field label="Montant TTC" htmlFor="montantTtc">
-            <input
-              id="montantTtc"
-              name="montantTtc"
-              inputMode="decimal"
-              defaultValue={values.montantTtc}
-              disabled={dis}
-              className="input"
-            />
-          </Field>
-          <Field label="Imputation" htmlFor="imputation">
-            <input
-              id="imputation"
-              name="imputation"
-              placeholder="Ex : 60632"
-              defaultValue={values.imputation}
-              disabled={dis}
-              className="input"
-            />
-          </Field>
-          <Field label="Bon de commande signé le" htmlFor="bonCommandeLe">
-            <input
-              id="bonCommandeLe"
-              name="bonCommandeLe"
-              type="date"
-              defaultValue={values.bonCommandeLe}
-              disabled={dis}
-              className="input"
-            />
-          </Field>
-          <div className="sm:col-span-3"></div>
-          <div className="sm:col-span-3">
-            <Field label="Observations" htmlFor="notes">
-              <textarea
-                id="notes"
-                name="notes"
-                rows={3}
-                defaultValue={values.notes}
+        <div className="space-y-2">
+          {/* Montant et imputation forment UN bloc d'un tiers, moitié-moitié,
+              calé sur celui du panneau Certificat (même calc, voir là-bas) ;
+              la date de commande au gabarit des dates de validité. */}
+          <div className="flex flex-wrap items-end gap-x-3 gap-y-2">
+            <div className="grid w-full items-end gap-x-3 gap-y-2 sm:w-[calc(100%/3-0.75rem)] sm:grid-cols-2">
+              <Field label="Montant TTC" htmlFor="montantTtc">
+                <input
+                  id="montantTtc"
+                  name="montantTtc"
+                  inputMode="decimal"
+                  defaultValue={values.montantTtc}
+                  disabled={dis}
+                  className="input"
+                />
+              </Field>
+              <Field label="Imputation" htmlFor="imputation">
+                <input
+                  id="imputation"
+                  name="imputation"
+                  placeholder="Ex : 60632"
+                  defaultValue={values.imputation}
+                  disabled={dis}
+                  className="input"
+                />
+              </Field>
+            </div>
+            <Field label="Date" htmlFor="bonCommandeLe">
+              <input
+                id="bonCommandeLe"
+                name="bonCommandeLe"
+                type="date"
+                defaultValue={values.bonCommandeLe}
                 disabled={dis}
-                className="input"
+                className="input !w-[130px]"
               />
             </Field>
           </div>
+          <Field label="Observations" htmlFor="notes">
+            <textarea
+              id="notes"
+              name="notes"
+              rows={2}
+              defaultValue={values.notes}
+              disabled={dis}
+              className="input"
+            />
+          </Field>
         </div>
       </Card>
     </form>
