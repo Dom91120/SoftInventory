@@ -86,7 +86,6 @@ export default async function ServeurPage({ params }: { params: Promise<{ id: st
         <ServeurForm
           id={serveur.id}
           readOnly={!isAdmin}
-          nbCertificats={serveur._count.certificats}
           values={{
             nom: serveur.nom,
             virtuel: serveur.virtuel,

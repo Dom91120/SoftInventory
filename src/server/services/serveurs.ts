@@ -42,9 +42,6 @@ export function getServeur(id: number) {
         include: { logiciel: { select: { id: true, nom: true } } },
         orderBy: { logiciel: { nom: "asc" } },
       },
-      // Un COMPTE suffit : la fiche ne les liste pas, elle prévient seulement
-      // de ce qu'une suppression délierait.
-      _count: { select: { certificats: true } },
     },
   });
 }

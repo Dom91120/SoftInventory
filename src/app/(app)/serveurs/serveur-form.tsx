@@ -53,7 +53,6 @@ export function ServeurForm({
   id,
   values = VIDE,
   readOnly = false,
-  nbCertificats = 0,
   logiciels,
   installationsEnAttente = [],
 }: {
@@ -67,12 +66,6 @@ export function ServeurForm({
    * création, avant de partir vers la fiche.
    */
   installationsEnAttente?: Array<{ logicielId: number }>;
-  /**
-   * Les certificats que ce serveur équipe. Ils n'empêchent pas la suppression —
-   * leur rattachement est en SetNull, le certificat survit à la machine — mais
-   * la confirmation doit le dire avant qu'on les délie sans le vouloir.
-   */
-  nbCertificats?: number;
   /** La carte des logiciels installés, montée par la page. */
   logiciels?: ReactNode;
 }) {
@@ -213,12 +206,6 @@ export function ServeurForm({
     if (id === undefined) return;
     const ok = await confirmer({
       question: `Supprimer le serveur « ${values.nom} » ?`,
-      detail:
-        nbCertificats > 0
-          ? nbCertificats === 1
-            ? "Un certificat lui est rattaché : il sera conservé, mais ne désignera plus aucune machine."
-            : `${nbCertificats} certificats lui sont rattachés : ils seront conservés, mais ne désigneront plus aucune machine.`
-          : undefined,
     });
     if (!ok) return;
     setError(null);

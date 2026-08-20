@@ -141,11 +141,6 @@ export default async function CertificatsPage({
                       </td>
                       <td>
                         <span className="block truncate text-muted">{c.service?.nom ?? "—"}</span>
-                        {/* Un certificat de machine dit QUELLE machine : c'est
-                            ce qui le distingue d'un certificat nominatif. */}
-                        {c.serveur ? (
-                          <span className="block truncate text-xs text-faint">{c.serveur.nom}</span>
-                        ) : null}
                       </td>
                       <td>
                         <span className="block truncate text-muted">

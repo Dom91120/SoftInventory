@@ -12,7 +12,6 @@ import { requireUser } from "@/server/guards";
 import { getCertificat, voisinsCertificat } from "@/server/services/certificats";
 import { listEditeurs } from "@/server/services/editeurs";
 import { listCategoriesDocuments, listServicesUtilisateurs } from "@/server/services/referentiels";
-import { listServeurs } from "@/server/services/serveurs";
 import { CertificatForm } from "../certificat-form";
 import { CodesPanel } from "../codes-panel";
 import { ongletCertificat } from "../onglets";
@@ -48,11 +47,10 @@ export default async function CertificatPage({
   // champ désigne. L'autorité DÉJÀ inscrite sur la fiche y est rajoutée même
   // sans l'étiquette — sinon sa valeur disparaîtrait du menu et un simple
   // enregistrement la perdrait.
-  const [certificat, autorites, services, serveurs, categories, voisins] = await Promise.all([
+  const [certificat, autorites, services, categories, voisins] = await Promise.all([
     getCertificat(id),
     listEditeurs({ categorie: "autorite_certification" }),
     listServicesUtilisateurs(),
-    listServeurs(),
     listCategoriesDocuments(),
     voisinsCertificat(id),
   ]);
@@ -159,7 +157,6 @@ export default async function CertificatPage({
           onglet={actif}
           editeurs={editeurs.map((e) => ({ id: e.id, nom: e.nom }))}
           services={services.map((s) => ({ id: s.id, nom: s.nom }))}
-          serveurs={serveurs.map((s) => ({ id: s.id, nom: s.nom }))}
           values={{
             civilite: certificat.civilite ?? "",
             titulaire: certificat.titulaire,
@@ -168,7 +165,6 @@ export default async function CertificatPage({
             email: certificat.email,
             fournisseurId: texte(certificat.fournisseurId),
             serviceId: texte(certificat.serviceId),
-            serveurId: texte(certificat.serveurId),
             usage: certificat.usage ?? "",
             support: certificat.support ?? "",
             niveau: certificat.niveau,

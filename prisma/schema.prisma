@@ -385,8 +385,7 @@ model Serveur {
   localisation String  @default("") // salle serveur, datacenter, hébergeur…
   notes        String  @default("")
 
-  logiciels   LogicielServeur[]
-  certificats Certificat[]
+  logiciels LogicielServeur[]
 
   @@map("serveurs")
 }
@@ -820,9 +819,6 @@ model Certificat {
   /// Le service auquel le certificat est rattaché. Renseigné pour les agents,
   /// souvent vide pour les élus, qui n'en relèvent pas.
   serviceId     Int? @map("service_id")
-  /// Le serveur qu'il équipe, pour un certificat de machine (cachet, TLS).
-  /// null pour un certificat nominatif, le cas courant.
-  serveurId     Int? @map("serveur_id")
 
   /// Civilité du titulaire, DEVANT son nom sur la fiche comme dans la liste.
   /// Nulle pour un certificat de machine.
@@ -893,18 +889,17 @@ model Certificat {
   createdAt DateTime @default(now()) @db.Timestamptz
   updatedAt DateTime @updatedAt @db.Timestamptz
 
-  // Aucun de ces trois rattachements n'est propriétaire du certificat :
-  // supprimer un service ou un serveur ne doit pas emporter la trace d'un
-  // certificat qui, lui, a bel et bien été payé et délivré.
+  // Aucun de ces rattachements n'est propriétaire du certificat : supprimer
+  // un service ne doit pas emporter la trace d'un certificat qui, lui, a bel
+  // et bien été payé et délivré. (Le « serveur équipé » a été retiré : aucune
+  // fiche ne l'utilisait, les certificats de machine se disent par l'usage.)
   fournisseur Editeur?            @relation("CertificatFournisseur", fields: [fournisseurId], references: [id], onDelete: SetNull)
   service     ServiceUtilisateur? @relation(fields: [serviceId], references: [id], onDelete: SetNull)
-  serveur     Serveur?            @relation(fields: [serveurId], references: [id], onDelete: SetNull)
   /// Attestation de l'autorité, bon de commande signé, recueil d'identité.
   documents   Document[]
 
   @@index([fournisseurId])
   @@index([serviceId])
-  @@index([serveurId])
   @@index([dateFin])
   @@map("certificats")
 }

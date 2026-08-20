@@ -114,7 +114,6 @@ export const certificatSchema = z
     email: emailOptionnel,
     fournisseurId: idOptionnel,
     serviceId: idOptionnel,
-    serveurId: idOptionnel,
     usage: enumOptionnel(USAGES_CERTIFICAT, "Usage"),
     support: enumOptionnel(SUPPORTS_CERTIFICAT, "Support"),
     niveau: z.string().trim().max(60, "Niveau trop long (60 caractères max)."),

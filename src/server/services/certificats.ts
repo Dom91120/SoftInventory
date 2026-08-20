@@ -72,7 +72,6 @@ export async function listCertificats(filtres: FiltresCertificats = {}) {
     include: {
       fournisseur: { select: { id: true, nom: true } },
       service: { select: { id: true, nom: true } },
-      serveur: { select: { id: true, nom: true } },
     },
   });
 }
@@ -85,7 +84,6 @@ export async function getCertificat(id: number) {
     include: {
       fournisseur: { select: { id: true, nom: true } },
       service: { select: { id: true, nom: true } },
-      serveur: { select: { id: true, nom: true } },
       // Les plus récentes en tête : sur une fiche, c'est la dernière pièce
       // déposée qu'on vient chercher.
       documents: { include: { categorie: true }, orderBy: { createdAt: "desc" } },

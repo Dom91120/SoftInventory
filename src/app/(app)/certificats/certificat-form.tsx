@@ -27,7 +27,6 @@ export type CertificatValues = {
   email: string;
   fournisseurId: string;
   serviceId: string;
-  serveurId: string;
   usage: string;
   support: string;
   niveau: string;
@@ -50,7 +49,6 @@ export const CERTIFICAT_VIDE: CertificatValues = {
   email: "",
   fournisseurId: "",
   serviceId: "",
-  serveurId: "",
   usage: "",
   support: "",
   niveau: "",
@@ -97,7 +95,6 @@ export function CertificatForm({
   values = CERTIFICAT_VIDE,
   editeurs,
   services,
-  serveurs,
   readOnly = false,
   onglet = "synthese",
   documents,
@@ -108,7 +105,6 @@ export function CertificatForm({
   /** Annuaire des sociétés : c'est là que vivent les autorités de certification. */
   editeurs: Option[];
   services: Option[];
-  serveurs: Option[];
   readOnly?: boolean;
   /** L'onglet demandé par l'URL au chargement. */
   onglet?: OngletCertificat;
@@ -345,9 +341,6 @@ export function CertificatForm({
             />
           </Field>
           {selectOption("serviceId", "Service", services, "— aucun —")}
-          {/* Un certificat de machine désigne SA machine ; le laisser vide est
-                le cas courant, celui d'un certificat nominatif. */}
-          {selectOption("serveurId", "Serveur équipé", serveurs, "— aucun (nominatif) —")}
         </div>
       </Card>
 

@@ -36,7 +36,6 @@ function parse(formData: FormData) {
     email: get("email"),
     fournisseurId: get("fournisseurId"),
     serviceId: get("serviceId"),
-    serveurId: get("serveurId"),
     usage: get("usage"),
     support: get("support"),
     niveau: get("niveau"),
