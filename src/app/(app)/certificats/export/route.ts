@@ -33,7 +33,7 @@ export function GET(request: Request): Promise<Response> {
         "Autorité de certification",
         "Usage",
         "Support",
-        "Niveau",
+        "Type / Modèle",
         "N° de série",
         "Début de validité",
         "Fin de validité",

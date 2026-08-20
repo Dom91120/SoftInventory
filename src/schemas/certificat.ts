@@ -116,7 +116,7 @@ export const certificatSchema = z
     serviceId: idOptionnel,
     usage: enumOptionnel(USAGES_CERTIFICAT, "Usage"),
     support: enumOptionnel(SUPPORTS_CERTIFICAT, "Support"),
-    niveau: z.string().trim().max(60, "Niveau trop long (60 caractères max)."),
+    niveau: z.string().trim().max(60, "Type / modèle trop long (60 caractères max)."),
     numeroSerie: z.string().trim().max(120, "Numéro de série trop long (120 caractères max)."),
     dateDebut: dateOptionnelle,
     // Terme de validité ET échéance surveillée : c'est elle que lisent le cron

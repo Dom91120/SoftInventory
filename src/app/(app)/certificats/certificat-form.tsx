@@ -346,120 +346,138 @@ export function CertificatForm({
 
       {/* Ce qu'il est et jusqu'à quand il vaut. */}
       <Card title="Certificat">
-        <div className="grid items-end gap-x-3 gap-y-2 sm:grid-cols-3">
-          {selectOption("fournisseurId", "Autorité de certification", editeurs, "— aucune —")}
-          <Field label="Usage" htmlFor="usage">
-            <select
-              id="usage"
-              name="usage"
-              defaultValue={values.usage}
-              disabled={dis}
-              className="input"
-            >
-              <option value="">— non renseigné —</option>
-              {USAGES_CERTIFICAT.map((u) => (
-                <option key={u} value={u}>
-                  {LIBELLES_CERTIFICAT.usage[u]}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label="Support" htmlFor="support">
-            <select
-              id="support"
-              name="support"
-              defaultValue={values.support}
-              disabled={dis}
-              className="input"
-            >
-              <option value="">— non renseigné —</option>
-              {SUPPORTS_CERTIFICAT.map((s) => (
-                <option key={s} value={s}>
-                  {LIBELLES_CERTIFICAT.support[s]}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label="N° de série" htmlFor="numeroSerie">
-            <input
-              id="numeroSerie"
-              name="numeroSerie"
-              defaultValue={values.numeroSerie}
-              disabled={dis}
-              className="input"
-            />
-          </Field>
-          <Field label="Niveau" htmlFor="niveau">
-            <input
-              id="niveau"
-              name="niveau"
-              placeholder="Ex : RGS**, eIDAS qualifié"
-              defaultValue={values.niveau}
-              disabled={dis}
-              className="input"
-            />
-          </Field>
-          <Field label="Durée (années)" htmlFor="dureeAnnees">
-            <select
-              id="dureeAnnees"
-              name="dureeAnnees"
-              defaultValue={values.dureeAnnees}
-              disabled={dis}
-              className="input"
-            >
-              <option value="">—</option>
-              {[1, 2, 3, 4, 5].map((n) => (
-                <option key={n} value={n}>
-                  {n} an{n > 1 ? "s" : ""}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label="Début de validité" htmlFor="dateDebut">
-            <input
-              id="dateDebut"
-              name="dateDebut"
-              type="date"
-              defaultValue={values.dateDebut}
-              disabled={dis}
-              className="input"
-            />
-          </Field>
-          {/* L'échéance SURVEILLÉE : c'est cette date que lisent le rappel
+        <div className="space-y-2">
+          {/* Ce qu'il EST : l'autorité et le modèle en tiers, l'usage et le
+              support — des listes courtes — en sixièmes. */}
+          <div className="grid items-end gap-x-3 gap-y-2 sm:grid-cols-[2fr_2fr_1fr_1fr]">
+            {selectOption("fournisseurId", "Autorité de certification", editeurs, "— aucune —")}
+            <Field label="Type / Modèle" htmlFor="niveau">
+              <input
+                id="niveau"
+                name="niveau"
+                placeholder="Ex : RGS**, eIDAS qualifié"
+                defaultValue={values.niveau}
+                disabled={dis}
+                className="input"
+              />
+            </Field>
+            <Field label="Usage" htmlFor="usage">
+              <select
+                id="usage"
+                name="usage"
+                defaultValue={values.usage}
+                disabled={dis}
+                className="input"
+              >
+                <option value="">— non renseigné —</option>
+                {USAGES_CERTIFICAT.map((u) => (
+                  <option key={u} value={u}>
+                    {LIBELLES_CERTIFICAT.usage[u]}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Support" htmlFor="support">
+              <select
+                id="support"
+                name="support"
+                defaultValue={values.support}
+                disabled={dis}
+                className="input"
+              >
+                <option value="">— non renseigné —</option>
+                {SUPPORTS_CERTIFICAT.map((s) => (
+                  <option key={s} value={s}>
+                    {LIBELLES_CERTIFICAT.support[s]}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          </div>
+          {/* Sa VIE : en flux, chaque champ à la largeur de ce qu'il porte —
+              les dates au gabarit des dates d'un marché — et le numéro de
+              série sur un sixième. */}
+          <div className="flex flex-wrap items-end gap-x-3 gap-y-2">
+            {/* Le numéro et la durée forment UN bloc d'un tiers sous
+                l'autorité : 90 px FIXES pour la durée — « 3 ans » n'en
+                demande pas plus, quelle que soit la fenêtre — et tout le
+                reste au numéro. Pas `w-1/3` : la rangée du dessus est une
+                grille dont les gouttières se déduisent des colonnes, et un
+                tiers brut débordait de 12 px sur elle — le calc retranche la
+                gouttière pour finir au même niveau. */}
+            <div className="grid w-full items-end gap-x-3 gap-y-2 sm:w-[calc(100%/3-0.75rem)] sm:grid-cols-[1fr_90px]">
+              <Field label="N° de série" htmlFor="numeroSerie">
+                <input
+                  id="numeroSerie"
+                  name="numeroSerie"
+                  defaultValue={values.numeroSerie}
+                  disabled={dis}
+                  className="input"
+                />
+              </Field>
+              <Field label="Durée" htmlFor="dureeAnnees">
+                <select
+                  id="dureeAnnees"
+                  name="dureeAnnees"
+                  defaultValue={values.dureeAnnees}
+                  disabled={dis}
+                  className="input"
+                >
+                  <option value="">—</option>
+                  {[1, 2, 3, 4, 5].map((n) => (
+                    <option key={n} value={n}>
+                      {n} an{n > 1 ? "s" : ""}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+            </div>
+            <Field label="Début de validité" htmlFor="dateDebut">
+              <input
+                id="dateDebut"
+                name="dateDebut"
+                type="date"
+                defaultValue={values.dateDebut}
+                disabled={dis}
+                className="input !w-[130px]"
+              />
+            </Field>
+            {/* L'échéance SURVEILLÉE : c'est cette date que lisent le rappel
                 par e-mail et la carte du tableau de bord. La mention qui le
                 disait sous le champ est retirée — un champ de date n'accueille
                 pas de placeholder, et la ligne grise décalait la grille. */}
-          <Field label="Fin de validité" htmlFor="dateFin">
-            <input
-              id="dateFin"
-              name="dateFin"
-              type="date"
-              defaultValue={values.dateFin}
-              disabled={dis}
-              className="input"
-            />
-          </Field>
-          {/* Le statut vit ICI, à la suite des dates, et non dans la carte du
+            <Field label="Fin de validité" htmlFor="dateFin">
+              <input
+                id="dateFin"
+                name="dateFin"
+                type="date"
+                defaultValue={values.dateFin}
+                disabled={dis}
+                className="input !w-[130px]"
+              />
+            </Field>
+            {/* Le statut vit ICI, à la suite des dates, et non dans la carte du
               titulaire : il dit où en est LE CERTIFICAT, pas qui le porte.
               Juste après la fin de validité, parce que les deux se lisent
               ensemble — la date dit s'il est périmé, le statut ce qu'on en
               fait, et « Révoqué » sur une date qui court encore ne se comprend
               qu'à côté d'elle. */}
-          <Field label="Statut" htmlFor="statut">
-            <select
-              id="statut"
-              name="statut"
-              defaultValue={values.statut || "valide"}
-              disabled={dis}
-              className="input"
-            >
-              {STATUTS_CERTIFICAT.map((s) => (
-                <option key={s} value={s}>
-                  {LIBELLES_CERTIFICAT.statut[s]}
-                </option>
-              ))}
-            </select>
-          </Field>
+            <Field label="Statut" htmlFor="statut">
+              <select
+                id="statut"
+                name="statut"
+                defaultValue={values.statut || "valide"}
+                disabled={dis}
+                className="input !w-auto"
+              >
+                {STATUTS_CERTIFICAT.map((s) => (
+                  <option key={s} value={s}>
+                    {LIBELLES_CERTIFICAT.statut[s]}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          </div>
         </div>
       </Card>
 
