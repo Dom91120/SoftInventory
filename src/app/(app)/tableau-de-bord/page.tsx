@@ -308,7 +308,7 @@ export default async function TableauDeBordPage() {
         <div className="min-w-0 space-y-3">
           {/* Les trois cartes mènent aux Statistiques, chacune EN ENTIER —
               voir `CarteStats`. */}
-          <CarteStats title="Coût annuel" hint="contrats et marchés">
+          <CarteStats title="Coût annuel" hint="contrats et marchés en cours">
             <p className="font-mono text-[1.7rem] font-semibold leading-tight text-strong tabular-nums">
               {fmtEuros.format(d.coutAnnuelTotal)}
             </p>

@@ -84,6 +84,12 @@ export type DonneesDashboard = {
  * mais une tâche en retard chez un collègue absent est un problème pour tous,
  * et la carte les montre désormais toutes.
  */
+/** Marché en cours au sens d'etatMarche : sans terme, ou dont le terme n'est
+ *  pas passé. Sous forme de filtre Prisma, posé tel quel sur `contrat`. */
+const MARCHE_EN_COURS = (aujourdhui: Date) => ({
+  OR: [{ dateFin: null }, { dateFin: { gte: aujourdhui } }],
+});
+
 export async function chargerDashboard(): Promise<DonneesDashboard> {
   const aujourdhui = dateCalendaire(new Date());
   // Même horizon que les rappels par e-mail : la carte annonce la fenêtre que
@@ -95,6 +101,7 @@ export async function chargerDashboard(): Promise<DonneesDashboard> {
   const [
     logiciels,
     coutDesMarches,
+    logicielsAvecDevis,
     editeursParCategorie,
     nbContrats,
     nbServeurs,
@@ -122,7 +129,37 @@ export async function chargerDashboard(): Promise<DonneesDashboard> {
     // pièces, dont la colonne `cout_annuel` garde les valeurs historiques :
     // elles ne sont plus comptées, sans quoi un marché dont le montant a été
     // ressaisi le serait deux fois.)
-    prisma.contrat.aggregate({ _sum: { montantAnnuel: true } }),
+    //
+    // Seuls les marchés EN COURS comptent — sans terme (tacite reconduction)
+    // ou dont le terme n'est pas passé, même règle qu'etatMarche : un marché
+    // terminé est de l'historique, pas une dépense.
+    prisma.contrat.aggregate({
+      where: { ...MARCHE_EN_COURS(aujourdhui) },
+      _sum: { montantAnnuel: true },
+    }),
+    // Le DEVIS RETENU prend le relais là où aucun marché en cours chiffré ne
+    // couvre le logiciel — qu'il n'ait pas de marché du tout ou que le sien
+    // soit sans montant : c'est le chiffre qu'on a accepté, faute de mieux.
+    // `contrats` ne ramène que les marchés en cours chiffrés : vide, le devis
+    // compte. La consultation la plus récente qui ait un devis retenu.
+    prisma.logiciel.findMany({
+      where: { consultations: { some: { devis: { some: { retenu: true } } } } },
+      select: {
+        contrats: {
+          where: { contrat: { ...MARCHE_EN_COURS(aujourdhui), montantAnnuel: { not: null } } },
+          take: 1,
+          select: { contratId: true },
+        },
+        consultations: {
+          where: { devis: { some: { retenu: true } } },
+          orderBy: [{ date: { sort: "desc", nulls: "last" } }, { id: "desc" }],
+          take: 1,
+          select: {
+            devis: { where: { retenu: true }, take: 1, select: { montant: true } },
+          },
+        },
+      },
+    }),
     // Compté par catégorie : la tuile annonce le total et détaille les
     // exceptions — fournisseurs, autorités — quand il y en a.
     prisma.editeur.groupBy({ by: ["categorie"], _count: true }),
@@ -179,11 +216,15 @@ export async function chargerDashboard(): Promise<DonneesDashboard> {
     }),
   ]);
 
-  // Coût annuel total : le montant annuel des MARCHÉS, et lui seul, compté une
-  // fois quel que soit le nombre de logiciels couverts. La fiche logiciel ne
-  // porte plus de coût propre — sa colonne garde des valeurs historiques que
-  // rien ne met plus à jour, les compter fausserait le total.
-  const coutAnnuelTotal = Number(coutDesMarches._sum.montantAnnuel ?? 0);
+  // Coût annuel total : le montant annuel des MARCHÉS en cours, compté une
+  // fois quel que soit le nombre de logiciels couverts, plus le devis retenu
+  // des logiciels qu'aucun marché en cours chiffré ne couvre. La fiche
+  // logiciel ne porte plus de coût propre — sa colonne garde des valeurs
+  // historiques que rien ne met plus à jour, les compter fausserait le total.
+  const coutDesDevis = logicielsAvecDevis
+    .filter((l) => l.contrats.length === 0)
+    .reduce((somme, l) => somme + Number(l.consultations[0]?.devis[0]?.montant ?? 0), 0);
+  const coutAnnuelTotal = Number(coutDesMarches._sum.montantAnnuel ?? 0) + coutDesDevis;
 
   // Contrats dépassés (même règle que la liste/l'export).
   const contratsDepasses = logiciels
