@@ -5,6 +5,24 @@
 /** Taille maximale d'une pièce jointe. */
 export const TAILLE_MAX_OCTETS = 25 * 1024 * 1024; // 25 Mo
 
+/** Taille lisible, en Mo ou Go selon l'ordre de grandeur, pour le message. */
+function formaterTaille(octets: number): string {
+  const mo = octets / (1024 * 1024);
+  return mo >= 1024 ? `${(mo / 1024).toFixed(2)} Go` : `${Math.ceil(mo)} Mo`;
+}
+
+/**
+ * Message de refus pour un fichier trop lourd, null sinon. Appelé dans le
+ * NAVIGATEUR avant tout envoi — un fichier d'un gigaoctet partait en entier
+ * vers le serveur, qui tombait avant de répondre, et l'écran ne savait dire
+ * que « réseau » — et sur la route dès l'en-tête Content-Length, avant de
+ * lire le corps.
+ */
+export function erreurTaille(octets: number): string | null {
+  if (octets <= TAILLE_MAX_OCTETS) return null;
+  return `Fichier trop volumineux : ${formaterTaille(octets)}, pour 25 Mo maximum.`;
+}
+
 /**
  * Types admis : extension → types MIME acceptés pour elle. Liste BLANCHE
  * (jamais noire) : documents bureautiques, images et archives — pas
@@ -44,9 +62,8 @@ export type VerdictFichier = { ok: true; extension: string } | { ok: false; erre
 /** Vérifie nom + MIME déclaré + taille contre la liste blanche. */
 export function verifierFichier(nomFichier: string, mime: string, taille: number): VerdictFichier {
   if (taille <= 0) return { ok: false, erreur: "Fichier vide." };
-  if (taille > TAILLE_MAX_OCTETS) {
-    return { ok: false, erreur: "Fichier trop volumineux (25 Mo maximum)." };
-  }
+  const tropLourd = erreurTaille(taille);
+  if (tropLourd) return { ok: false, erreur: tropLourd };
   const ext = extensionDe(nomFichier);
   const admis = ext ? TYPES_ADMIS[ext] : undefined;
   if (!admis) {

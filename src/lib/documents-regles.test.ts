@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   assainirNomOriginal,
   cheminDansRacine,
+  erreurTaille,
   extensionDe,
   TAILLE_MAX_OCTETS,
   verifierFichier,
@@ -42,6 +43,21 @@ describe("verifierFichier — liste blanche extension + MIME", () => {
 
   it("l'extension est insensible à la casse", () => {
     expect(verifierFichier("SCAN.PDF", "application/pdf", 10).ok).toBe(true);
+  });
+
+  describe("erreurTaille — refus lisible, côté navigateur comme côté route", () => {
+    it("laisse passer jusqu'à la limite incluse", () => {
+      expect(erreurTaille(1)).toBeNull();
+      expect(erreurTaille(TAILLE_MAX_OCTETS)).toBeNull();
+    });
+    it("dit la taille du fichier refusé, en Mo ou en Go", () => {
+      expect(erreurTaille(30 * 1024 * 1024)).toBe(
+        "Fichier trop volumineux : 30 Mo, pour 25 Mo maximum.",
+      );
+      expect(erreurTaille(1.07 * 1024 * 1024 * 1024)).toBe(
+        "Fichier trop volumineux : 1.07 Go, pour 25 Mo maximum.",
+      );
+    });
   });
 });
 

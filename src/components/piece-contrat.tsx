@@ -16,6 +16,7 @@ import {
 import { DETAIL_FICHIER_DEFINITIF, useConfirmation } from "@/components/confirmation";
 import type { CategorieOption, DocumentRow } from "@/components/documents-panel";
 import { Field } from "@/components/ui";
+import { erreurTaille } from "@/lib/documents-regles";
 
 /**
  * La pièce d'un marché, partagée par les DEUX écrans qui la saisissent :
@@ -49,6 +50,10 @@ async function deposerPiece(
   fichier: File,
   categorieId: number | null,
 ): Promise<string | null> {
+  // Refus AVANT l'envoi : le fichier n'a pas à traverser le réseau pour
+  // apprendre qu'il est trop lourd.
+  const tropLourd = erreurTaille(fichier.size);
+  if (tropLourd) return tropLourd;
   try {
     const form = new FormData();
     form.set("file", fichier);
@@ -273,11 +278,7 @@ export function FormulairePiece({
             L'action serveur conserve l'extension d'elle-même. */}
         {row?.document && !fichier ? (
           <div className="w-full sm:w-56">
-            <Field
-              label="Nom du fichier"
-              htmlFor="nomFichier"
-              hint="Renomme le fichier déposé"
-            >
+            <Field label="Nom du fichier" htmlFor="nomFichier" hint="Renomme le fichier déposé">
               <input
                 id="nomFichier"
                 name="nomFichier"
@@ -362,11 +363,7 @@ export function FormulairePiece({
             l'arrivée du champ « Nom du fichier » rejetait la date à la ligne.
             Bornée au plus près du champ, l'aide se replie dessous. */}
         <div className="w-full sm:w-36">
-          <Field
-            label="Date de la pièce"
-            htmlFor="datePiece"
-            hint="Date du document"
-          >
+          <Field label="Date de la pièce" htmlFor="datePiece" hint="Date du document">
             {/* `!w-32` et non `!w-auto` : la largeur naturelle du contrôle
                 (152 px) compte large — 128 px suffisent à « 12/07/2024 » et au
                 calendrier, vérifié à l'écran. */}

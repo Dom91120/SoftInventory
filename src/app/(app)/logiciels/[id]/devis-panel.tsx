@@ -13,6 +13,7 @@ import {
 import { ModaleSociete } from "@/components/modale-societe";
 import { useInscriptionModeFiche } from "@/components/mode-fiche";
 import { Card, EmptyState, Field } from "@/components/ui";
+import { erreurTaille } from "@/lib/documents-regles";
 import { DATE_FMT_FR_UTC, formatEuros } from "@/lib/format";
 import {
   createConsultationAction,
@@ -663,6 +664,10 @@ async function deposerPiece(
   fichier: File,
   categorieDevisId: number | null,
 ): Promise<string | null> {
+  // Refus AVANT l'envoi : le fichier n'a pas à traverser le réseau pour
+  // apprendre qu'il est trop lourd.
+  const tropLourd = erreurTaille(fichier.size);
+  if (tropLourd) return tropLourd;
   try {
     const form = new FormData();
     form.set("file", fichier);

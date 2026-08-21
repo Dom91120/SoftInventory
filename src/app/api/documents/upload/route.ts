@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { TAILLE_MAX_OCTETS } from "@/lib/documents-regles";
+import { erreurTaille } from "@/lib/documents-regles";
 import { AUDIT, recordAudit } from "@/server/audit";
 import { reponseApi, requireRoleApi } from "@/server/guards-api";
 import { saveDocument } from "@/server/services/documents";
@@ -17,17 +17,28 @@ export function POST(request: Request): Promise<Response> {
   return reponseApi(async () => {
     const session = await requireRoleApi("admin", "/api/documents/upload");
 
+    // Refus sur l'EN-TÊTE, avant de lire le corps : `formData()` avalait un
+    // fichier d'un gigaoctet en mémoire et tombait en 500 muette — le client
+    // ne voyait qu'une coupure « réseau ». Le multipart pèse un peu plus que
+    // le fichier ; la marge d'1 Mo évite de refuser sur l'enveloppe un fichier
+    // qui passerait, la vérification sur `file.size` tranche ensuite au juste.
+    const annonce = Number(request.headers.get("content-length"));
+    const tropLourdAnnonce = Number.isFinite(annonce)
+      ? erreurTaille(Math.max(0, annonce - 1024 * 1024))
+      : null;
+    if (tropLourdAnnonce) {
+      return NextResponse.json({ error: tropLourdAnnonce }, { status: 413 });
+    }
+
     const form = await request.formData();
     const file = form.get("file");
     if (!(file instanceof File)) {
       return NextResponse.json({ error: "Aucun fichier reçu." }, { status: 400 });
     }
-    // Refus AVANT lecture du contenu : ne pas allouer 500 Mo pour les refuser.
-    if (file.size > TAILLE_MAX_OCTETS) {
-      return NextResponse.json(
-        { error: "Fichier trop volumineux (25 Mo maximum)." },
-        { status: 413 },
-      );
+    // Refus AVANT lecture du contenu : ne pas allouer 25 Mo pour les refuser.
+    const tropLourd = erreurTaille(file.size);
+    if (tropLourd) {
+      return NextResponse.json({ error: tropLourd }, { status: 413 });
     }
 
     const id = (champ: string) => {

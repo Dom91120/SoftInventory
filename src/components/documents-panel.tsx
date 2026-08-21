@@ -28,7 +28,7 @@ import {
 import { DETAIL_FICHIER_DEFINITIF, useConfirmation } from "@/components/confirmation";
 import { useInscriptionModeFiche } from "@/components/mode-fiche";
 import { Card, EmptyState } from "@/components/ui";
-import { extensionDe } from "@/lib/documents-regles";
+import { erreurTaille, extensionDe } from "@/lib/documents-regles";
 
 export type DocumentRow = {
   id: number;
@@ -310,6 +310,14 @@ export function DocumentsPanel({
 
   async function upload(file: File) {
     setError(null);
+    // Refus AVANT l'envoi : un fichier d'un gigaoctet n'a pas à traverser le
+    // réseau pour apprendre qu'il est 40 fois trop lourd.
+    const tropLourd = erreurTaille(file.size);
+    if (tropLourd) {
+      setError(tropLourd);
+      if (fileRef.current) fileRef.current.value = "";
+      return;
+    }
     setUploading(true);
     try {
       const form = new FormData();
