@@ -1,6 +1,7 @@
 "use client";
 
 import { Pencil, Plus, Star, Trash2, Upload, X } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRef, useState, useTransition } from "react";
 import { deleteDocumentAction } from "@/app/(app)/documents/actions";
@@ -558,9 +559,23 @@ export function DevisPanel({
                                     onErreur={setError}
                                   />
                                 </td>
+                                {/* Le nom mène à la fiche de la société — même
+                                    geste que partout où un fournisseur
+                                    s'affiche. `fournisseurId` vide = société
+                                    hors annuaire : le nom reste en clair, il
+                                    n'y a pas de fiche où aller. */}
                                 <td className="font-medium text-strong">
-                                  {d.fournisseurNom ?? (
+                                  {d.fournisseurNom === null ? (
                                     <span title="Société non renseignée">—</span>
+                                  ) : d.fournisseurId ? (
+                                    <Link
+                                      href={`/editeurs/${d.fournisseurId}`}
+                                      className="hover:text-accent"
+                                    >
+                                      {d.fournisseurNom}
+                                    </Link>
+                                  ) : (
+                                    d.fournisseurNom
                                   )}
                                 </td>
                                 {/* Le tiret se centre là où la valeur ne se
