@@ -141,20 +141,12 @@ export default async function ServeursPage({
             <table className="data-table table-fixed">
               <colgroup>
                 <col style={{ width: "18%" }} />
-                <col style={{ width: "10%" }} />
                 <col style={{ width: "12%" }} />
-                <col style={{ width: "60%" }} />
+                <col style={{ width: "70%" }} />
               </colgroup>
               <thead>
                 <tr>
                   <th>Serveur</th>
-                  {/* La colonne garde son titre d'origine — c'est « l'OS » qu'on
-                      cherche des yeux — mais donne la FAMILLE du système et non
-                      sa version : « Windows » se balaie d'un trait sur quinze
-                      lignes, « Windows Server 2022 » demande qu'on le lise. La
-                      version exacte reste sur la fiche, où l'on va quand on la
-                      cherche. */}
-                  <th>OS</th>
                   <th>Emplacement</th>
                   <th>Logiciels installés</th>
                 </tr>
@@ -178,16 +170,24 @@ export default async function ServeursPage({
                       >
                         {s.nom}
                       </Link>
+                      {/* L'OS en SOUS-TITRE du nom plutôt qu'en colonne : la
+                          FAMILLE du système (« Windows », pas sa version — la
+                          version exacte reste sur la fiche) qualifie la machine
+                          plus qu'elle ne se compare d'une ligne à l'autre. Rien
+                          quand il n'est pas renseigné : un tiret tient une
+                          colonne, pas une ligne de sous-titre — même geste que
+                          les cartes. */}
+                      {s.typeOs && (
+                        <span className="block truncate text-xs text-faint">
+                          {LIBELLES_TYPE_OS[s.typeOs]}
+                        </span>
+                      )}
                     </td>
-                    {/* Un tiret plutôt qu'une case vide : la colonne existe,
-                        c'est le renseignement qui manque. */}
                     <td>
-                      <span className="block truncate text-muted">
-                        {s.typeOs ? LIBELLES_TYPE_OS[s.typeOs] : "—"}
-                      </span>
-                    </td>
-                    <td>
-                      <span className="block truncate text-muted" title={s.localisation}>
+                      <span
+                        className="block truncate font-medium text-strong"
+                        title={s.localisation}
+                      >
                         {s.localisation || "—"}
                       </span>
                     </td>
@@ -195,7 +195,7 @@ export default async function ServeursPage({
                       {s.logiciels.length === 0 ? (
                         <span className="text-faint">Aucun logiciel associé.</span>
                       ) : (
-                        <span className="flex flex-wrap items-center gap-x-3 gap-y-0">
+                        <span className="flex flex-wrap items-center gap-x-5 gap-y-0">
                           {s.logiciels.map((ls) => (
                             <Link
                               key={ls.logicielId}
