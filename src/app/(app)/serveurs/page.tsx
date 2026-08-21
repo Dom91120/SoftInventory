@@ -272,7 +272,7 @@ export default async function ServeursPage({
                      un nom seul dans sa colonne se pose au milieu du corps au
                      lieu de rester collé en haut quand la carte est plus haute
                      que lui. L'ordre de lecture reste ligne à ligne. */
-                  <div className="relative grid h-full grid-cols-3 text-sm">
+                  <div className="relative grid h-full grid-cols-3 text-[13px]">
                     {/* Les filets verticaux sont posés en absolu sur toute la
                         hauteur : ils traversent rangées et interlignes d'un
                         seul trait, là où une bordure de cellule s'arrêtait à sa
