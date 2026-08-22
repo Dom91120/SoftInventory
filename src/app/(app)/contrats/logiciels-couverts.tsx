@@ -154,9 +154,12 @@ export function LogicielsCouverts({
           Aucun logiciel rattaché. Un marché peut précéder l'inventaire de ce qu'il couvre.
         </p>
       ) : (
-        <ul className="mb-3 divide-y divide-line text-sm">
+        // Sans filets ni interligne, comme la liste des logiciels d'un éditeur :
+        // les logiciels d'un même marché se lisent comme une liste, pas comme
+        // des données distinctes qu'il faudrait séparer.
+        <ul className="mb-3 text-sm">
           {rattaches.map((l) => (
-            <li key={l.id} className="flex items-center justify-between gap-3 py-2">
+            <li key={l.id} className="flex items-center justify-between gap-3">
               <Link
                 href={`/logiciels/${l.id}?onglet=contrats`}
                 className="min-w-0 truncate font-medium text-strong hover:text-accent"

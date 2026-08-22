@@ -139,7 +139,7 @@ export default async function EditeurPage({
                       distinctes qu'il faudrait séparer. */}
                   <ul className="text-sm">
                     {editeur.logiciels.map((l) => (
-                      <li key={l.id} className="pt-2">
+                      <li key={l.id}>
                         <Link
                           href={`/logiciels/${l.id}`}
                           className="font-medium text-strong hover:text-accent"
@@ -161,7 +161,7 @@ export default async function EditeurPage({
                 <Card key="fournis" title="Logiciels fournis" hint="par marché ou devis">
                   <ul className="text-sm">
                     {logicielsFournis.map((l) => (
-                      <li key={l.id} className="flex items-baseline gap-x-2 pt-2">
+                      <li key={l.id} className="flex items-baseline gap-x-2">
                         <Link
                           href={`/logiciels/${l.id}`}
                           className="font-medium text-strong hover:text-accent"
