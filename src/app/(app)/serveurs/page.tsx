@@ -2,10 +2,11 @@ import { LayoutGrid, List, Plus } from "lucide-react";
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import Link from "next/link";
+import { BarreListe } from "@/components/barre-liste";
 import { Pagination, pageDepuisParams, paginer } from "@/components/pagination";
 import { EmptyState, PageHeader } from "@/components/ui";
 import type { Role } from "@/generated/prisma/client";
-import { LIBELLES_TYPE_OS } from "@/schemas/serveur";
+import { LIBELLES_TYPE_OS, TYPES_OS } from "@/schemas/serveur";
 import { requireUser } from "@/server/guards";
 import { listServeursAvecLogiciels } from "@/server/services/serveurs";
 import { MemoireVue } from "./memoire-vue";
@@ -47,7 +48,7 @@ type VueCle = (typeof VUES)[number]["cle"];
 export default async function ServeursPage({
   searchParams,
 }: {
-  searchParams: Promise<{ vue?: string; page?: string }>;
+  searchParams: Promise<{ vue?: string; page?: string; q?: string; os?: string }>;
 }) {
   const session = await requireUser();
   const isAdmin = (session.user as { role?: Role }).role === "admin";
@@ -65,9 +66,21 @@ export default async function ServeursPage({
   // Dix par page en LISTE, comme les listes de logiciels, d'éditeurs et de
   // marchés. Les CARTES, elles, montrent tout le parc d'un coup : c'est la vue
   // d'ensemble de qui porte quoi, la feuilleter par tranches de dix la casserait.
-  const tous = await listServeursAvecLogiciels();
+  // Filtre validé contre la liste des clés : une valeur forgée dans l'URL est
+  // simplement ignorée — même geste que la catégorie des éditeurs.
+  const typeOs = TYPES_OS.find((t) => t === params.os);
+  const tous = await listServeursAvecLogiciels({ q: params.q, typeOs });
   const { page, pages, total, elements } = paginer(tous, pageDepuisParams(params));
   const serveurs = active === "liste" ? elements : tous;
+  /** L'adresse d'une vue garde la recherche, le filtre et la page en cours. */
+  const hrefVue = (cle: VueCle) => {
+    const qs = new URLSearchParams();
+    qs.set("vue", cle);
+    if (params.q) qs.set("q", params.q);
+    if (typeOs) qs.set("os", typeOs);
+    if (page > 1) qs.set("page", String(page));
+    return `?${qs.toString()}`;
+  };
 
   return (
     <>
@@ -89,47 +102,54 @@ export default async function ServeursPage({
         }
       />
 
-      {/* Le sélecteur de vue descend au NIVEAU DES ONGLETS : sous l'en-tête, sur
-          le filet qui court d'un bord à l'autre, au bout de la rangée. La ligne
-          du titre appartient aux commandes ; changer de vue n'en est pas une, et
-          la place qu'il y occupait revient au bouton d'ajout.
+      {/* La barre des listes — recherche, famille d'OS, export — comme sur les
+          éditeurs et les marchés : la page n'en avait pas, et un parc de
+          vingt-six machines se cherche déjà. Le sélecteur de vue ferme la
+          rangée, au bout, après l'export.
 
           Il garde sa forme encadrée, DÉLIBÉRÉMENT différente des onglets
           (`components/ui.tsx`) : un onglet change ce que la page montre, ce
           sélecteur change comment elle le montre, à contenu identique. Lui
           donner la forme d'un onglet ferait croire qu'on quitte la page. Deux
-          liens et non deux boutons — la vue est une adresse.
-
-          SANS le filet des barres d'onglets : il annonce une bascule de contenu,
-          et il n'y en a pas ici — la page montre la même chose des deux côtés.
-          Le cadre du sélecteur se suffit, et le trait faisait doublon avec celui
-          que porte déjà le haut de la carte qui suit. */}
-      <div className="mb-3 flex items-end justify-end">
-        <div className="flex items-center gap-0.5 rounded-lg border border-sub bg-surface p-0.5">
-          {/* La page en cours suit le changement de vue : les deux montrent le
-              même parc dans le même ordre, on regarde donc la même tranche
-              autrement — retomber à la première serait perdre sa place. */}
-          {VUES.map(({ cle, label, Icone }) => (
-            <Link
-              key={cle}
-              href={page > 1 ? `?vue=${cle}&page=${page}` : `?vue=${cle}`}
-              aria-current={cle === active ? "page" : undefined}
-              title={`Affichage en ${label.toLowerCase()}`}
-              className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-sm font-medium transition ${
-                cle === active ? "bg-inset text-strong" : "text-muted hover:text-strong"
-              }`}
-            >
-              <Icone className="h-4 w-4" />
-              {label}
-            </Link>
-          ))}
-        </div>
-      </div>
+          liens et non deux boutons — la vue est une adresse. */}
+      <BarreListe
+        rechercheLabel="Rechercher un serveur ou un logiciel installé"
+        exportHref="/serveurs/export"
+        selects={[
+          {
+            key: "os",
+            label: "OS",
+            options: TYPES_OS.map((t) => ({ value: t, label: LIBELLES_TYPE_OS[t] })),
+          },
+        ]}
+        actions={
+          <div className="flex items-center gap-0.5 rounded-lg border border-sub bg-surface p-0.5">
+            {/* La page en cours suit le changement de vue : les deux montrent
+                le même parc dans le même ordre, on regarde donc la même tranche
+                autrement — retomber à la première serait perdre sa place. */}
+            {VUES.map(({ cle, label, Icone }) => (
+              <Link
+                key={cle}
+                href={hrefVue(cle)}
+                aria-current={cle === active ? "page" : undefined}
+                title={`Affichage en ${label.toLowerCase()}`}
+                className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-sm font-medium transition ${
+                  cle === active ? "bg-inset text-strong" : "text-muted hover:text-strong"
+                }`}
+              >
+                <Icone className="h-4 w-4" />
+                {label}
+              </Link>
+            ))}
+          </div>
+        }
+      />
 
       {total === 0 ? (
         <EmptyState>
-          Aucun serveur pour l'instant.
-          {isAdmin ? " Créez le premier avec le bouton « + Serveur »." : ""}
+          {params.q || typeOs
+            ? "Aucun serveur ne correspond à cette recherche."
+            : `Aucun serveur pour l'instant.${isAdmin ? " Créez le premier avec le bouton « + Serveur »." : ""}`}
         </EmptyState>
       ) : active === "liste" ? (
         <div className="card px-5 py-4">
@@ -312,9 +332,7 @@ export default async function ServeursPage({
       )}
       {/* Le pavé des autres listes, à la même place — mais sous la LISTE
           seulement : les cartes montrent déjà tout, il n'y a rien à feuilleter. */}
-      {active === "liste" && (
-        <Pagination page={page} pages={pages} total={total} params={params} />
-      )}
+      {active === "liste" && <Pagination page={page} pages={pages} total={total} params={params} />}
     </>
   );
 }

@@ -2,6 +2,7 @@
 
 import { Download, Search, X } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import type { ReactNode } from "react";
 
 /**
  * Barre d'une liste : recherche, filtres facultatifs et export CSV — pilotée par
@@ -16,7 +17,14 @@ export function BarreListe({
   rechercheLabel,
   exportHref,
   selects = [],
+  actions,
 }: {
+  /**
+   * Ce qui vient APRÈS l'export, au bout de la ligne : le sélecteur de vue de
+   * l'écran Serveurs. Rendu côté serveur par la page, glissé ici pour partager
+   * la rangée plutôt que d'en prendre une à lui.
+   */
+  actions?: ReactNode;
   /** Libellé accessible du champ de recherche, ex. « Rechercher un éditeur ». */
   rechercheLabel: string;
   /** Racine de la route d'export ; la query string courante lui est ajoutée. */
@@ -48,13 +56,13 @@ export function BarreListe({
    * s'allumerait sur une simple page 2 ou une colonne triée, et proposerait
    * d'effacer ce que l'on n'a pas posé.
    */
-  const HORS_FILTRES = new Set(["page", "tri", "sens"]);
+  const HORS_FILTRES = new Set(["page", "tri", "sens", "vue"]);
   const actif = [...params.keys()].some((k) => !HORS_FILTRES.has(k));
 
-  /** Efface les filtres SEULS : l'ordre choisi n'en est pas un et lui survit. */
+  /** Efface les filtres SEULS : l'ordre et la vue choisis n'en sont pas et lui survivent. */
   function effacerFiltres() {
     const next = new URLSearchParams();
-    for (const k of ["tri", "sens"]) {
+    for (const k of ["tri", "sens", "vue"]) {
       const v = params.get(k);
       if (v) next.set(k, v);
     }
@@ -110,6 +118,7 @@ export function BarreListe({
         <Download className="h-4 w-4" />
         Export CSV
       </a>
+      {actions}
     </div>
   );
 }

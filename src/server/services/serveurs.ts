@@ -1,3 +1,4 @@
+import type { TypeOs } from "@/generated/prisma/client";
 import type { ServeurInput } from "@/schemas/serveur";
 import { prisma } from "@/server/db";
 
@@ -15,9 +16,28 @@ export function listServeurs() {
   return prisma.serveur.findMany({ orderBy: { nom: "asc" } });
 }
 
-/** Le parc avec ce que chaque machine porte — l'écran Serveurs, ses deux vues. */
-export function listServeursAvecLogiciels() {
+/**
+ * Le parc avec ce que chaque machine porte — l'écran Serveurs, ses deux vues,
+ * et son export. `q` cherche dans ce que la liste MONTRE : le nom, l'emplacement,
+ * le système et les logiciels installés — « Ciril » trouve SRV-CIRIL comme la
+ * machine qui porte CIVIL Net RH. `typeOs` restreint à une famille.
+ */
+export function listServeursAvecLogiciels(filtres: { q?: string; typeOs?: TypeOs } = {}) {
+  const q = filtres.q?.trim();
   return prisma.serveur.findMany({
+    where: {
+      ...(filtres.typeOs ? { typeOs: filtres.typeOs } : {}),
+      ...(q
+        ? {
+            OR: [
+              { nom: { contains: q, mode: "insensitive" } },
+              { localisation: { contains: q, mode: "insensitive" } },
+              { os: { contains: q, mode: "insensitive" } },
+              { logiciels: { some: { logiciel: { nom: { contains: q, mode: "insensitive" } } } } },
+            ],
+          }
+        : {}),
+    },
     orderBy: { nom: "asc" },
     include: {
       logiciels: {
