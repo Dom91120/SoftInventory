@@ -346,7 +346,7 @@ export function LiaisonsPanel({
           // l'écran Serveurs.
           <ul className="mb-3 text-sm">
             {serveursLies.map((s) => (
-              <li key={s.serveurId} className="flex items-center justify-between gap-3 pt-2">
+              <li key={s.serveurId} className="flex items-center justify-between gap-3">
                 {/* Le nom mène à la FICHE du serveur — son système, son
                     emplacement, le reste de ce qu'il porte. Comme les
                     interconnexions mènent à la fiche du logiciel d'en face :
@@ -445,7 +445,7 @@ export function LiaisonsPanel({
           // faudrait séparer.
           <ul className="mb-3 text-sm">
             {interconnexions.map((ix) => (
-              <li key={ix.id} className="flex items-center justify-between gap-3 pt-2">
+              <li key={ix.id} className="flex items-center justify-between gap-3">
                 <span className="flex min-w-0 items-center gap-2">
                   {ix.direction === "sortante" ? (
                     <ArrowRight className="h-4 w-4 shrink-0 text-accent" />
