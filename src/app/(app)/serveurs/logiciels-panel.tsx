@@ -145,7 +145,7 @@ export function LogicielsPanel({
         // Sans filets entre les lignes : deux logiciels d'une même machine se
         // lisent comme une liste, pas comme deux données qu'il faudrait séparer
         // — même règle que les cartes de l'écran Serveurs.
-        <ul className="mb-3 text-sm">
+        <ul className={`text-sm ${fige ? "" : "mb-3"}`}>
           {installations.map((i) => (
             <li key={i.logicielId} className="flex items-center justify-between gap-3">
               <Link
@@ -157,7 +157,10 @@ export function LogicielsPanel({
               {fige ? null : (
                 <button
                   type="button"
-                  className="btn-ghost !p-2 hover:!text-danger"
+                  // Ramenée à la hauteur du texte : à 34 px, la corbeille fixait celle
+                  // de la ligne, et la liste gonflait en mode modification — même
+                  // geste que les serveurs d'installation d'un logiciel.
+                  className="btn-ghost !h-5 !w-5 !p-0 shrink-0 hover:!text-danger"
                   title="Retirer"
                   disabled={pending}
                   onClick={() => retirer(i)}

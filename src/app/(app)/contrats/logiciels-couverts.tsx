@@ -157,7 +157,7 @@ export function LogicielsCouverts({
         // Sans filets ni interligne, comme la liste des logiciels d'un éditeur :
         // les logiciels d'un même marché se lisent comme une liste, pas comme
         // des données distinctes qu'il faudrait séparer.
-        <ul className="mb-3 text-sm">
+        <ul className={`text-sm ${fige ? "" : "mb-3"}`}>
           {rattaches.map((l) => (
             <li key={l.id} className="flex items-center justify-between gap-3">
               <Link

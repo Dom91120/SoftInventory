@@ -344,7 +344,10 @@ export function LiaisonsPanel({
           // logiciel se lisent comme une liste, pas comme deux données
           // distinctes qu'il faudrait séparer — même règle que les cartes de
           // l'écran Serveurs.
-          <ul className="mb-3 text-sm">
+          // La marge basse ne vaut que devant le formulaire d'ajout, en mode
+          // modification : en lecture, rien ne suit la liste, et l'espace
+          // creusait le bas de la carte. Même règle sur les autres listes.
+          <ul className={`text-sm ${serveursFiges ? "" : "mb-3"}`}>
             {serveursLies.map((s) => (
               <li key={s.serveurId} className="flex items-center justify-between gap-3">
                 {/* Le nom mène à la FICHE du serveur — son système, son
@@ -360,7 +363,10 @@ export function LiaisonsPanel({
                 {serveursFiges ? null : (
                   <button
                     type="button"
-                    className="btn-ghost !p-2 hover:!text-danger"
+                    // Ramenée à la hauteur du texte : à 34 px, la corbeille fixait celle
+                    // de la ligne, et la liste gonflait en mode modification — même
+                    // geste que les logiciels couverts d'un marché.
+                    className="btn-ghost !h-5 !w-5 !p-0 shrink-0 hover:!text-danger"
                     title="Retirer"
                     disabled={pending}
                     onClick={() => run(() => removeServeurAction(logicielId, s.serveurId))}
@@ -443,7 +449,7 @@ export function LiaisonsPanel({
           // juste au-dessus : deux échanges déclarés pour un même logiciel se
           // lisent comme une liste, pas comme deux données distinctes qu'il
           // faudrait séparer.
-          <ul className="mb-3 text-sm">
+          <ul className={`text-sm ${intercosFigees ? "" : "mb-3"}`}>
             {interconnexions.map((ix) => (
               <li key={ix.id} className="flex items-center justify-between gap-3">
                 <span className="flex min-w-0 items-center gap-2">
@@ -482,7 +488,10 @@ export function LiaisonsPanel({
                   ) : null}
                 </span>
                 {intercosFigees ? null : (
-                  <span className="flex shrink-0 items-center gap-1">
+                  // `gap-4` : les boutons ont perdu leurs 8 px de rembourrage en
+                  // passant à la hauteur du texte, l'écart entre les icônes les
+                  // rend pour garder la même respiration qu'avant.
+                  <span className="flex shrink-0 items-center gap-4">
                     {/* Le crayon cède la place à ✓ / ✕ sur la ligne qu'il a
                         ouverte : la reprise s'applique et se rend LÀ, sans
                         remonter aux boutons du bas — ceux-ci restent le filet,
@@ -491,7 +500,7 @@ export function LiaisonsPanel({
                       <>
                         <button
                           type="button"
-                          className="btn-ghost !p-2 hover:!text-ok"
+                          className="btn-ghost !h-5 !w-5 !p-0 shrink-0 hover:!text-ok"
                           title="Appliquer la description"
                           disabled={pending}
                           onClick={appliquerEditIx}
@@ -500,7 +509,7 @@ export function LiaisonsPanel({
                         </button>
                         <button
                           type="button"
-                          className="btn-ghost !p-2"
+                          className="btn-ghost !h-5 !w-5 !p-0 shrink-0"
                           title="Renoncer à la reprise"
                           disabled={pending}
                           onClick={() => setEditIx(null)}
@@ -511,7 +520,7 @@ export function LiaisonsPanel({
                     ) : (
                       <button
                         type="button"
-                        className="btn-ghost !p-2"
+                        className="btn-ghost !h-5 !w-5 !p-0 shrink-0"
                         title="Modifier la description du flux"
                         disabled={pending}
                         onClick={() => setEditIx({ id: ix.id, desc: ix.description })}
@@ -521,7 +530,10 @@ export function LiaisonsPanel({
                     )}
                     <button
                       type="button"
-                      className="btn-ghost !p-2 hover:!text-danger"
+                      // Ramenée à la hauteur du texte : à 34 px, la corbeille fixait celle
+                      // de la ligne, et la liste gonflait en mode modification — même
+                      // geste que les logiciels couverts d'un marché.
+                      className="btn-ghost !h-5 !w-5 !p-0 shrink-0 hover:!text-danger"
                       title="Supprimer l'interconnexion"
                       disabled={pending}
                       onClick={() => run(() => removeInterconnexionAction(ix.id, logicielId))}

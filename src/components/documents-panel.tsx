@@ -496,11 +496,11 @@ export function DocumentsPanel({
       {documents.length === 0 ? (
         <EmptyState>Aucun document (guides, contrats, délibérations, arrêtés…).</EmptyState>
       ) : (
-        <ul className="divide-y divide-line text-sm">
+        <ul className="pb-2.5 text-sm">
           {documents.map((d) => {
             const Icone = iconeDe(d.nomOriginal);
             return (
-              <li key={d.id} className="flex items-center justify-between gap-3 py-2.5">
+              <li key={d.id} className="flex items-center justify-between gap-3 pt-2.5">
                 <span className="flex min-w-0 items-center gap-3">
                   <Icone className="h-4 w-4 shrink-0 text-faint" />
                   <span className="min-w-0">
