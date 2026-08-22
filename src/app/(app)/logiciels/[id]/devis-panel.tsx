@@ -1,6 +1,6 @@
 "use client";
 
-import { Pencil, Plus, Star, Trash2, Upload, X } from "lucide-react";
+import { Check, Pencil, Plus, Trash2, Upload, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRef, useState, useTransition } from "react";
@@ -510,19 +510,24 @@ export function DevisPanel({
                                 « devis » est invariable. */}
                             <th className="normal-case tracking-normal">{c.devis.length} Devis</th>
                             <th>Fournisseur</th>
-                            {/* Chaque en-tête suit ses valeurs : le MONTANT à
-                                droite, où ses virgules s'alignent d'une ligne à
-                                l'autre, le FOURNISSEUR à gauche sur des raisons
-                                sociales qui n'ont pas deux fois la même largeur.
-                                La DATE fait exception et se centre en entier —
-                                ses valeurs ont toutes la même longueur, une
-                                colonne centrée s'y lit aussi droit qu'une
-                                colonne calée. Le tiret d'un montant absent se
-                                centre aussi : posé à droite, il se serait lu
-                                comme la valeur d'à côté. */}
-                            <th className="text-right">Montant</th>
-                            <th className="text-center">Date</th>
-                            {fige ? null : <th className="w-20" aria-label="Actions" />}
+                            {/* Chaque en-tête suit ses valeurs : le FOURNISSEUR
+                                à gauche sur des raisons sociales qui n'ont pas
+                                deux fois la même largeur ; le MONTANT centré,
+                                en-tête et valeurs — une consultation compte
+                                rarement plus de trois devis, l'alignement des
+                                virgules n'y gagne rien, et la colonne se lit
+                                comme la coche voisine, au milieu. */}
+                            <th className="text-center">Montant</th>
+                            {/* En lecture, la colonne ne porte que la coche du
+                                devis retenu, et le dit : « Retenu » en tête,
+                                centré sur la coche. En modification elle
+                                s'élargit aux actions et se tait — un crayon et
+                                une corbeille n'ont pas besoin d'intitulé. */}
+                            {fige ? (
+                              <th className="w-16 text-center">Retenu</th>
+                            ) : (
+                              <th className="w-20" aria-label="Actions" />
+                            )}
                           </tr>
                         </thead>
                         <tbody>
@@ -531,7 +536,7 @@ export function DevisPanel({
                             // formulaire, sur toute la largeur du tableau.
                             devisForm?.row?.id === d.id ? (
                               <tr key={d.id}>
-                                <td colSpan={fige ? 4 : 5} className="!py-2 !pr-0">
+                                <td colSpan={4} className="!py-2 !pr-0">
                                   <FormulaireDevis
                                     key={`d-${d.id}`}
                                     row={d}
@@ -552,8 +557,15 @@ export function DevisPanel({
                                 <td
                                   className={`border-l-2 ${d.retenu ? "border-ok" : "border-transparent"}`}
                                 >
+                                  {/* La date du DEVIS se lit sous sa pièce, à
+                                      la place de la date de dépôt — comme sur
+                                      une pièce de marché : c'est la date du
+                                      document qui compte, pas celle du
+                                      téléversement. La colonne Date est partie
+                                      avec. */}
                                   <PieceDevis
                                     document={d.document}
+                                    dateLigne={d.date ? enDateFr(d.date) : null}
                                     categories={categories}
                                     readOnly={fige}
                                     onErreur={setError}
@@ -578,27 +590,29 @@ export function DevisPanel({
                                     d.fournisseurNom
                                   )}
                                 </td>
-                                {/* Le tiret se centre là où la valeur ne se
-                                    centre pas : un montant se cale à droite
-                                    pour aligner ses virgules, une date à
-                                    gauche, mais un « rien » calé sur un bord
-                                    se lit comme la valeur d'à côté. Au milieu,
-                                    sous son en-tête, il ne dit que l'absence. */}
-                                <td
-                                  className={`tabular-nums ${
-                                    formatEuros(d.montant) === null ? "text-center" : "text-right"
-                                  }`}
-                                >
+                                <td className="text-center tabular-nums">
                                   {formatEuros(d.montant) ?? "—"}
                                 </td>
-                                <td className="text-center">{d.date ? enDateFr(d.date) : "—"}</td>
-                                {fige ? null : (
+                                {fige ? (
+                                  // En lecture, la coche reste : verte sur
+                                  // le devis retenu, rien sur les
+                                  // autres — c'est une marque, pas un bouton.
+                                  <td className="text-center">
+                                    {d.retenu ? (
+                                      <Check
+                                        aria-label="Devis retenu"
+                                        className="inline-block h-4 w-4 text-ok"
+                                        strokeWidth={3}
+                                      />
+                                    ) : null}
+                                  </td>
+                                ) : (
                                   <td>
                                     <span className="flex items-center gap-1">
                                       {/* La marque « retenu » vit avec les autres
                                         actions de la ligne : elle n'a plus sa
                                         colonne, qui coûtait 40 px sans en-tête
-                                        pour un geste rare. Étoile pleine = ce
+                                        pour un geste rare. Coche verte = ce
                                         devis est celui qui a été choisi. */}
                                       <button
                                         type="button"
@@ -612,9 +626,7 @@ export function DevisPanel({
                                         disabled={pending}
                                         onClick={() => basculerRetenu(d)}
                                       >
-                                        <Star
-                                          className={`h-4 w-4 ${d.retenu ? "fill-current" : ""}`}
-                                        />
+                                        <Check className="h-4 w-4" strokeWidth={d.retenu ? 3 : 2} />
                                       </button>
                                       <button
                                         type="button"
@@ -708,20 +720,25 @@ async function deposerPiece(
  */
 function PieceDevis({
   document,
+  dateLigne,
   categories,
   readOnly,
   onErreur,
 }: {
   document: DocumentRow | null;
+  /** Date du devis, déjà formatée ; null quand il n'en a pas. */
+  dateLigne: string | null;
   categories: CategorieOption[];
   readOnly: boolean;
   onErreur: (message: string | null) => void;
 }) {
   // Sans pièce : rien à proposer ici, le dépôt se fait en modifiant le devis.
-  if (!document) return <span className="text-faint">—</span>;
+  // La date, elle, n'a plus de colonne : elle se lit ici ou nulle part.
+  if (!document) return <span className="text-faint">{dateLigne ?? "—"}</span>;
   return (
     <LigneDocument
       document={document}
+      dateLigne={dateLigne}
       categories={categories}
       readOnly={readOnly}
       onErreur={onErreur}
