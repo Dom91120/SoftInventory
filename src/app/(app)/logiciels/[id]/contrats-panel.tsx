@@ -842,7 +842,9 @@ export function ContratsPanel({
                             <col className="w-20" />
                           </colgroup>
                         )}
-                        <tbody>
+                        {/* Le filet ne sépare que l'en-tête de la première pièce : entre les
+                            pièces d'un même marché, il coupait une liste qui se lit d'un trait. */}
+                        <tbody className="[&>tr:not(:first-child)]:border-t-0">
                           {c.pieces.map((l) =>
                             pieceForm?.row?.id === l.id ? (
                               <tr key={l.id}>

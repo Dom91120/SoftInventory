@@ -530,7 +530,9 @@ export function DevisPanel({
                             )}
                           </tr>
                         </thead>
-                        <tbody>
+                        {/* Le filet ne sépare que l'en-tête du premier devis — sauf autour du
+                            devis retenu, qui garde le sien (voir la ligne). */}
+                        <tbody className="[&>tr:not(:first-child)]:border-t-0">
                           {c.devis.map((d) =>
                             // La ligne en cours de modification cède sa place au
                             // formulaire, sur toute la largeur du tableau.
@@ -550,7 +552,13 @@ export function DevisPanel({
                                 </td>
                               </tr>
                             ) : (
-                              <tr key={d.id}>
+                              <tr
+                                key={d.id}
+                                // Le devis RETENU est encadré d'un filet au-dessus et au-dessous,
+                                // les autres n'en ont aucun : il se détache de la liste comme la
+                                // ligne qu'on a choisie, sans que chaque devis soit coupé du voisin.
+                                className={d.retenu ? "!border-t border-b border-line" : ""}
+                              >
                                 {/* Liseré vert sur le devis retenu. Posé sur TOUTES
                                   les lignes, transparent par défaut : sans cela
                                   la ligne marquée se décalerait de 2 px. */}
