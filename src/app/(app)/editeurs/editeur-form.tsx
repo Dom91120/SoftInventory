@@ -14,7 +14,7 @@ import { ONGLETS_EDITEUR, type OngletEditeur } from "./onglets";
 
 export type EditeurValues = {
   nom: string;
-  /** Clé de `CATEGORIES_EDITEUR` : editeur, fournisseur, autorite_certification. */
+  /** Clé de `CATEGORIES_EDITEUR` : editeur, autorite_certification. */
   categorie: string;
   adresse: string;
   codePostal: string;

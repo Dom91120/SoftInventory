@@ -47,13 +47,14 @@ enum CycleDeVie {
   abandonne
 }
 
-/// Ce qu'est la société de l'annuaire pour nous : celle qui FAIT le logiciel,
-/// celle qui nous le VEND (revendeur, centrale type UGAP), ou celle qui émet
-/// nos certificats. L'annuaire mêle les trois — c'est voulu, un marché désigne
-/// indifféremment l'une ou l'autre — et cette étiquette permet de les relire.
+/// Ce qu'est la société de l'annuaire pour nous : celle qui FAIT ou nous VEND
+/// un logiciel (éditeur, revendeur, centrale type UGAP — une seule étiquette,
+/// « Éditeur/Fournisseur »), ou celle qui émet nos certificats. La valeur
+/// `fournisseur` a existé, puis a été fondue dans `editeur` : ce qu'une société
+/// édite et ce qu'elle fournit se lisent sur sa fiche, par ses logiciels, ses
+/// marchés et ses devis — l'étiquette n'avait plus rien à dire de plus.
 enum CategorieEditeur {
   editeur
-  fournisseur
   autorite_certification
 }
 

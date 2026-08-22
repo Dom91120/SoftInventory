@@ -150,17 +150,11 @@ export default async function TableauDeBordPage() {
           value={d.nbEditeurs}
           label="Éditeurs"
           // Le compte couvre TOUT l'annuaire ; la mention détaille ce qui n'y
-          // est pas éditeur, et se tait tant que rien n'est requalifié.
+          // est pas éditeur/fournisseur — les autorités — et se tait sinon.
           hint={
-            [
-              d.nbFournisseurs
-                ? `${d.nbFournisseurs} fournisseur${d.nbFournisseurs > 1 ? "s" : ""}`
-                : null,
-              d.nbAutorites ? `${d.nbAutorites} autorité${d.nbAutorites > 1 ? "s" : ""}` : null,
-            ]
-              .filter(Boolean)
-              .map((detail, i) => (i === 0 ? `dont ${detail}` : detail))
-              .join(", ") || undefined
+            d.nbAutorites
+              ? `dont ${d.nbAutorites} autorité${d.nbAutorites > 1 ? "s" : ""}`
+              : undefined
           }
           tone="info"
           icon={<Building2 className="h-5 w-5" />}

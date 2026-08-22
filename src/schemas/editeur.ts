@@ -21,10 +21,9 @@ const urlOptionnelle = (max: number) =>
     );
 
 /** Ce qu'est la société pour nous. Clés portées par l'enum Prisma `CategorieEditeur`. */
-export const CATEGORIES_EDITEUR = ["editeur", "fournisseur", "autorite_certification"] as const;
+export const CATEGORIES_EDITEUR = ["editeur", "autorite_certification"] as const;
 export const LIBELLES_CATEGORIE_EDITEUR: Record<(typeof CATEGORIES_EDITEUR)[number], string> = {
-  editeur: "Éditeur",
-  fournisseur: "Fournisseur",
+  editeur: "Éditeur/Fournisseur",
   autorite_certification: "Autorité de certification",
 };
 

@@ -42,8 +42,48 @@ export function getEditeur(id: number) {
     include: {
       documents: { include: { categorie: true }, orderBy: { createdAt: "desc" } },
       logiciels: { select: { id: true, nom: true, statut: true }, orderBy: { nom: "asc" } },
+      // Les logiciels qu'elle nous VEND sans les faire : par les marchés dont
+      // elle est le fournisseur, et par les devis qu'elle a remis. La fiche
+      // les regroupe (logicielsFournisPar) — un revendeur n'a aucun logiciel
+      // « à lui » et sa fiche restait vide.
+      contratsFournis: {
+        select: { logiciels: { select: { logiciel: { select: { id: true, nom: true } } } } },
+      },
+      devisRemis: {
+        select: { consultation: { select: { logiciel: { select: { id: true, nom: true } } } } },
+      },
     },
   });
+}
+
+export type LogicielFourni = {
+  id: number;
+  nom: string;
+  /** Par quelle(s) voie(s) la société fournit ce logiciel. */
+  voies: Array<"marche" | "devis">;
+};
+
+/**
+ * Les logiciels qu'une société FOURNIT SANS LES FAIRE, chacun une fois, avec
+ * la ou les voies qui l'y relient. Ceux qu'elle édite sont écartés : ils sont
+ * déjà dans « Logiciels de cet éditeur », et les relire en dessous n'apprend
+ * rien. Pure : travaille sur ce que getEditeur a chargé.
+ */
+export function logicielsFournisPar(
+  editeur: NonNullable<Awaited<ReturnType<typeof getEditeur>>>,
+): LogicielFourni[] {
+  const edites = new Set(editeur.logiciels.map((l) => l.id));
+  const parId = new Map<number, LogicielFourni>();
+  const ajouter = (l: { id: number; nom: string }, voie: "marche" | "devis") => {
+    if (edites.has(l.id)) return;
+    const entree = parId.get(l.id) ?? { id: l.id, nom: l.nom, voies: [] };
+    if (!entree.voies.includes(voie)) entree.voies.push(voie);
+    parId.set(l.id, entree);
+  };
+  for (const c of editeur.contratsFournis)
+    for (const { logiciel } of c.logiciels) ajouter(logiciel, "marche");
+  for (const d of editeur.devisRemis) ajouter(d.consultation.logiciel, "devis");
+  return [...parId.values()].sort((a, b) => compareAlpha(a.nom, b.nom));
 }
 
 /**

@@ -12,9 +12,8 @@ export type DonneesDashboard = {
   nbLogiciels: number;
   nbEnProduction: number;
   nbEditeurs: number;
-  /** Dont, parmi eux : les exceptions à la catégorie « éditeur » de l'annuaire.
-   *  À zéro tant que les fiches ne sont pas requalifiées — la tuile se tait. */
-  nbFournisseurs: number;
+  /** Dont, parmi eux : les autorités de certification, seule exception à la
+   *  catégorie « éditeur/fournisseur » de l'annuaire. À zéro, la tuile se tait. */
   nbAutorites: number;
   /** Marchés et contrats, tous confondus — l'engagement en cours comme le passé. */
   nbContrats: number;
@@ -329,7 +328,6 @@ export async function chargerDashboard(): Promise<DonneesDashboard> {
     nbLogiciels: logiciels.length,
     nbEnProduction: logiciels.filter((l) => l.statut === "production").length,
     nbEditeurs: editeursParCategorie.reduce((n, g) => n + g._count, 0),
-    nbFournisseurs: parCategorie("fournisseur"),
     nbAutorites: parCategorie("autorite_certification"),
     nbContrats,
     nbServeurs,

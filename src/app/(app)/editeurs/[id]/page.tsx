@@ -8,10 +8,13 @@ import { Card, PageHeader } from "@/components/ui";
 import type { Role } from "@/generated/prisma/client";
 import { LIBELLES_CATEGORIE_EDITEUR } from "@/schemas/editeur";
 import { requireUser } from "@/server/guards";
-import { getEditeur, voisinsEditeur } from "@/server/services/editeurs";
+import { getEditeur, logicielsFournisPar, voisinsEditeur } from "@/server/services/editeurs";
 import { listCategoriesDocuments } from "@/server/services/referentiels";
 import { EditeurForm } from "../editeur-form";
 import { ongletEditeur } from "../onglets";
+
+/** La voie par laquelle une société fournit un logiciel, en marge du nom. */
+const LIBELLES_VOIE = { marche: "marché", devis: "devis" } as const;
 
 export const metadata: Metadata = { title: "Éditeur" };
 
@@ -34,6 +37,7 @@ export default async function EditeurPage({
     voisinsEditeur(id),
   ]);
   if (!editeur) notFound();
+  const logicielsFournis = logicielsFournisPar(editeur);
   const fmt = new Intl.DateTimeFormat("fr-FR", { dateStyle: "short", timeZone: "Europe/Paris" });
 
   const { onglet } = await searchParams;
@@ -118,30 +122,56 @@ export default async function EditeurPage({
             // `key` sur les éléments-slots, comme sur la fiche marché :
             // désérialisés du flux RSC au rendu serveur, React les tient pour
             // les membres d'une liste et peut réclamer une clé.
-            <Card key="logiciels" title="Logiciels de cet éditeur">
-              {editeur.logiciels.length === 0 ? (
-                <p className="text-sm text-faint">
-                  Aucun logiciel de l'inventaire ne lui est rattaché.
-                </p>
-              ) : (
-                // Sans filets entre les lignes, comme les cartes de l'onglet
-                // Liaisons d'un logiciel : les logiciels d'un même éditeur se
-                // lisent comme une liste, pas comme des données distinctes
-                // qu'il faudrait séparer.
-                <ul className="text-sm">
-                  {editeur.logiciels.map((l) => (
-                    <li key={l.id} className="pt-2">
-                      <Link
-                        href={`/logiciels/${l.id}`}
-                        className="font-medium text-strong hover:text-accent"
-                      >
-                        {l.nom}
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
+            // Chaque carte ne se montre que si elle a quelque chose à dire :
+            // une carte vide n'apprenait rien qu'une absence, et la fiche
+            // d'une société sans aucun lien se lit sans ces deux pavés.
+            <>
+              {editeur.logiciels.length > 0 && (
+                <Card key="logiciels" title="Logiciels de cet éditeur">
+                  {/* Sans filets entre les lignes, comme les cartes de l'onglet
+                      Liaisons d'un logiciel : les logiciels d'un même éditeur
+                      se lisent comme une liste, pas comme des données
+                      distinctes qu'il faudrait séparer. */}
+                  <ul className="text-sm">
+                    {editeur.logiciels.map((l) => (
+                      <li key={l.id} className="pt-2">
+                        <Link
+                          href={`/logiciels/${l.id}`}
+                          className="font-medium text-strong hover:text-accent"
+                        >
+                          {l.nom}
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                </Card>
               )}
-            </Card>
+              {/* Ce qu'elle nous VEND sans le faire : les logiciels atteints
+                  par un marché dont elle est fournisseur, ou par un devis
+                  qu'elle a remis — ceux qu'elle édite restent dans la carte
+                  du dessus, qui les dit déjà. Un revendeur pur n'a rien
+                  là-haut, et c'est ici que sa fiche dit à quoi il sert.
+                  Chaque logiciel une fois, la voie en marge. */}
+              {logicielsFournis.length > 0 && (
+                <Card key="fournis" title="Logiciels fournis" hint="par marché ou devis">
+                  <ul className="text-sm">
+                    {logicielsFournis.map((l) => (
+                      <li key={l.id} className="flex items-baseline gap-x-2 pt-2">
+                        <Link
+                          href={`/logiciels/${l.id}`}
+                          className="font-medium text-strong hover:text-accent"
+                        >
+                          {l.nom}
+                        </Link>
+                        <span className="text-xs text-faint">
+                          {l.voies.map((v) => LIBELLES_VOIE[v]).join(", ")}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </Card>
+              )}
+            </>
           }
           documents={
             <DocumentsPanel
