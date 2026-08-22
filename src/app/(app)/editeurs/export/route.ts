@@ -31,7 +31,7 @@ export function GET(request: Request): Promise<Response> {
         "Ville",
         "Téléphone standard",
         "E-mail",
-        "Portail de tickets",
+        "Portail de support",
         "E-mail du support",
         "Téléphone du support",
         "N° de client",

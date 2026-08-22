@@ -209,7 +209,7 @@ export function ModaleSociete({
                 className="grid items-end gap-x-3 gap-y-2 sm:col-span-3"
                 style={{ gridTemplateColumns: "2fr 1fr 1fr 2fr" }}
               >
-                {champ("supportUrl", "Portail de tickets", {
+                {champ("supportUrl", "Portail de support", {
                   type: "url",
                   placeholder: "https://…",
                 })}

@@ -145,7 +145,7 @@ export function SupportPanel({ editeur }: { editeur: SupportEditeur | null }) {
   const lignes: Ligne[] = [
     {
       icone: <LifeBuoy className="h-4 w-4" />,
-      label: "Portail de tickets",
+      label: "Portail de support",
       valeur: editeur.supportUrl ? (
         <a
           href={editeur.supportUrl}
