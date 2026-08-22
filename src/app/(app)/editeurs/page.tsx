@@ -98,6 +98,12 @@ export default async function EditeursPage({
                   // bas ailleurs pousseraient ces rangées-là à 58. C'est un
                   // plancher, pas un plafond — une adresse qui se coupe en deux
                   // pousse encore sa rangée.
+                  //
+                  // Une case vide reste VIDE, sans tiret : sur cette liste, la
+                  // plupart des fiches n'ont ni commercial ni horaires, et les
+                  // tirets faisaient une colonne de bruit là où le blanc dit
+                  // la même chose — à la différence des listes où l'absence
+                  // est l'exception et mérite d'être marquée.
                   <tr key={e.id} className="h-12 [&>td]:py-0">
                     <td>
                       <span className="flex items-center gap-2">
@@ -152,9 +158,7 @@ export default async function EditeursPage({
                         </a>
                       ) : e.commercialContact ? (
                         <span>{e.commercialContact}</span>
-                      ) : e.commercialTelephone ? null : (
-                        "—"
-                      )}
+                      ) : null}
                       {/* Le numéro se range sous le nom, comme le site sous
                           l'éditeur : une personne et ses coordonnées tiennent
                           dans une seule colonne à balayer. */}
@@ -204,27 +208,16 @@ export default async function EditeursPage({
                           {formatTel(e.supportTelephone)}
                         </span>
                       ) : null}
-                      {/* Le tiret ne vaut que pour une case entièrement vide : au
-                          milieu d'une pile, il se lisait comme un canal manquant
-                          alors qu'il ne disait que « pas de portail ». */}
-                      {e.supportUrl || e.supportEmail || e.supportTelephone ? null : "—"}
                     </td>
                     {/* Une ligne de saisie, une ligne à l'écran : la semaine puis
-                        le jour qui en sort, empilés comme sur la fiche. Le tiret
-                        ne vaut que pour les deux lignes vides. */}
+                        le jour qui en sort, empilés comme sur la fiche. */}
                     <td className="text-xs text-muted">
-                      {e.supportHoraires || e.supportHoraires2 ? (
-                        <>
-                          {e.supportHoraires ? (
-                            <span className="block">{e.supportHoraires}</span>
-                          ) : null}
-                          {e.supportHoraires2 ? (
-                            <span className="block">{e.supportHoraires2}</span>
-                          ) : null}
-                        </>
-                      ) : (
-                        "—"
-                      )}
+                      {e.supportHoraires ? (
+                        <span className="block">{e.supportHoraires}</span>
+                      ) : null}
+                      {e.supportHoraires2 ? (
+                        <span className="block">{e.supportHoraires2}</span>
+                      ) : null}
                     </td>
                   </tr>
                 ))}
