@@ -147,7 +147,7 @@ export function LogicielsPanel({
         // — même règle que les cartes de l'écran Serveurs.
         <ul className="mb-3 text-sm">
           {installations.map((i) => (
-            <li key={i.logicielId} className="flex items-center justify-between gap-3 pt-2">
+            <li key={i.logicielId} className="flex items-center justify-between gap-3">
               <Link
                 href={`/logiciels/${i.logicielId}`}
                 className="font-medium text-strong hover:text-accent"
