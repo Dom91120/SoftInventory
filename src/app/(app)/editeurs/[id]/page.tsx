@@ -1,3 +1,4 @@
+import { CalendarClock } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -6,10 +7,13 @@ import { FlecheVoisin } from "@/components/fleche-voisin";
 import { ModeFicheProvider } from "@/components/mode-fiche";
 import { Card, PageHeader } from "@/components/ui";
 import type { Role } from "@/generated/prisma/client";
+import { DATE_FMT_FR_UTC } from "@/lib/format";
+import { nomTitulaire } from "@/schemas/certificat";
 import { LIBELLES_CATEGORIE_EDITEUR } from "@/schemas/editeur";
 import { requireUser } from "@/server/guards";
 import { getEditeur, logicielsFournisPar, voisinsEditeur } from "@/server/services/editeurs";
 import { listCategoriesDocuments } from "@/server/services/referentiels";
+import { joursAvantExpiration, pastilleValidite } from "../../certificats/shared";
 import { EditeurForm } from "../editeur-form";
 import { ongletEditeur } from "../onglets";
 
@@ -38,6 +42,7 @@ export default async function EditeurPage({
   ]);
   if (!editeur) notFound();
   const logicielsFournis = logicielsFournisPar(editeur);
+  const aujourdhui = new Date();
   const fmt = new Intl.DateTimeFormat("fr-FR", { dateStyle: "short", timeZone: "Europe/Paris" });
 
   const { onglet } = await searchParams;
@@ -168,6 +173,53 @@ export default async function EditeurPage({
                         </span>
                       </li>
                     ))}
+                  </ul>
+                </Card>
+              )}
+              {/* Pour une AUTORITÉ, ce sont ses certificats qui disent à quoi
+                  elle sert — elle n'édite ni ne fournit de logiciel. Le
+                  titulaire mène à la fiche du certificat, la pastille dit où
+                  en est sa validité, comme sur la liste des certificats. */}
+              {editeur.categorie === "autorite_certification" && editeur.certificats.length > 0 && (
+                <Card key="certificats" title="Certificats délivrés">
+                  {/* Une GRILLE et non des lignes en flex : la date et la
+                      pastille forment des colonnes dont la largeur est
+                      partagée par toutes les lignes — en flex, « dans 56 j »
+                      et « dans 329 j » décalaient la date de chaque ligne
+                      selon la largeur de sa propre pastille. Les <li> sont en
+                      `contents` pour que leurs cellules tombent dans la grille
+                      du <ul>. */}
+                  <ul className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-x-3 text-sm">
+                    {editeur.certificats.map((c) => {
+                      const pastille = pastilleValidite(
+                        c,
+                        joursAvantExpiration(c.dateFin, aujourdhui),
+                      );
+                      return (
+                        <li key={c.id} className="contents">
+                          <span className="min-w-0 pt-2">
+                            <Link
+                              href={`/certificats/${c.id}`}
+                              className="block truncate font-medium text-strong hover:text-accent"
+                            >
+                              {nomTitulaire(c)}
+                            </Link>
+                            <span className="block truncate text-xs text-faint">
+                              {[c.fonction, c.service?.nom].filter(Boolean).join(" · ")}
+                            </span>
+                          </span>
+                          <span className="whitespace-nowrap pt-2 text-xs text-muted tabular-nums">
+                            {c.dateFin ? DATE_FMT_FR_UTC.format(c.dateFin) : "—"}
+                          </span>
+                          <span className="pt-2">
+                            <span className={pastille.classe}>
+                              <CalendarClock className="h-3.5 w-3.5" />
+                              {pastille.texte}
+                            </span>
+                          </span>
+                        </li>
+                      );
+                    })}
                   </ul>
                 </Card>
               )}

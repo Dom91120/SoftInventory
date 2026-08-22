@@ -52,6 +52,22 @@ export function getEditeur(id: number) {
       devisRemis: {
         select: { consultation: { select: { logiciel: { select: { id: true, nom: true } } } } },
       },
+      // Pour une AUTORITÉ : les certificats qu'elle a délivrés, le plus
+      // pressant d'abord — ceux sans terme à la fin. Juste de quoi nommer le
+      // titulaire et dire où en est la validité ; la fiche fait le reste.
+      certificats: {
+        select: {
+          id: true,
+          civilite: true,
+          titulaire: true,
+          prenom: true,
+          fonction: true,
+          dateFin: true,
+          statut: true,
+          service: { select: { nom: true } },
+        },
+        orderBy: [{ dateFin: { sort: "asc", nulls: "last" } }, { titulaire: "asc" }],
+      },
     },
   });
 }
