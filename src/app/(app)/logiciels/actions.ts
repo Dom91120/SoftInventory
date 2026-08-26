@@ -344,6 +344,7 @@ function parseContrat(formData: FormData) {
     dateFin: get("dateFin"),
     dureeAnnees: get("dureeAnnees"),
     renouvellements: get("renouvellements"),
+    dureeRenouvellement: get("dureeRenouvellement"),
     notes: get("notes"),
   });
 }

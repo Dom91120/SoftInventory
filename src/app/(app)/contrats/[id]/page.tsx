@@ -165,6 +165,8 @@ export default async function ContratPage({
             dureeAnnees: contrat.dureeAnnees === null ? "" : String(contrat.dureeAnnees),
             renouvellements:
               contrat.renouvellements === null ? "" : String(contrat.renouvellements),
+            dureeRenouvellement:
+              contrat.dureeRenouvellement === null ? "" : String(contrat.dureeRenouvellement),
             notes: contrat.notes,
           }}
           logiciels={

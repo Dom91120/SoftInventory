@@ -60,6 +60,7 @@ export function GET(request: Request): Promise<Response> {
         "Fin",
         "Durée (ans)",
         "Renouvelable (fois)",
+        "Période de renouvellement (ans)",
         "État",
         "Montant annuel (€)",
         "Maximum annuel (€)",
@@ -80,6 +81,7 @@ export function GET(request: Request): Promise<Response> {
         // Zéro EXPORTÉ, là où l'écran le tait : le tableur compte et filtre,
         // et une case vide n'y vaut pas « non reconductible ».
         entier(c.renouvellements),
+        entier(c.dureeRenouvellement),
         LIBELLE_ETAT[etatMarche(c.dateFin, jour, limite)],
         montant(c.montantAnnuel),
         montant(c.montantMaxi),

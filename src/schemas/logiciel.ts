@@ -232,6 +232,9 @@ export const contratSchema = z
     // rarement au-delà de quatre ans, reconductions comprises.
     dureeAnnees: entierBorne(1, 4, "Durée"),
     renouvellements: entierBorne(0, 3, "Renouvellements"),
+    // La durée de CHAQUE reconduction. Bornée comme la durée ferme : au-delà
+    // de quatre ans, ce n'est plus une reconduction mais un nouveau marché.
+    dureeRenouvellement: entierBorne(1, 4, "Période de renouvellement"),
     notes: z.string().trim().max(2000, "Notes trop longues (2000 caractères max)."),
   })
   // Les deux dates forment une période : une fin antérieure au début est une

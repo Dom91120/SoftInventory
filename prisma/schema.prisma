@@ -638,6 +638,13 @@ model Contrat {
   /// est une VALEUR — un marché sec, non reconductible — distinct de null, qui
   /// dit que l'acte n'a pas été dépouillé sur ce point.
   renouvellements      Int?
+  /// Durée de CHAQUE reconduction, en années (1 à 4) : « renouvelable 2 fois
+  /// par période de 1 an ». Se lit avec `renouvellements`, qui dit combien de
+  /// fois, quand celui-ci dit pour combien de temps — une reconduction annuelle
+  /// et une reconduction triennale ne pèsent pas la même chose sur l'engagement.
+  /// Ne se déduit pas de `dureeAnnees` : un marché ferme de 4 ans se reconduit
+  /// couramment par périodes d'un an. null = non renseigné.
+  dureeRenouvellement  Int?          @map("duree_renouvellement")
   /// Date de fin pour laquelle le rappel a déjà été envoyé (anti-doublon du
   /// cron ; remise à null quand la date change).
   rappelEnvoyeLe       DateTime?     @map("rappel_envoye_le") @db.Date

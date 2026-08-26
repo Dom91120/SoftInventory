@@ -429,6 +429,7 @@ async function OngletContrats({
           dateFin: dateStr(c.dateFin),
           dureeAnnees: c.dureeAnnees === null ? "" : String(c.dureeAnnees),
           renouvellements: c.renouvellements === null ? "" : String(c.renouvellements),
+          dureeRenouvellement: c.dureeRenouvellement === null ? "" : String(c.dureeRenouvellement),
           notes: c.notes,
           pieces: c.pieces.map((l) => {
             // Une seule pièce par ligne : on ne remonte que la première, même

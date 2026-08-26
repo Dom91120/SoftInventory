@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ModaleSociete } from "@/components/modale-societe";
 import { Field } from "@/components/ui";
 
@@ -36,6 +36,8 @@ export type ValeursMarche = {
   dureeAnnees: string;
   /** Reconductions prévues : "0" à "3". "0" est une réponse, "" n'en est pas une. */
   renouvellements: string;
+  /** Durée de CHAQUE reconduction, en années : "1" à "4", ou "" si non renseignée. */
+  dureeRenouvellement: string;
   notes: string;
 };
 
@@ -52,6 +54,7 @@ export const MARCHE_VIDE: ValeursMarche = {
   dateFin: "",
   dureeAnnees: "",
   renouvellements: "",
+  dureeRenouvellement: "",
   notes: "",
 };
 
@@ -90,6 +93,24 @@ export function ChampsMarche({
     }
     setARetenir(null);
   }, [aRetenir]);
+
+  /**
+   * « an » ou « ans » à côté de la période de reconduction. Le champ reste NON
+   * CONTRÔLÉ comme tous les autres — `defaultValue` —, et cet état ne sert qu'à
+   * l'accord : le rendre contrôlé aurait fait perdre à « Annuler » son
+   * `reset()`, qui est la mécanique de tout le module.
+   */
+  const champPeriode = useRef<HTMLInputElement>(null);
+  const [periode, setPeriode] = useState(values.dureeRenouvellement);
+  useEffect(() => {
+    const form = champPeriode.current?.form;
+    if (!form) return;
+    // `reset()` rend au champ sa valeur par défaut : le pluriel doit la suivre,
+    // sans quoi « Annuler » laisserait un « an » sur une période de 3 ans.
+    const rendre = () => setPeriode(values.dureeRenouvellement);
+    form.addEventListener("reset", rendre);
+    return () => form.removeEventListener("reset", rendre);
+  }, [values.dureeRenouvellement]);
 
   return (
     /**
@@ -340,6 +361,27 @@ export function ChampsMarche({
                 className="input w-16"
               />
               <span className="text-sm text-muted">fois</span>
+            </div>
+          </Field>
+          {/* Combien de fois, puis POUR COMBIEN DE TEMPS : les deux ne disent
+              rien l'un sans l'autre — « renouvelable 2 fois » ne pèse pas le
+              même engagement selon que la période est d'un an ou de trois. */}
+          <Field label="Par période de" htmlFor="dureeRenouvellement">
+            <div className="flex items-center gap-2">
+              <input
+                ref={champPeriode}
+                id="dureeRenouvellement"
+                name="dureeRenouvellement"
+                type="number"
+                min={1}
+                max={4}
+                step={1}
+                defaultValue={values.dureeRenouvellement}
+                disabled={disabled}
+                onInput={(e) => setPeriode(e.currentTarget.value)}
+                className="input w-16"
+              />
+              <span className="text-sm text-muted">{periode === "1" ? "an" : "ans"}</span>
             </div>
           </Field>
         </div>
