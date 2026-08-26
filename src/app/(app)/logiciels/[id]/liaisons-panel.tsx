@@ -110,14 +110,24 @@ export function LiaisonsPanel({
    * Sa part du « Enregistrer » global est l'envoi de ces cases, et de cette
    * reprise restée ouverte.
    */
+  /**
+   * Les cases qui s'écartent de l'enregistré — services cochés, « aucun
+   * serveur ». À part des GESTES en suspens (serveur choisi sans « Associer »,
+   * flux décrit sans « Ajouter ») : les cases n'ont pas de bouton à elles,
+   * seule la paire du bas les enregistre, quand les gestes portent le leur.
+   */
+  const casesEcartees =
+    coches.size !== servicesLies.length ||
+    servicesLies.some((id) => !coches.has(id)) ||
+    aucunServeur !== sansServeur;
   const mode = useInscriptionModeFiche({
-    // Les cases qui s'écartent de l'enregistré, mais aussi les gestes en
-    // suspens : un serveur choisi sans « Associer », un flux décrit sans
-    // « Ajouter » — même utilisateur, même saisie, même sort que le reste.
+    // DISCRET tant que la saisie en cours a ses propres boutons : la paire du
+    // bas ne paraît que pour les cases, qui n'ont qu'elle.
+    discret: () => !casesEcartees,
+    // Les cases, mais aussi les gestes en suspens — même utilisateur, même
+    // saisie, même sort que le reste.
     sale: () =>
-      coches.size !== servicesLies.length ||
-      servicesLies.some((id) => !coches.has(id)) ||
-      aucunServeur !== sansServeur ||
+      casesEcartees ||
       nouveauServeur !== "" ||
       nouvelleCible !== "" ||
       nouvelleDesc !== "" ||

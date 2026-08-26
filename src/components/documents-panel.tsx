@@ -297,6 +297,10 @@ export function DocumentsPanel({
    * son crayon d'en-tête de carte.
    */
   const mode = useInscriptionModeFiche({
+    // DISCRET : la seule saisie du panneau — le renommage — porte ses ✓ / ✕
+    // au plus près du champ, la paire du bas ferait doublon. Même règle que
+    // les onglets Devis et Contrats/Marchés.
+    discret: () => true,
     sale: () => renommage !== null,
     rendre: () => setRenommage(null),
     // Le « Enregistrer » global VALIDE le renommage en cours, comme sa coche :

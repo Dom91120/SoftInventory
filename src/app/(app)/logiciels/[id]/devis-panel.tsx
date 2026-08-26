@@ -149,6 +149,11 @@ export function DevisPanel({
    * comme leurs propres boutons.
    */
   const mode = useInscriptionModeFiche({
+    // DISCRET : les formulaires de consultation et de devis portent leurs
+    // propres « Enregistrer / Annuler », au plus près de la saisie — la paire
+    // du bas de page ferait doublon. Le mode reste tenu ouvert, et
+    // l'« Enregistrer » global les soumet toujours.
+    discret: () => true,
     sale: () => consultationForm !== null || devisForm !== null,
     rendre: () => {
       setConsultationForm(null);

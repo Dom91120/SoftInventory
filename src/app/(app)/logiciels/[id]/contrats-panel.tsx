@@ -45,6 +45,8 @@ export type ContratRow = {
   dureeAnnees: string;
   /** Reconductions prévues, "0" à "3" ; "" si non renseignées. */
   renouvellements: string;
+  /** Durée de chaque reconduction en années, "1" à "4" ; "" si non renseignée. */
+  dureeRenouvellement: string;
   notes: string;
   pieces: PieceContratRow[];
 };
@@ -73,26 +75,39 @@ function periodeDe(debut: string, fin: string): string | null {
   return null;
 }
 
+/** « 3 ans », « 1 an » — le seul accord de cette ligne. */
+const enAnnees = (n: string) => `${n} an${Number(n) > 1 ? "s" : ""}`;
+
 /**
- * Ce que l'acte ENGAGE, quand il le dit : « (3 ans renouvelable 2 fois) ». Se
- * lit après la période, qu'il complète sans la répéter — les dates disent
- * jusqu'à quand le marché court, ceci dit pour combien de temps il a été passé
- * et combien de reconductions il prévoit.
+ * Ce que l'acte ENGAGE, quand il le dit : « (3 ans renouvelable 2 fois par
+ * période de 1 an) ». Se lit après la période, qu'il complète sans la répéter —
+ * les dates disent jusqu'à quand le marché court, ceci dit pour combien de
+ * temps il a été passé et combien de reconductions il prévoit.
  *
- * Chaque moitié se dit seule : tous les actes ne fixent pas les deux. « fois »
- * est invariable, seul le nombre d'années s'accorde. Zéro reconduction ne se
- * dit PAS : un marché sec est le cas ordinaire, et l'annoncer sur chaque ligne
- * ferait du bruit là où le silence dit déjà la même chose.
+ * Chaque part se dit seule : tous les actes ne fixent pas les trois. « fois »
+ * est invariable, seuls les nombres d'années s'accordent. Zéro reconduction ne
+ * se dit PAS : un marché sec est le cas ordinaire, et l'annoncer sur chaque
+ * ligne ferait du bruit là où le silence dit déjà la même chose — la période de
+ * reconduction se tait avec elle, n'ayant plus rien à qualifier.
  *
  * Renvoie null quand rien n'est à dire : l'appelant n'affiche alors pas de
  * parenthèses vides.
  */
-function engagementDe(dureeAnnees: string, renouvellements: string): string | null {
-  const duree = dureeAnnees ? `${dureeAnnees} an${Number(dureeAnnees) > 1 ? "s" : ""}` : null;
-  const reconductions =
-    renouvellements === "" || renouvellements === "0"
-      ? null
-      : `renouvelable ${renouvellements} fois`;
+function engagementDe(
+  dureeAnnees: string,
+  renouvellements: string,
+  dureeRenouvellement: string,
+): string | null {
+  const duree = dureeAnnees ? enAnnees(dureeAnnees) : null;
+  const reconduit = renouvellements !== "" && renouvellements !== "0";
+  const reconductions = reconduit
+    ? [
+        `renouvelable ${renouvellements} fois`,
+        dureeRenouvellement ? `par période de ${enAnnees(dureeRenouvellement)}` : null,
+      ]
+        .filter(Boolean)
+        .join(" ")
+    : null;
   const dit = [duree, reconductions].filter(Boolean).join(" ");
   return dit ? `(${dit})` : null;
 }
@@ -108,7 +123,10 @@ function natureDe(c: ContratRow): string {
 
 /** Période et engagement d'un marché en une ligne, chacun se taisant s'il est vide. */
 function periodeEtEngagement(c: ContratRow): string {
-  return [periodeDe(c.dateDebut, c.dateFin), engagementDe(c.dureeAnnees, c.renouvellements)]
+  return [
+    periodeDe(c.dateDebut, c.dateFin),
+    engagementDe(c.dureeAnnees, c.renouvellements, c.dureeRenouvellement),
+  ]
     .filter(Boolean)
     .join(" ");
 }
@@ -290,6 +308,10 @@ export function ContratsPanel({
    * du fichier choisi.
    */
   const mode = useInscriptionModeFiche({
+    // DISCRET : les trois saisies de l'onglet — marché, pièce, mention sans
+    // contrat — portent chacune leurs « Enregistrer / Annuler », la paire du
+    // bas ferait doublon. Même règle que l'onglet Devis.
+    discret: () => true,
     sale: () => marcheForm !== null || pieceForm !== null || mentionSale,
     rendre: () => {
       setMarcheForm(null);

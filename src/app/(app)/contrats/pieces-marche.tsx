@@ -51,6 +51,10 @@ export function PiecesMarche({
    * reste, « Enregistrer » la SOUMET, comme son propre bouton.
    */
   const mode = useInscriptionModeFiche({
+    // DISCRET : le formulaire de pièce porte ses « Enregistrer / Annuler »,
+    // la paire du bas ferait doublon. Même règle que les onglets Devis et
+    // Contrats/Marchés d'un logiciel.
+    discret: () => true,
     sale: () => ouvert !== null,
     rendre: () => setOuvert(null),
     enregistrer: async () => {

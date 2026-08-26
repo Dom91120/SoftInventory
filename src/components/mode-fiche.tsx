@@ -42,6 +42,21 @@ type Inscription = {
    * place — il tient alors le mode ouvert.
    */
   enregistrer?: () => Promise<boolean>;
+  /**
+   * Vrai quand la saisie EN COURS du panneau ne doit pas faire paraître les
+   * « Enregistrer / Annuler » du bas de page : ses sous-formulaires portent
+   * déjà les leurs, au plus près de la saisie, et la paire du bas ferait
+   * doublon (onglets Devis et Contrats/Marchés). Le panneau tient toujours le
+   * mode ouvert — fermer le crayon demande confirmation — et répond toujours
+   * à l'« Enregistrer » global déclenché par un AUTRE panneau.
+   *
+   * Une FONCTION, relue comme `sale` : un même panneau mêle parfois saisies à
+   * boutons propres et saisies qui n'en ont pas — les cases de l'onglet
+   * Liaisons n'ont que la paire du bas pour s'enregistrer, ses ajouts de
+   * serveur ou de flux ont leurs boutons. Il répond alors selon ce qui est
+   * réellement en cours.
+   */
+  discret?: () => boolean;
 };
 
 type ContexteModeFiche = {
@@ -59,7 +74,7 @@ type ContexteModeFiche = {
   /** Déclare un panneau au mode ; renvoie sa clé et sa radiation. */
   inscrire: (i: Inscription) => { cle: symbol; radier: () => void };
   /** Un panneau annonce qu'il vient de se salir, ou de se rendre propre. */
-  signalerSale: (cle: symbol, sale: boolean) => void;
+  signalerSale: (cle: symbol, sale: boolean, discret: boolean) => void;
   /** Enregistre TOUS les panneaux qui portent une saisie, puis referme si tout a abouti. */
   enregistrerTout: () => Promise<void>;
   /** Rend TOUS les panneaux à leurs valeurs enregistrées et referme — le geste du crayon. */
@@ -118,14 +133,17 @@ export function useInscriptionModeFiche(inscription: Inscription): ModeFiche | n
   if (!idRef.current) idRef.current = Symbol("panneau");
   const id = idRef.current;
   const sale = inscription.sale();
+  // Relue à chaque rendu, comme `sale` : la discrétion suit ce qui est
+  // réellement en cours dans le panneau.
+  const discret = inscription.discret?.() === true;
   useEffect(() => {
     if (!signalerSale) return;
-    signalerSale(id, sale);
+    signalerSale(id, sale, discret);
     // Un panneau démonté — on change d'onglet, la fiche se referme — ne laisse
     // pas sa saleté derrière lui : elle ferait paraître les deux boutons pour
     // une saisie qui n'est plus à l'écran.
-    return () => signalerSale(id, false);
-  }, [signalerSale, id, sale]);
+    return () => signalerSale(id, false, discret);
+  }, [signalerSale, id, sale, discret]);
 
   // `enregistrer` déclaré ou non : relevé au premier rendu, il ne change pas
   // de statut en cours de vie — c'est la nature du panneau, pas son état.
@@ -178,16 +196,21 @@ export function ModeFicheProvider({
   const [actif, setActif] = useState(false);
   const [occupe, setOccupe] = useState(false);
   const registre = useRef(new Map<symbol, Inscription>());
-  /** Les panneaux qui se sont annoncés sales — voir `modifie`. */
-  const [sales, setSales] = useState<ReadonlySet<symbol>>(() => new Set());
+  /** Les panneaux qui se sont annoncés sales — voir `modifie`. La valeur dit
+   *  si le panneau est DISCRET : sa saisie tient le mode ouvert sans faire
+   *  paraître les boutons du bas, qu'il porte lui-même. */
+  const [sales, setSales] = useState<ReadonlyMap<symbol, boolean>>(() => new Map());
   /** Garde de réentrance : un double clic ne doit pas enregistrer deux fois. */
   const enCoursRef = useRef(false);
 
-  const signalerSale = useCallback((cle: symbol, sale: boolean) => {
+  const signalerSale = useCallback((cle: symbol, sale: boolean, discret: boolean) => {
     setSales((avant) => {
-      if (avant.has(cle) === sale) return avant;
-      const apres = new Set(avant);
-      if (sale) apres.add(cle);
+      // La discrétion peut basculer SANS que la saleté change — une case
+      // cochée pendant qu'un sous-formulaire est ouvert : la valeur stockée
+      // doit suivre, pas seulement la présence.
+      if (avant.has(cle) === sale && (!sale || avant.get(cle) === discret)) return avant;
+      const apres = new Map(avant);
+      if (sale) apres.set(cle, discret);
       else apres.delete(cle);
       return apres;
     });
@@ -271,7 +294,9 @@ export function ModeFicheProvider({
   const valeur = useMemo(
     () => ({
       actif,
-      modifie: sales.size > 0,
+      // Les panneaux discrets ne comptent pas : leur saisie a ses propres
+      // boutons, la paire du bas ne paraît que pour les autres.
+      modifie: [...sales.values()].some((discret) => !discret),
       occupe,
       inscrire,
       signalerSale,
