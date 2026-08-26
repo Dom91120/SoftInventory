@@ -526,7 +526,11 @@ export function FicheForm({
                 name="description"
                 defaultValue={values.description}
                 disabled={dis}
-                rows={3}
+                // CINQ lignes : les descriptifs de l'inventaire ouvrent sur une
+                // phrase d'usage, puis enchaînent sur les particularités et les
+                // points de vigilance — trois lignes en montraient trop peu
+                // pour qu'on voie qu'il y a une suite.
+                rows={5}
                 className="input"
                 placeholder="À quoi sert ce logiciel, pour qui… puis historique, particularités, points de vigilance."
               />
