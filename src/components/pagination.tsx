@@ -1,6 +1,8 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { cookies } from "next/headers";
 import Link from "next/link";
 import { MemoirePage } from "@/components/memoire-page";
+import { cookiePage, pageMemorisee } from "@/lib/memoire-page";
 
 /** Éléments par page, commun aux trois listes. */
 export const PAR_PAGE = 10;
@@ -32,6 +34,31 @@ export function pageDepuisParams(p: Record<string, string | undefined>): number 
 }
 
 /**
+ * La page sur laquelle OUVRIR la liste : celle que l'URL demande, ou à défaut
+ * celle où on l'avait laissée (voir `MemoirePage`). Appelée par chaque liste
+ * paginée, au rendu SERVEUR — c'est là tout l'intérêt : la bonne page part
+ * dans la première réponse, au lieu d'être rattrapée après coup dans le
+ * navigateur, ce qui se voyait.
+ *
+ * La mémoire ne parle que sur une URL NUE. `…?statut=production` ou `…?page=2`
+ * disent déjà ce qu'ils veulent voir — un lien du tableau de bord, un favori,
+ * une adresse partagée, une flèche du pavé. C'est aussi ce qui distingue
+ * l'ARRIVÉE sur la liste d'une navigation en son sein : les liens qui feuillettent
+ * et les filtres écrivent TOUS `page=…`, page 1 comprise, précisément pour que
+ * revenir en tête de liste ne soit pas repris par le souvenir de la page 4.
+ *
+ * Un numéro devenu trop grand (la liste a maigri) ne montre pas une page vide :
+ * `paginer` le ramène dans les bornes.
+ */
+export async function pageInitiale(
+  params: Record<string, string | undefined>,
+  chemin: string,
+): Promise<number> {
+  if (Object.keys(params).length > 0) return pageDepuisParams(params);
+  return pageMemorisee((await cookies()).get(cookiePage(chemin))?.value);
+}
+
+/**
  * Pavé de pagination : « 11–20 sur 56 » et les deux flèches. Composant SERVEUR —
  * les liens portent la query string courante, page comprise, si bien qu'un
  * filtre actif survit au changement de page (et réciproquement, changer un
@@ -56,12 +83,15 @@ export function Pagination({
   const memoire = <MemoirePage page={page} />;
   if (pages <= 1) return memoire;
 
+  // `page` est TOUJOURS écrite, la première comprise — là où l'URL la taisait
+  // quand elle valait 1. C'est ce qui dit à `pageInitiale` que la page vient
+  // d'être choisie : sans elle, revenir en tête de liste rendait l'URL nue, et
+  // la mémoire y aurait aussitôt ramené la page qu'on venait de quitter.
   const href = (p: number) => {
     const next = new URLSearchParams();
     for (const [k, v] of Object.entries(params)) if (v && k !== "page") next.set(k, v);
-    if (p > 1) next.set("page", String(p));
-    const qs = next.toString();
-    return qs ? `?${qs}` : "?";
+    next.set("page", String(p));
+    return `?${next.toString()}`;
   };
 
   const debut = (page - 1) * PAR_PAGE + 1;

@@ -1,7 +1,7 @@
 import { ExternalLink, Plus } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Pagination, pageDepuisParams, paginer } from "@/components/pagination";
+import { Pagination, pageInitiale, paginer } from "@/components/pagination";
 import { EmptyState, PageHeader } from "@/components/ui";
 import type { Role } from "@/generated/prisma/client";
 import { requireUser } from "@/server/guards";
@@ -37,7 +37,12 @@ export default async function LogicielsPage({
     listModesHebergement(),
   ]);
 
-  const { page, pages, total, elements: logiciels } = paginer(tous, pageDepuisParams(params));
+  const {
+    page,
+    pages,
+    total,
+    elements: logiciels,
+  } = paginer(tous, await pageInitiale(params, "/logiciels"));
 
   const opt = (rows: Array<{ id: number; nom?: string; label?: string }>) =>
     rows.map((r) => ({ id: r.id, label: r.nom ?? r.label ?? "" }));

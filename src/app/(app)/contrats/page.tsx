@@ -2,7 +2,7 @@ import { ChevronDown, ChevronUp, Plus } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { BarreListe } from "@/components/barre-liste";
-import { Pagination, pageDepuisParams, paginer } from "@/components/pagination";
+import { Pagination, pageInitiale, paginer } from "@/components/pagination";
 import { EmptyState, PageHeader } from "@/components/ui";
 import type { Role } from "@/generated/prisma/client";
 import { DATE_FMT_FR_UTC, formatEuros } from "@/lib/format";
@@ -66,7 +66,12 @@ export default async function ContratsPage({
   const tous = trierContrats(bruts, tri, sens, aujourdhui, limite);
   /** L'ordre voyage avec le lien : les flèches de la fiche suivront celui-ci. */
   const qTri = queryTri(params);
-  const { page, pages, total, elements: contrats } = paginer(tous, pageDepuisParams(params));
+  const {
+    page,
+    pages,
+    total,
+    elements: contrats,
+  } = paginer(tous, await pageInitiale(params, "/contrats"));
 
   /**
    * En-tête cliquable. Le tri vit dans l'URL, donc un simple lien suffit : pas

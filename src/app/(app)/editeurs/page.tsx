@@ -2,7 +2,7 @@ import { Globe, Mail, Phone, Plus } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { BarreListe } from "@/components/barre-liste";
-import { Pagination, pageDepuisParams, paginer } from "@/components/pagination";
+import { Pagination, pageInitiale, paginer } from "@/components/pagination";
 import { EmptyState, PageHeader } from "@/components/ui";
 import type { Role } from "@/generated/prisma/client";
 import { formatTel } from "@/lib/format";
@@ -34,7 +34,7 @@ export default async function EditeursPage({
   // simplement ignorée.
   const categorie = CATEGORIES_EDITEUR.find((c) => c === params.categorie);
   const tous = await listEditeurs({ q: params.q, categorie });
-  const { page, pages, total, elements } = paginer(tous, pageDepuisParams(params));
+  const { page, pages, total, elements } = paginer(tous, await pageInitiale(params, "/editeurs"));
 
   return (
     <>

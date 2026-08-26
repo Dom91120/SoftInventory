@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import Link from "next/link";
 import { BarreListe } from "@/components/barre-liste";
-import { Pagination, pageDepuisParams, paginer } from "@/components/pagination";
+import { Pagination, pageInitiale, paginer } from "@/components/pagination";
 import { EmptyState, PageHeader } from "@/components/ui";
 import type { Role } from "@/generated/prisma/client";
 import { LIBELLES_TYPE_OS, TYPES_OS } from "@/schemas/serveur";
@@ -70,7 +70,7 @@ export default async function ServeursPage({
   // simplement ignorée — même geste que la catégorie des éditeurs.
   const typeOs = TYPES_OS.find((t) => t === params.os);
   const tous = await listServeursAvecLogiciels({ q: params.q, typeOs });
-  const { page, pages, total, elements } = paginer(tous, pageDepuisParams(params));
+  const { page, pages, total, elements } = paginer(tous, await pageInitiale(params, "/serveurs"));
   const serveurs = active === "liste" ? elements : tous;
   /** L'adresse d'une vue garde la recherche, le filtre et la page en cours. */
   const hrefVue = (cle: VueCle) => {

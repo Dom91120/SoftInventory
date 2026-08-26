@@ -39,7 +39,10 @@ export function FiltresBar({
 
   function effacerTout() {
     if (recherche.current) recherche.current.value = "";
-    router.replace(pathname);
+    // `page=1` et non une adresse nue : la liste rendue entière se relit du
+    // début, et l'URL doit le DIRE — nue, elle rouvrirait sur la page
+    // mémorisée (voir `pageInitiale`). Même règle que `BarreListe`.
+    router.replace(`${pathname}?page=1`);
   }
 
   function setParam(key: string, value: string) {
@@ -48,7 +51,9 @@ export function FiltresBar({
     else next.delete(key);
     // Retour à la première page : après un filtre, la page 4 n'existe souvent
     // plus, et l'utilisateur attend le début des résultats, pas leur milieu.
-    next.delete("page");
+    // ÉCRITE et non retirée : retirer le dernier filtre rendrait l'adresse nue,
+    // et la mémoire de page y ramènerait aussitôt la page qu'on quittait.
+    next.set("page", "1");
     router.replace(`${pathname}?${next.toString()}`);
   }
 

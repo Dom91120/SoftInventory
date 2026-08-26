@@ -1,14 +1,8 @@
 "use client";
 
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useRef } from "react";
-
-/**
- * Préfixe des clés de `sessionStorage`, une par liste (le chemin fait la clé :
- * `/logiciels`, `/editeurs`, `/contrats`). Toute liste qui affichera un jour un
- * pavé de pagination héritera de la mémoire sans rien avoir à déclarer.
- */
-const PREFIXE = "liste-page:";
+import { usePathname } from "next/navigation";
+import { useEffect } from "react";
+import { cookiePage, estCookiePage } from "@/lib/memoire-page";
 
 /**
  * Mémoire du numéro de page d'une liste, le temps d'une session.
@@ -17,54 +11,30 @@ const PREFIXE = "liste-page:";
  * retomber page 1 obligeait à refaire quatre fois le chemin. La liste retient
  * donc où on l'avait laissée et y revient d'elle-même.
  *
- * `sessionStorage` plutôt que `localStorage` : la portée demandée est la
- * session — la mémoire meurt avec l'onglet, et `oublierPagesMemorisees` en fait
- * autant à la déconnexion. Un numéro de page n'a pas à survivre au compte qui
- * l'a laissé là.
+ * Un COOKIE, et non `sessionStorage` : c'est le SERVEUR qui choisit la page au
+ * rendu (voir `pageInitiale`), si bien que la bonne page arrive toute rendue.
+ * Le rattrapage côté client qu'on faisait avant — afficher la page 1, puis la
+ * remplacer par la page mémorisée — se voyait à l'œil nu, la liste sautant sous
+ * le curseur à chaque retour sur l'écran. Même mécanique et même raison que la
+ * mémoire de vue des serveurs.
  *
- * DEUX règles délimitent le rattrapage, pour qu'il ne se mette jamais en
- * travers d'une navigation voulue :
+ * Cookie de SESSION (aucun `max-age`) : il meurt avec le navigateur, et
+ * `oublierPagesMemorisees` en fait autant à la déconnexion. Un numéro de page
+ * est une position de lecture, pas une préférence — il n'a pas à survivre au
+ * compte qui l'a laissé là. Il est en revanche partagé par les onglets du même
+ * navigateur, là où `sessionStorage` valait par onglet : deux onglets sur la
+ * même liste se donnent désormais la dernière page consultée, ce qui est le
+ * comportement de la vue des serveurs depuis toujours.
  *
- * - il n'a lieu qu'à l'ARRIVÉE sur la liste (premier rendu du composant). Les
- *   flèches du pavé et les filtres ne font que changer la query string d'une
- *   route déjà montée : on y écrit la nouvelle page, on ne la corrige pas.
- *   Sans cela, revenir page 1 renverrait aussitôt à la page mémorisée ;
- * - et seulement sur une URL NUE. `…?statut=production` ou `…?page=2` disent
- *   déjà ce qu'ils veulent voir — un lien du tableau de bord, un favori, une
- *   adresse partagée. La mémoire ne parle que quand personne d'autre ne parle.
- *
- * Un numéro devenu trop grand (la liste a maigri) ne montre pas une page vide :
- * `paginer` le ramène dans les bornes.
+ * Le composant ne fait plus qu'ÉCRIRE : il note la page affichée à chaque
+ * rendu, qu'elle vienne de l'URL ou du cookie lui-même.
  */
 export function MemoirePage({ page }: { page: number }) {
   const pathname = usePathname();
-  const params = useSearchParams();
-  const router = useRouter();
-  /** Vrai au premier rendu seulement : c'est ce qui distingue l'arrivée. */
-  const arrivee = useRef(true);
 
   useEffect(() => {
-    const cle = PREFIXE + pathname;
-    if (arrivee.current) {
-      arrivee.current = false;
-      if ([...params.keys()].length === 0) {
-        let memo = 0;
-        try {
-          memo = Number(sessionStorage.getItem(cle));
-        } catch {}
-        if (Number.isInteger(memo) && memo > 1) {
-          // `replace` et non `push` : la page rattrapée prend la place de la
-          // page 1 qu'on n'a fait que traverser, sinon « Précédent » y
-          // ramènerait aussitôt.
-          router.replace(`${pathname}?page=${memo}`);
-          return;
-        }
-      }
-    }
-    try {
-      sessionStorage.setItem(cle, String(page));
-    } catch {}
-  }, [page, pathname, params, router]);
+    document.cookie = `${cookiePage(pathname)}=${page}; path=/; samesite=lax`;
+  }, [page, pathname]);
 
   return null;
 }
@@ -76,8 +46,12 @@ export function MemoirePage({ page }: { page: number }) {
  */
 export function oublierPagesMemorisees() {
   try {
-    for (const cle of Object.keys(sessionStorage)) {
-      if (cle.startsWith(PREFIXE)) sessionStorage.removeItem(cle);
+    for (const paire of document.cookie.split(";")) {
+      const nom = paire.split("=")[0]?.trim();
+      // `max-age=0` sur le MÊME chemin que l'écriture : un cookie ne s'efface
+      // qu'en le réécrivant périmé, et sur un autre chemin on en créerait un
+      // second au lieu de retirer le premier.
+      if (nom && estCookiePage(nom)) document.cookie = `${nom}=; path=/; max-age=0; samesite=lax`;
     }
   } catch {}
 }

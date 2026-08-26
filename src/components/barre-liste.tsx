@@ -46,7 +46,10 @@ export function BarreListe({
     else next.delete(key);
     // Retour à la première page : après un filtre, la page 4 n'existe souvent
     // plus, et l'utilisateur attend le début des résultats, pas leur milieu.
-    next.delete("page");
+    // ÉCRITE et non retirée : une URL nue rouvrirait la liste sur la page
+    // mémorisée (voir `pageInitiale`), et le filtre s'appliquerait en plein
+    // milieu des résultats.
+    next.set("page", "1");
     router.replace(`${pathname}?${next.toString()}`);
   }
 
@@ -66,8 +69,10 @@ export function BarreListe({
       const v = params.get(k);
       if (v) next.set(k, v);
     }
-    const qs = next.toString();
-    router.replace(qs ? `${pathname}?${qs}` : pathname);
+    // Même raison que ci-dessus : la liste rendue entière se relit du début, et
+    // l'URL doit le DIRE pour que la mémoire de page ne s'en mêle pas.
+    next.set("page", "1");
+    router.replace(`${pathname}?${next.toString()}`);
   }
 
   return (
