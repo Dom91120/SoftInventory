@@ -69,11 +69,11 @@ const FORM_ID = "certificat-form";
 type Option = { id: number; nom: string };
 
 /**
- * Fiche d'un certificat électronique en TROIS ONGLETS — Synthèse (titulaire,
- * certificat, commande), Documents (ses pièces), Révocation (les codes de
- * l'autorité) — sur le modèle des autres fiches : tous les panneaux montés,
- * masqués et non démontés au changement d'onglet, pour qu'une saisie commencée
- * survive à un détour.
+ * Fiche d'un certificat électronique en QUATRE ONGLETS — Synthèse (titulaire,
+ * certificat, commande), Contacts (ceux de l'autorité), Documents (ses pièces),
+ * Révocation (les codes de l'autorité) — sur le modèle des autres fiches : tous
+ * les panneaux montés, masqués et non démontés au changement d'onglet, pour
+ * qu'une saisie commencée survive à un détour.
  *
  * Comme sur la fiche marché, le <form> ne s'étend PAS aux onglets : ses trois
  * cartes tiennent toutes sur la Synthèse, et la carte des codes porte son
@@ -97,6 +97,7 @@ export function CertificatForm({
   services,
   readOnly = false,
   onglet = "synthese",
+  contacts,
   documents,
   codes,
 }: {
@@ -108,6 +109,8 @@ export function CertificatForm({
   readOnly?: boolean;
   /** L'onglet demandé par l'URL au chargement. */
   onglet?: OngletCertificat;
+  /** Les coordonnées de l'autorité, rendues côté serveur — onglet Contacts. */
+  contacts?: ReactNode;
   /** Le panneau des pièces jointes, rendu côté serveur — onglet Documents. */
   documents?: ReactNode;
   /** La carte des codes de l'autorité — onglet Révocation, admins seulement. */
@@ -641,6 +644,16 @@ export function CertificatForm({
         synthese: (
           <div className="space-y-3">
             {formulaireCertificat}
+            {ligneActions}
+          </div>
+        ),
+        // Les contacts sont en LECTURE SEULE : ils se saisissent sur la fiche
+        // de l'autorité, dont le nom en en-tête est un lien. La ligne d'actions
+        // les suit tout de même — c'est par elle qu'on quitte la fiche, et le
+        // crayon reste ouvert sur les autres onglets.
+        contacts: (
+          <div className="space-y-3">
+            {contacts}
             {ligneActions}
           </div>
         ),

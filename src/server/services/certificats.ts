@@ -190,7 +190,36 @@ export async function getCertificat(id: number) {
     where: { id },
     omit: SANS_CODES,
     include: {
-      fournisseur: { select: { id: true, nom: true } },
+      // L'autorité, COORDONNÉES COMPRISES : la fiche en fait un onglet
+      // « Contacts » — c'est chez elle qu'on renouvelle et qu'on révoque, donc
+      // elle qu'on appelle. Les champs sont énumérés plutôt que pris en bloc :
+      // l'annuaire porte aussi une adresse postale et des notes, dont la fiche
+      // d'un certificat n'a que faire. La LISTE, elle, garde son `{ id, nom }` :
+      // elle n'affiche qu'un nom.
+      fournisseur: {
+        select: {
+          id: true,
+          nom: true,
+          supportUrl: true,
+          supportEmail: true,
+          supportTelephone: true,
+          numeroClient: true,
+          supportHoraires: true,
+          supportHoraires2: true,
+          commercialContact: true,
+          commercialTelephone: true,
+          commercialEmail: true,
+          commercialContact2: true,
+          commercialTelephone2: true,
+          commercialEmail2: true,
+          adminContact: true,
+          adminTelephone: true,
+          adminEmail: true,
+          dpoContact: true,
+          dpoTelephone: true,
+          dpoEmail: true,
+        },
+      },
       service: { select: { id: true, nom: true } },
       // Les plus récentes en tête : sur une fiche, c'est la dernière pièce
       // déposée qu'on vient chercher.

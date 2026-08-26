@@ -4,6 +4,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 import { BoutonQuitter } from "@/components/bouton-quitter";
+import { ContactsPanel } from "@/components/contacts-panel";
 import { DocumentsPanel } from "@/components/documents-panel";
 import { FicheOnglets } from "@/components/fiche-onglets";
 import { FlecheVoisin } from "@/components/fleche-voisin";
@@ -36,7 +37,6 @@ import { type ContratRow, ContratsPanel } from "./contrats-panel";
 import { type ConsultationRow, DevisPanel } from "./devis-panel";
 import { LiaisonsPanel } from "./liaisons-panel";
 import { RgpdPanel } from "./rgpd-panel";
-import { SupportPanel } from "./support-panel";
 import { TachesPanel } from "./taches-panel";
 
 export const metadata: Metadata = { title: "Logiciel" };
@@ -234,8 +234,14 @@ export default async function LogicielPage({
             synthese: <OngletSynthese logiciel={logiciel} readOnly={!isAdmin} />,
             support: (
               <>
-                <SupportPanel
-                  editeur={
+                <ContactsPanel
+                  sansSociete={
+                    <>
+                      Aucun éditeur n'est rattaché à ce logiciel. Renseignez-le dans l'onglet «
+                      Synthèse » pour retrouver ici ses contacts.
+                    </>
+                  }
+                  societe={
                     logiciel.editeur
                       ? {
                           id: logiciel.editeur.id,

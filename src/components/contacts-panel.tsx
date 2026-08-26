@@ -3,7 +3,12 @@ import { Fragment, type ReactNode } from "react";
 import { Card, EmptyState } from "@/components/ui";
 import { formatTel } from "@/lib/format";
 
-export type SupportEditeur = {
+/**
+ * Les coordonnées d'une société de l'annuaire — l'éditeur d'un logiciel,
+ * l'autorité de certification d'un certificat : c'est la même table, donc les
+ * mêmes champs, et la même carte pour les lire.
+ */
+export type ContactsSociete = {
   id: number;
   nom: string;
   supportUrl: string;
@@ -122,47 +127,51 @@ function CarteContacts({
 }
 
 /**
- * Onglet « Contacts » : les coordonnées de l'ÉDITEUR du logiciel, en lecture
- * seule — l'assistance d'abord, puis le commercial et l'administratif. C'est
- * la carte « Contacts » de la fiche éditeur remontée ici, dans le même ordre
- * et la même grille, parce que la question « qui j'appelle ? » se pose devant
- * le logiciel, pas devant l'éditeur.
+ * Onglet « Contacts » : les coordonnées de la SOCIÉTÉ rattachée à la fiche —
+ * l'éditeur d'un logiciel, l'autorité de certification d'un certificat —, en
+ * lecture seule : l'assistance d'abord, puis le commercial et l'administratif.
+ * C'est la carte « Contacts » de la fiche éditeur remontée ici, dans le même
+ * ordre et la même grille, parce que la question « qui j'appelle ? » se pose
+ * devant le logiciel ou le certificat, pas devant l'éditeur.
  *
  * La SAISIE reste sur la fiche éditeur (lien en en-tête) : une seule source,
- * valable pour tous ses logiciels — la recopier par logiciel garantirait des
- * numéros divergents.
+ * valable pour tout ce qui s'y rattache — la recopier fiche par fiche
+ * garantirait des numéros divergents.
+ *
+ * `sansSociete` dit ce qui manque AVEC LES MOTS de la fiche qui appelle : ce
+ * n'est pas le même champ qu'on ira remplir selon qu'il s'agit d'un éditeur ou
+ * d'une autorité de certification.
  */
-export function SupportPanel({ editeur }: { editeur: SupportEditeur | null }) {
-  if (!editeur) {
-    return (
-      <EmptyState>
-        Aucun éditeur n'est rattaché à ce logiciel. Renseignez-le dans l'onglet « Synthèse » pour
-        retrouver ici ses contacts.
-      </EmptyState>
-    );
-  }
+export function ContactsPanel({
+  societe,
+  sansSociete,
+}: {
+  societe: ContactsSociete | null;
+  sansSociete: ReactNode;
+}) {
+  if (!societe) return <EmptyState>{sansSociete}</EmptyState>;
 
   const lignes: Ligne[] = [
     {
       icone: <LifeBuoy className="h-4 w-4" />,
       label: "Portail de support",
-      valeur: editeur.supportUrl ? (
+      valeur: societe.supportUrl ? (
         <a
-          href={editeur.supportUrl}
+          href={societe.supportUrl}
           target="_blank"
           rel="noreferrer noopener"
-          title={editeur.supportUrl}
+          title={societe.supportUrl}
           className="text-accent hover:underline"
         >
-          {editeur.supportUrl}
+          {societe.supportUrl}
         </a>
       ) : null,
     },
     // Téléphone puis e-mail, comme le commercial et l'administratif plus bas et
     // comme la carte « Contacts » de la fiche éditeur : l'assistance était la
     // seule à prendre les deux à contresens.
-    ligneTel("Tél du support", editeur.supportTelephone),
-    ligneMail("Mail du support", editeur.supportEmail),
+    ligneTel("Tél du support", societe.supportTelephone),
+    ligneMail("Mail du support", societe.supportEmail),
     // Le premier rang porte les trois CANAUX — par où l'on joint l'assistance.
     // Ce qu'on lui dira une fois en ligne, numéro de client et horaires, ouvre
     // le rang suivant : la fiche éditeur les saisit dans l'ordre inverse, mais
@@ -170,7 +179,7 @@ export function SupportPanel({ editeur }: { editeur: SupportEditeur | null }) {
     {
       icone: <BadgeCheck className="h-4 w-4" />,
       label: "N° de client",
-      valeur: editeur.numeroClient || null,
+      valeur: societe.numeroClient || null,
     },
     {
       icone: <Clock className="h-4 w-4" />,
@@ -180,38 +189,38 @@ export function SupportPanel({ editeur }: { editeur: SupportEditeur | null }) {
       // partout ailleurs les valeurs d'une même énumération. La liste des
       // éditeurs, elle, les empile : sa colonne est étroite.
       valeur:
-        [editeur.supportHoraires, editeur.supportHoraires2].filter(Boolean).join(" · ") || null,
+        [societe.supportHoraires, societe.supportHoraires2].filter(Boolean).join(" · ") || null,
       tiers: 2,
     },
     // Le filet ferme l'assistance : en dessous, on n'appelle plus pour une panne.
-    { ...ligneContact("Contact commercial", editeur.commercialContact), separateurAvant: true },
-    ligneTel("Tél commercial", editeur.commercialTelephone),
-    ligneMail("Mail commercial", editeur.commercialEmail),
+    { ...ligneContact("Contact commercial", societe.commercialContact), separateurAvant: true },
+    ligneTel("Tél commercial", societe.commercialTelephone),
+    ligneMail("Mail commercial", societe.commercialEmail),
     // Le second commercial ne prend son rang que s'il existe : la fiche éditeur
     // le laisse sans titre parce que la position suffit, mais ici chaque valeur
     // est nommée, et trois « Non renseigné » de plus dans une grille qui en
     // compte déjà se lisent comme un manque plutôt que comme une absence. La
     // plupart des éditeurs n'ont qu'un commercial.
-    ...(editeur.commercialContact2 || editeur.commercialTelephone2 || editeur.commercialEmail2
+    ...(societe.commercialContact2 || societe.commercialTelephone2 || societe.commercialEmail2
       ? [
-          ligneContact("Contact commercial 2", editeur.commercialContact2),
-          ligneTel("Tél commercial 2", editeur.commercialTelephone2),
-          ligneMail("Mail commercial 2", editeur.commercialEmail2),
+          ligneContact("Contact commercial 2", societe.commercialContact2),
+          ligneTel("Tél commercial 2", societe.commercialTelephone2),
+          ligneMail("Mail commercial 2", societe.commercialEmail2),
         ]
       : []),
-    ligneContact("Contact administratif", editeur.adminContact),
-    ligneTel("Tél administratif", editeur.adminTelephone),
-    ligneMail("Mail administratif", editeur.adminEmail),
-    ligneContact("DPO", editeur.dpoContact),
-    ligneTel("Tél DPO", editeur.dpoTelephone),
-    ligneMail("Mail DPO", editeur.dpoEmail),
+    ligneContact("Contact administratif", societe.adminContact),
+    ligneTel("Tél administratif", societe.adminTelephone),
+    ligneMail("Mail administratif", societe.adminEmail),
+    ligneContact("DPO", societe.dpoContact),
+    ligneTel("Tél DPO", societe.dpoTelephone),
+    ligneMail("Mail DPO", societe.dpoEmail),
   ];
 
   return (
     <CarteContacts
-      titre={`Contacts — ${editeur.nom}`}
+      titre={`Contacts — ${societe.nom}`}
       lignes={lignes}
-      vide={<>Aucun contact n'est renseigné sur la fiche de « {editeur.nom} ».</>}
+      vide={<>Aucun contact n'est renseigné sur la fiche de « {societe.nom} ».</>}
     />
   );
 }

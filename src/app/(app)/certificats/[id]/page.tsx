@@ -2,6 +2,7 @@ import { CalendarClock } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { ContactsPanel } from "@/components/contacts-panel";
 import { DocumentsPanel } from "@/components/documents-panel";
 import { FlecheVoisin } from "@/components/fleche-voisin";
 import { ModeFicheProvider } from "@/components/mode-fiche";
@@ -154,7 +155,7 @@ export default async function CertificatPage({
         />
       </div>
 
-      {/* UN mode de modification pour la fiche ENTIÈRE, et TROIS onglets tous
+      {/* UN mode de modification pour la fiche ENTIÈRE, et QUATRE onglets tous
           montés — la barre vit dans CertificatForm. Le crayon ouvre les trois
           cartes du certificat, mais aussi ses documents et la saisie des codes
           de l'autorité — les LIRE reste hors du mode. */}
@@ -186,6 +187,23 @@ export default async function CertificatPage({
             statut: certificat.statut,
             notes: certificat.notes,
           }}
+          // Qui appeler chez l'autorité — la même carte que l'onglet
+          // « Contacts » d'un logiciel, puisque c'est le même annuaire : on y
+          // vient pour renouveler, pour révoquer, ou pour un support qui ne
+          // répond pas. En LECTURE SEULE : la saisie reste sur la fiche de
+          // l'autorité, dont le nom en en-tête est un lien.
+          contacts={
+            <ContactsPanel
+              key="contacts"
+              sansSociete={
+                <>
+                  Aucune autorité de certification n'est renseignée sur ce certificat. Indiquez-la
+                  dans l'onglet « Synthèse » pour retrouver ici ses contacts.
+                </>
+              }
+              societe={certificat.fournisseur}
+            />
+          }
           // L'attestation de l'autorité, le bon de commande signé, le recueil
           // d'identité : les pièces d'un certificat, sous leur propre onglet.
           documents={
