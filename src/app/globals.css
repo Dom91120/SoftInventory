@@ -172,6 +172,19 @@ body {
   .input:focus {
     box-shadow: 0 0 0 3px var(--color-accent-ring);
   }
+  /* Le PLACEHOLDER ne s'adresse qu'à QUI SAISIT : il montre la forme attendue
+     (« Ex : marché 2024-12 »), ce dont on n'a que faire en lecture. Sur une
+     fiche fermée, il se lisait comme une valeur enregistrée — un exemple grisé
+     à la place d'un champ vide fait chercher d'où il sort, quand le vide dit
+     tout de suite qu'il n'y a rien.
+
+     Transparent plutôt que retiré du DOM : la règle vaut pour TOUS les champs
+     de l'application, présents et à venir, sans qu'aucun formulaire ait à y
+     penser — le mode de la fiche ne pilote qu'un `disabled`. Et le champ garde
+     sa hauteur : rien ne bouge au passage en modification. */
+  .input:disabled::placeholder {
+    color: transparent;
+  }
 
   /* Liste déroulante DISCRÈTE, posée au fil du texte (méta d'une ligne de
      liste) : ni cadre ni fond, et `field-sizing: content` pour qu'elle occupe
