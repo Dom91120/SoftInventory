@@ -1,4 +1,5 @@
 import { compareAlpha } from "@/lib/format";
+import type { SensTri } from "@/lib/tri";
 import type { ContratInput } from "@/schemas/logiciel";
 import { prisma } from "@/server/db";
 
@@ -91,7 +92,9 @@ export const TRIS_CONTRATS = [
   "etat",
 ] as const;
 export type TriContrat = (typeof TRIS_CONTRATS)[number];
-export type SensTri = "asc" | "desc";
+/** Réexporté pour les appelants qui trient les marchés — le type est commun à
+ *  toutes les listes triables. */
+export type { SensTri };
 
 /**
  * Sens PROPOSÉ au premier clic sur une colonne, celui qui répond à la question

@@ -1,6 +1,12 @@
 import type { StatutCertificat } from "@/generated/prisma/enums";
+import type { SensTri } from "@/lib/tri";
 import { LIBELLES_CERTIFICAT, STATUTS_CERTIFICAT, USAGES_CERTIFICAT } from "@/schemas/certificat";
-import type { FiltresCertificats } from "@/server/services/certificats";
+import {
+  type FiltresCertificats,
+  SENS_PAR_DEFAUT_CERTIFICAT,
+  TRIS_CERTIFICAT,
+  type TriCertificat,
+} from "@/server/services/certificats";
 
 // Aides partagées entre la liste, l'export CSV et la fiche. Séparées de
 // page.tsx : Next.js interdit d'exporter autre chose que ses champs réservés
@@ -21,6 +27,33 @@ export function filtresDepuisParams(p: Record<string, string | undefined>): Filt
     statut: parmi(p.statut, STATUTS_CERTIFICAT),
     usage: parmi(p.usage, USAGES_CERTIFICAT),
   };
+}
+
+/**
+ * Le tri lu depuis l'URL, comme les filtres — rechargeable, partageable, repris
+ * par l'export et transmis aux flèches d'une fiche. Sans paramètre, la liste
+ * garde l'ordre qu'elle a toujours eu : l'échéance, du plus pressant au plus
+ * lointain. Le tri lui-même vit dans le service, avec les données qu'il ordonne.
+ */
+export function triDepuisParams(p: Record<string, string | undefined>): {
+  tri: TriCertificat;
+  sens: SensTri;
+} {
+  const tri = TRIS_CERTIFICAT.find((t) => t === p.tri) ?? "validite";
+  const sens = p.sens === "asc" || p.sens === "desc" ? p.sens : SENS_PAR_DEFAUT_CERTIFICAT[tri];
+  return { tri, sens };
+}
+
+/**
+ * Le tri porté par une URL de fiche, pour que ses flèches « précédent /
+ * suivant » suivent l'ordre de la liste d'où l'on vient. Vide tant qu'aucune
+ * colonne n'a été cliquée : la fiche n'a pas à traîner une query string qui ne
+ * dit que le comportement par défaut.
+ */
+export function queryTri(p: Record<string, string | undefined>): string {
+  if (!p.tri) return "";
+  const { tri, sens } = triDepuisParams(p);
+  return `?${new URLSearchParams({ tri, sens }).toString()}`;
 }
 
 /**

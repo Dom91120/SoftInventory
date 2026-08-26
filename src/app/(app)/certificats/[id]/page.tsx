@@ -15,7 +15,7 @@ import { listCategoriesDocuments, listServicesUtilisateurs } from "@/server/serv
 import { CertificatForm } from "../certificat-form";
 import { CodesPanel } from "../codes-panel";
 import { ongletCertificat } from "../onglets";
-import { joursAvantExpiration, pastilleValidite } from "../shared";
+import { joursAvantExpiration, pastilleValidite, queryTri, triDepuisParams } from "../shared";
 
 export const metadata: Metadata = { title: "Certificat" };
 
@@ -34,7 +34,7 @@ export default async function CertificatPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ onglet?: string }>;
+  searchParams: Promise<Record<string, string | undefined>>;
 }) {
   const session = await requireUser();
   const isAdmin = (session.user as { role?: Role }).role === "admin";
@@ -42,6 +42,13 @@ export default async function CertificatPage({
   const { id: idStr } = await params;
   const id = Number(idStr);
   if (!Number.isInteger(id) || id < 1) notFound();
+
+  // L'ordre de la liste d'où l'on vient, porté par l'URL : les flèches
+  // « précédent / suivant » parcourent les certificats dans CET ordre, et le
+  // repassent à la fiche suivante pour que la chaîne ne se rompe pas.
+  const query = await searchParams;
+  const { tri, sens } = triDepuisParams(query);
+  const qTri = queryTri(query);
 
   // Seules les AUTORITÉS de certification dans la liste : c'est ce que le
   // champ désigne. L'autorité DÉJÀ inscrite sur la fiche y est rajoutée même
@@ -52,7 +59,7 @@ export default async function CertificatPage({
     listEditeurs({ categorie: "autorite_certification" }),
     listServicesUtilisateurs(),
     listCategoriesDocuments(),
-    voisinsCertificat(id),
+    voisinsCertificat(id, tri, sens),
   ]);
   if (!certificat) notFound();
   const editeurs =
@@ -60,8 +67,9 @@ export default async function CertificatPage({
       ? [...autorites, certificat.fournisseur].sort((a, b) => a.nom.localeCompare(b.nom, "fr"))
       : autorites;
 
-  const { onglet } = await searchParams;
-  const actif = ongletCertificat(onglet);
+  const actif = ongletCertificat(query.onglet);
+  /** Les flèches voisin emportent l'ordre de la liste ET l'onglet courant. */
+  const qFleches = `${qTri || "?"}${qTri ? "&" : ""}onglet=${actif}`;
 
   // L'état montré par l'en-tête : le statut déclaré, ou l'expiration
   // constatée sur la date de fin. Même fonction que la liste — deux lectures
@@ -74,9 +82,9 @@ export default async function CertificatPage({
   return (
     <>
       {/* L'en-tête est encadré des flèches de navigation : on parcourt ainsi
-          les certificats sans repasser par la liste, DANS SON ORDRE — du plus
-          pressant au plus lointain, puisque c'est par échéance qu'elle est
-          rangée. La fiche logiciel, elle, se parcourt alphabétiquement : chaque
+          les certificats sans repasser par la liste, DANS SON ORDRE — celui de
+          la colonne qu'on y a triée, ou l'échéance croissante tant qu'aucune ne
+          l'a été. La fiche logiciel, elle, se parcourt alphabétiquement : chaque
           liste impose son ordre à ses flèches. On reste sur le MÊME onglet en
           changeant de certificat. */}
       <div className="mb-4 flex items-start gap-2">
@@ -84,7 +92,7 @@ export default async function CertificatPage({
           voisin={voisins.precedent}
           sens="precedent"
           hrefBase="/certificats"
-          query={`?onglet=${actif}`}
+          query={qFleches}
           entite="Certificat"
         />
         <div className="min-w-0 flex-1">
@@ -141,7 +149,7 @@ export default async function CertificatPage({
           voisin={voisins.suivant}
           sens="suivant"
           hrefBase="/certificats"
-          query={`?onglet=${actif}`}
+          query={qFleches}
           entite="Certificat"
         />
       </div>

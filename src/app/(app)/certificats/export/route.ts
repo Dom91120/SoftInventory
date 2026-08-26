@@ -2,8 +2,8 @@ import { csvResponse } from "@/lib/csv";
 import { DATE_FMT_FR_UTC } from "@/lib/format";
 import { LIBELLES_CERTIFICAT, nomTitulaire } from "@/schemas/certificat";
 import { reponseApi, requireRoleApi } from "@/server/guards-api";
-import { listCertificats } from "@/server/services/certificats";
-import { filtresDepuisParams } from "../shared";
+import { listCertificats, trierCertificats } from "@/server/services/certificats";
+import { filtresDepuisParams, triDepuisParams } from "../shared";
 
 export const dynamic = "force-dynamic";
 
@@ -22,7 +22,12 @@ export function GET(request: Request): Promise<Response> {
 
     const url = new URL(request.url);
     const params = Object.fromEntries(url.searchParams.entries());
-    const certificats = await listCertificats(filtresDepuisParams(params));
+    const bruts = await listCertificats(filtresDepuisParams(params));
+    // Et le MÊME ORDRE que la liste, filtres compris : la colonne cliquée
+    // voyage dans la query string, et le fichier est l'extrait de la liste
+    // telle qu'elle est triée au moment où on l'emporte.
+    const { tri, sens } = triDepuisParams(params);
+    const certificats = trierCertificats(bruts, tri, sens);
     const date = (d: Date | null) => (d === null ? "" : DATE_FMT_FR_UTC.format(d));
 
     const rows: (string | number)[][] = [

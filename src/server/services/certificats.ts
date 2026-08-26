@@ -1,5 +1,7 @@
 import type { Prisma } from "@/generated/prisma/client";
 import type { Civilite } from "@/generated/prisma/enums";
+import { compareAlpha } from "@/lib/format";
+import type { SensTri } from "@/lib/tri";
 import {
   type CertificatInput,
   type CodesCertificatInput,
@@ -22,6 +24,112 @@ import { deleteDocument } from "@/server/services/documents";
 
 /** Ce que toute lecture ordinaire laisse en base. */
 const SANS_CODES = { codeRevocation: true } as const;
+
+// ── Tri de la liste, au clic sur une colonne ────────────────────────────────
+// Vit ici et non près de l'écran : la liste, l'export CSV et les flèches d'une
+// fiche s'en servent, et un ordre qui diffère entre eux se remarquerait aussitôt.
+// Même mécanique que la liste des marchés.
+
+/** Les cinq colonnes de la liste, dans leur ordre d'affichage. */
+export const TRIS_CERTIFICAT = ["titulaire", "service", "autorite", "validite", "modele"] as const;
+export type TriCertificat = (typeof TRIS_CERTIFICAT)[number];
+
+/**
+ * Sens PROPOSÉ au premier clic sur une colonne, celui qui répond à la question
+ * qu'on se pose en la cliquant. Les colonnes de texte se parcourent de A à Z ;
+ * la VALIDITÉ part du plus pressant — c'est l'ordre dans lequel la liste
+ * s'ouvre, et celui pour lequel on vient.
+ */
+export const SENS_PAR_DEFAUT_CERTIFICAT: Record<TriCertificat, SensTri> = {
+  titulaire: "asc",
+  service: "asc",
+  autorite: "asc",
+  validite: "asc",
+  modele: "asc",
+};
+
+/** Ce dont on dispose pour trier : ce que la liste affiche, et rien de plus. */
+type LigneTriable = {
+  id: number;
+  titulaire: string;
+  prenom: string;
+  dateFin: Date | null;
+  niveau: string;
+  service: { nom: string } | null;
+  fournisseur: { nom: string } | null;
+};
+
+/**
+ * Le titulaire se trie sur DEUX clés — le NOM puis le PRÉNOM, comme un
+ * annuaire : les dix-sept « MARTIN » se rangent alors entre eux par prénom au
+ * lieu de rester dans l'ordre où la base les a rendus.
+ *
+ * Et jamais sur `nomTitulaire()`, qui est pourtant ce que la colonne AFFICHE :
+ * la civilité qu'elle place en tête rangerait toutes les « Mme » avant tous
+ * les « M. », et un tri par nom qui commence par séparer les femmes des hommes
+ * ne répond à aucune question.
+ *
+ * Sert aussi de DÉPARTAGE aux quatre autres colonnes : sans lui, les trente
+ * certificats d'une même autorité resteraient dans un ordre arbitraire.
+ */
+function comparerTitulaires(a: LigneTriable, b: LigneTriable): number {
+  return compareAlpha(a.titulaire, b.titulaire) || compareAlpha(a.prenom, b.prenom);
+}
+
+/**
+ * La valeur sur laquelle une colonne se trie — `null` quand la ligne n'en a
+ * pas. La colonne VALIDITÉ se trie sur la date de FIN : c'est l'échéance
+ * qu'elle annonce et que surveillent les rappels ; la pastille qui la double
+ * n'ajoute rien à l'ordre. Le titulaire n'est pas ici — il a son comparateur,
+ * qui compte deux clés.
+ */
+function valeurDeTri(
+  c: LigneTriable,
+  tri: Exclude<TriCertificat, "titulaire">,
+): string | number | null {
+  switch (tri) {
+    case "service":
+      return c.service?.nom ?? null;
+    case "autorite":
+      return c.fournisseur?.nom ?? null;
+    case "validite":
+      return c.dateFin?.getTime() ?? null;
+    case "modele":
+      return c.niveau || null;
+  }
+}
+
+/**
+ * Tri de la liste sur la colonne cliquée. En MÉMOIRE et non en base : le tri
+ * alphabétique est celui d'`Intl.Collator` (accents et casse à la française),
+ * que la collation du serveur PostgreSQL ne garantit pas — voir `compareAlpha`.
+ *
+ * SANS PARAMÈTRE d'URL, l'appelant demande « validite / asc » et retrouve
+ * exactement l'ordre historique de la liste : par échéance croissante, sans
+ * terme en dernier, les ex æquo départagés par le nom puis le prénom.
+ */
+export function trierCertificats<T extends LigneTriable>(
+  certificats: T[],
+  tri: TriCertificat,
+  sens: SensTri,
+): T[] {
+  const signe = sens === "asc" ? 1 : -1;
+  return [...certificats].sort((a, b) => {
+    if (tri === "titulaire") return comparerTitulaires(a, b) * signe || a.id - b.id;
+    const va = valeurDeTri(a, tri);
+    const vb = valeurDeTri(b, tri);
+    if (va === null || vb === null) {
+      // Ce qui n'a pas de valeur ferme la marche dans les DEUX sens : inverser
+      // une colonne, c'est retourner ce qu'elle porte, pas remonter en tête les
+      // lignes qui ne la remplissent pas.
+      if (va !== vb) return va === null ? 1 : -1;
+    } else {
+      const ecart = typeof va === "string" ? compareAlpha(va, vb as string) : va - (vb as number);
+      if (ecart) return ecart * signe;
+    }
+    return comparerTitulaires(a, b) || a.id - b.id;
+  });
+}
 
 /** Filtres de la liste, tous facultatifs et cumulatifs. */
 export type FiltresCertificats = {
@@ -149,23 +257,44 @@ export async function deleteCertificat(id: number) {
 /**
  * Fiches voisines, pour les flèches de l'en-tête.
  *
- * Dans l'ORDRE DE LA LISTE, c'est-à-dire par échéance croissante — et non par
- * ordre alphabétique comme les logiciels. C'est le seul choix cohérent : la
- * flèche « suivant » doit mener où le regard irait en descendant la liste, et
- * celle-ci n'est pas rangée par nom. Parcourir les certificats du plus pressant
- * au plus lointain est d'ailleurs le geste qu'on vient faire ici.
+ * Dans l'ORDRE DE LA LISTE, qui lui est TRANSMIS depuis l'écran dont on vient —
+ * comme sur les marchés. Les deux ne peuvent donc pas diverger, y compris quand
+ * une colonne a été triée au clic : la flèche « suivant » mène toujours où le
+ * regard irait en descendant la liste. Sans paramètre, c'est l'échéance
+ * croissante — du plus pressant au plus lointain, le geste qu'on vient faire
+ * ici, et non l'ordre alphabétique des logiciels.
  *
- * Le tri est refait EN MÉMOIRE sur les mêmes clés que `listCertificats` : la
- * liste étant courte, cela évite de dupliquer un `orderBy` qui divergerait.
+ * Le tri est refait EN MÉMOIRE par la même fonction que la liste : dupliquer un
+ * `orderBy` aurait fini par diverger, et la liste est courte.
+ *
+ * Les filtres de la liste, eux, ne s'appliquent pas : les flèches parcourent
+ * tous les certificats. Une fiche atteinte par un lien collé n'a pas de filtre
+ * à hériter.
  */
-export async function voisinsCertificat(id: number): Promise<{
+export async function voisinsCertificat(
+  id: number,
+  tri: TriCertificat = "validite",
+  sens: SensTri = "asc",
+): Promise<{
   precedent: { id: number; nom: string } | null;
   suivant: { id: number; nom: string } | null;
 }> {
-  const tous = await prisma.certificat.findMany({
-    orderBy: [{ dateFin: { sort: "asc", nulls: "last" } }, { titulaire: "asc" }, { id: "asc" }],
-    select: { id: true, civilite: true, titulaire: true, prenom: true },
-  });
+  const tous = trierCertificats(
+    await prisma.certificat.findMany({
+      select: {
+        id: true,
+        civilite: true,
+        titulaire: true,
+        prenom: true,
+        dateFin: true,
+        niveau: true,
+        service: { select: { nom: true } },
+        fournisseur: { select: { nom: true } },
+      },
+    }),
+    tri,
+    sens,
+  );
   const i = tous.findIndex((c) => c.id === id);
   if (i === -1) return { precedent: null, suivant: null };
   const nommer = (c?: {

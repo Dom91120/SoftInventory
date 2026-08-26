@@ -1,8 +1,8 @@
-import { CalendarClock, Plus } from "lucide-react";
+import { CalendarClock, ChevronDown, ChevronUp, Plus } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { BarreListe } from "@/components/barre-liste";
-import { Pagination, pageDepuisParams, paginer } from "@/components/pagination";
+import { Pagination, pageInitiale, paginer } from "@/components/pagination";
 import { EmptyState, PageHeader } from "@/components/ui";
 import type { Role } from "@/generated/prisma/client";
 import { DATE_FMT_FR_UTC } from "@/lib/format";
@@ -13,9 +13,21 @@ import {
   USAGES_CERTIFICAT,
 } from "@/schemas/certificat";
 import { requireUser } from "@/server/guards";
-import { listAutoritesCertification, listCertificats } from "@/server/services/certificats";
+import {
+  listAutoritesCertification,
+  listCertificats,
+  SENS_PAR_DEFAUT_CERTIFICAT,
+  type TriCertificat,
+  trierCertificats,
+} from "@/server/services/certificats";
 import { listServicesUtilisateurs } from "@/server/services/referentiels";
-import { filtresDepuisParams, joursAvantExpiration, pastilleValidite } from "./shared";
+import {
+  filtresDepuisParams,
+  joursAvantExpiration,
+  pastilleValidite,
+  queryTri,
+  triDepuisParams,
+} from "./shared";
 
 export const metadata: Metadata = { title: "Certificats" };
 
@@ -28,13 +40,55 @@ export default async function CertificatsPage({
   const isAdmin = (session.user as { role?: Role }).role === "admin";
   const params = await searchParams;
 
-  const [tous, autorites, services] = await Promise.all([
+  const [bruts, autorites, services] = await Promise.all([
     listCertificats(filtresDepuisParams(params)),
     listAutoritesCertification(),
     listServicesUtilisateurs(),
   ]);
-  const { page, pages, total, elements } = paginer(tous, pageDepuisParams(params));
+
+  const { tri, sens } = triDepuisParams(params);
+  const tous = trierCertificats(bruts, tri, sens);
+  /** L'ordre voyage avec le lien : les flèches de la fiche suivront celui-ci. */
+  const qTri = queryTri(params);
+  const { page, pages, total, elements } = paginer(
+    tous,
+    await pageInitiale(params, "/certificats"),
+  );
   const aujourdhui = new Date();
+
+  /**
+   * En-tête cliquable. Le tri vit dans l'URL, donc un simple lien suffit : pas
+   * d'état client, la page est rechargeable et l'ordre se partage avec elle.
+   * Cliquer la colonne DÉJÀ triée inverse le sens ; en cliquer une autre part
+   * du sens qui répond à la question qu'on se pose en la cliquant.
+   *
+   * `page` est retirée au passage : après un changement d'ordre, la page 3 ne
+   * montre plus ce qu'elle montrait, et on attend le début de la liste.
+   */
+  const enTete = (cle: TriCertificat, libelle: string) => {
+    const actif = tri === cle;
+    const suivant = actif ? (sens === "asc" ? "desc" : "asc") : SENS_PAR_DEFAUT_CERTIFICAT[cle];
+    const qs = new URLSearchParams(
+      Object.entries(params).filter(([, v]) => v !== undefined) as [string, string][],
+    );
+    qs.set("tri", cle);
+    qs.set("sens", suivant);
+    qs.delete("page");
+    const Fleche = sens === "asc" ? ChevronUp : ChevronDown;
+    return (
+      <th aria-sort={actif ? (sens === "asc" ? "ascending" : "descending") : "none"}>
+        <Link
+          href={`/certificats?${qs.toString()}`}
+          scroll={false}
+          className={`inline-flex items-center gap-1 hover:text-strong ${actif ? "text-strong" : ""}`}
+          title={`Trier par ${libelle.toLowerCase()}`}
+        >
+          {libelle}
+          {actif ? <Fleche className="h-3 w-3" /> : null}
+        </Link>
+      </th>
+    );
+  };
 
   return (
     <>
@@ -87,7 +141,11 @@ export default async function CertificatsPage({
       />
       {total === 0 ? (
         <EmptyState>
-          {Object.keys(params).length > 0
+          {/* Ce qui RESTREINT la liste, et non tout ce que porte l'URL : une
+              colonne triée ou une page ne cachent aucun certificat, et
+              « Aucun certificat ne correspond » laisserait chercher un filtre
+              qu'on n'a pas posé. */}
+          {Object.values(filtresDepuisParams(params)).some((v) => v !== undefined)
             ? "Aucun certificat ne correspond."
             : `Aucun certificat pour l'instant.${isAdmin ? " Créez le premier avec le bouton « + Certificat »." : ""}`}
         </EmptyState>
@@ -103,12 +161,14 @@ export default async function CertificatsPage({
                 <col style={{ width: "16%" }} />
               </colgroup>
               <thead>
+                {/* Les cinq colonnes se trient au clic. « Titulaire » range par
+                    NOM puis par PRÉNOM — voir `comparerTitulaires`. */}
                 <tr>
-                  <th>Titulaire</th>
-                  <th>Service</th>
-                  <th>Autorité</th>
-                  <th>Validité</th>
-                  <th>Type / Modèle</th>
+                  {enTete("titulaire", "Titulaire")}
+                  {enTete("service", "Service")}
+                  {enTete("autorite", "Autorité")}
+                  {enTete("validite", "Validité")}
+                  {enTete("modele", "Type / Modèle")}
                 </tr>
               </thead>
               <tbody>
@@ -121,7 +181,7 @@ export default async function CertificatsPage({
                         {/* Le titulaire mène à sa fiche ; sa fonction se range
                             dessous, comme la technologie sous le logiciel. */}
                         <Link
-                          href={`/certificats/${c.id}`}
+                          href={`/certificats/${c.id}${qTri}`}
                           title={nomTitulaire(c)}
                           className="block truncate font-medium text-strong hover:text-accent"
                         >
