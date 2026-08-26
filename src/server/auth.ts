@@ -6,6 +6,7 @@ import { twoFactor } from "better-auth/plugins";
 import { emailButton } from "@/lib/email-theme";
 import { greeting } from "@/lib/mail-render";
 import { isPasswordValid, PASSWORD_POLICY_MESSAGE } from "@/lib/password";
+import { getAppUrl } from "@/server/config";
 import {
   ATTRIBUTS_COOKIE,
   alerteCookiesNonSecurises,
@@ -153,7 +154,26 @@ export const auth = betterAuth({
       await notifierMotDePasseModifie(user.id, user.email);
     },
 
-    sendResetPassword: async ({ user, url }) => {
+    /**
+     * Le lien mène DIRECTEMENT à la page de saisie, jeton en paramètre, et non
+     * à l'endpoint `/api/auth/reset-password/:token` que Better Auth propose
+     * dans son `url`. Deux raisons, et la seconde est un piège :
+     *
+     * - cet `url` est bâti sur la `baseURL` de Better Auth, figée par
+     *   l'environnement : le courriel partait avec un lien `localhost`,
+     *   inutilisable depuis un autre poste ;
+     * - et le corriger à la main ne suffisait pas. L'endpoint ne fait que
+     *   vérifier le jeton avant de REDIRIGER vers son `callbackURL`, qu'il
+     *   résout lui aussi sur la `baseURL` : on repartait donc vers
+     *   `localhost/auth/reset-password`, quelle que soit l'adresse saisie.
+     *
+     * En s'adressant à la page, on saute ce rebond : l'origine du lien est
+     * celle d'où la demande a été faite (voir `getAppUrl`), et rien ne la
+     * réécrit en chemin. Le jeton est vérifié à l'envoi du formulaire, qui
+     * sait déjà dire « lien expiré ou déjà utilisé ».
+     */
+    sendResetPassword: async ({ user, token }, request) => {
+      const url = `${await getAppUrl(request)}/auth/reset-password?token=${encodeURIComponent(token)}`;
       const prenom =
         (
           await prisma.user.findUnique({ where: { id: user.id }, select: { prenom: true } })

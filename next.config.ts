@@ -26,6 +26,21 @@ const nextConfig: NextConfig = {
   devIndicators: {
     position: "bottom-right",
   },
+  // Accès au serveur de DÉVELOPPEMENT depuis un autre poste du réseau. Next 16
+  // refuse les requêtes d'assets de dev (`/_next/*`) venues d'une origine autre
+  // que celle qui sert la page : un poste qui ouvre `http://192.168.x.y:3000`
+  // tombe sous cette règle et n'obtient ni styles ni rechargement à chaud.
+  //
+  // Les hôtes autorisés se déclarent dans `DEV_ORIGINS` (séparés par des
+  // virgules) plutôt qu'ici : une adresse IP change de poste en poste et n'a
+  // rien à faire dans un fichier versionné. SANS LE PORT — Next ne compare que
+  // le nom d'hôte de l'en-tête `Origin`, un « :3000 » collé derrière ne
+  // correspondrait jamais. SANS EFFET en production, où le serveur ne sert
+  // aucun asset de dev.
+  allowedDevOrigins: (process.env.DEV_ORIGINS ?? "")
+    .split(",")
+    .map((o) => o.trim())
+    .filter(Boolean),
   // En-têtes de sécurité posés PAR L'APP (elle peut être servie en direct).
   async headers() {
     // La CSP n'est PAS ici : elle porte un nonce par réponse et se construit dans
