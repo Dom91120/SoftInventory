@@ -82,105 +82,51 @@ export function FiltresBar({
 
   const refOptions = (list: Option[]) => list.map((o) => ({ value: String(o.id), label: o.label }));
 
-  /**
-   * À partir de quelle place la barre tient-elle sur UNE rangée ?
-   *
-   * D'un seul tenant elle demande 14 rem de recherche, 32 rem de listes, 8 rem
-   * d'export et les gouttières : 55,5 rem. Le bouton « Effacer » en ajoute 6,
-   * d'où le second seuil — les deux disent la même chose, la largeur qu'il faut
-   * à ce qui est réellement affiché. La colonne de contenu, large de 68 rem au
-   * plus, offre l'un comme l'autre : la barre tient sur une rangée même une fois
-   * filtrée, et ne se dédouble que sur une fenêtre étroite.
-   *
-   * Les deux valeurs collent au besoin mesuré à 5 px près, il n'y a pas de gras
-   * à retirer : ce sont les 22 rem de recherche et d'export encadrant les listes
-   * qui décident du reste. Les forcer sur une rangée en deçà ne ferait que
-   * replier les listes en escalier au milieu, la recherche flottant à mi-hauteur
-   * à côté. Une liste montre d'ailleurs l'option CHOISIE, plus large parfois que
-   * son libellé (« Production » pour « Statut ») : le besoin exact dépend donc
-   * de ce qui est filtré, et aucun seuil ne saurait le suivre au pixel.
-   *
-   * Le seuil se lit sur la place DISPONIBLE (`@container`) et non sur la
-   * fenêtre : la sidebar se replie sous 1000 px et rend d'un coup 200 px à la
-   * barre — une bascule réglée sur la fenêtre se déclencherait au mauvais
-   * moment. Classes écrites en toutes lettres : Tailwind ne génère que ce qu'il
-   * lit dans les sources.
-   */
-  const surUneRangee = actif
-    ? {
-        rangee: "@[61.5rem]:flex-nowrap",
-        groupe: "@[61.5rem]:contents",
-        export: "@[61.5rem]:order-last",
-      }
-    : {
-        rangee: "@[55.5rem]:flex-nowrap",
-        groupe: "@[55.5rem]:contents",
-        export: "@[55.5rem]:order-last",
-      };
-
   return (
     // Une seule rangée tant que la largeur le permet, et un repli à UN endroit
     // choisi : entre la recherche et les filtres. Le bloc des filtres ne sait
     // pas se comprimer, c'est donc lui qui descend en entier plutôt que de se
     // replier en escalier au milieu des listes. L'ordre de lecture est le même
     // sur une rangée ou sur deux.
-    // (Voir `surUneRangee` pour le seuil et sa raison.)
-    <div className="@container mb-3">
-      {/* `flex-nowrap` sur une rangée : la place a été mesurée, la ligne ne doit
-          plus se rompre nulle part — et surtout pas sous l'export, qui tomberait
-          seul en dessous. */}
-      <div className={`flex flex-wrap items-center gap-2 ${surUneRangee.rangee}`}>
-        {/* Recherche et export voyagent ENSEMBLE : quand les filtres descendent,
-            l'export ne les suit pas, il reste où il était — en bout de première
-            ligne. Sur une rangée, `contents` dissout ce groupe et ses deux
-            enfants redeviennent des éléments de la rangée, l'export renvoyé en
-            fin de ligne par `order-last`. */}
-        <div className={`flex w-full items-center gap-2 ${surUneRangee.groupe}`}>
-          {/* 224 px, ni plus ni moins. Élastique, le champ s'élargissait au
-              moment même où l'on tapait dedans — la première lettre pose `q`
-              dans l'URL, « Effacer » paraît, la barre passe sur deux lignes et
-              le champ se déployait alors dans la place rendue. Une ligne de
-              saisie qui change de taille sous la frappe déplace ce qu'on est en
-              train de lire. C'est aussi la largeur des barres d'Éditeurs et de
-              Contrats, et celle sur laquelle le seuil est calculé. Il ne grandit
-              jamais, et sur une rangée il ne cède rien non plus (`shrink-0`) :
-              la rangée réserve aux filtres de quoi loger « Effacer », et cette
-              avance suffisait sinon à grignoter le champ de quelques pixels. Il
-              ne cède donc que sur un écran trop étroit pour le poser entier à
-              côté de l'export, plutôt que de déborder de la page. */}
-          <div className="relative w-56 @[55.5rem]:shrink-0">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-faint" />
-            <input
-              ref={recherche}
-              type="search"
-              aria-label="Rechercher un logiciel"
-              placeholder="Rechercher un logiciel…"
-              className="input !pl-9"
-              defaultValue={params.get("q") ?? ""}
-              onChange={(e) => setParam("q", e.target.value.trim())}
-            />
-          </div>
-          {/* Poussé au bout de la ligne : c'est la liste AINSI FILTRÉE qu'il
-              emporte, et il se lit après ce qui la restreint. `ml-auto` le colle
-              à droite quand la recherche a atteint sa largeur maximale ; sur une
-              seule rangée, les filtres ont déjà pris la place libre et il n'a
-              rien à pousser. */}
-          <a
-            href={`/logiciels/export?${params.toString()}`}
-            className={`btn-secondary ml-auto shrink-0 ${surUneRangee.export}`}
-            title="Exporter la liste filtrée en CSV"
-          >
-            <Download className="h-4 w-4" />
-            Export CSV
-          </a>
+    //
+    // AUCUN seuil : c'est `flex-wrap` qui décide, sur la largeur RÉELLE du bloc
+    // — listes et « Effacer » tels qu'affichés. Un seuil fixe a existé ici,
+    // calé sur les libellés des listes ; une option choisie plus large que son
+    // libellé (« AAIS Armageddon » pour « Éditeur ») le prenait en défaut de
+    // quelques pixels, et « Effacer » tombait seul sous les listes. Le seuil
+    // aurait dû suivre ce qui est filtré, ce qu'aucune valeur ne sait faire.
+    <div className="relative mb-3">
+      {/* `pr` réserve la place de l'export, posé HORS du flux à droite : c'est
+          ce qui lui permet de rester en bout de première ligne quand les
+          filtres descendent — dans le flux, il les suivrait sur la seconde. */}
+      <div className="flex flex-wrap items-center gap-2 pr-[2.625rem]">
+        {/* 224 px, ni plus ni moins. Élastique, le champ s'élargissait au
+            moment même où l'on tapait dedans — la première lettre pose `q`
+            dans l'URL, « Effacer » paraît, la barre passe sur deux lignes et
+            le champ se déployait alors dans la place rendue. Une ligne de
+            saisie qui change de taille sous la frappe déplace ce qu'on est en
+            train de lire. C'est aussi la largeur des barres d'Éditeurs et de
+            Contrats. */}
+        <div className="relative w-56 shrink-0">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-faint" />
+          <input
+            ref={recherche}
+            type="search"
+            aria-label="Rechercher un logiciel"
+            placeholder="Rechercher un logiciel…"
+            className="input !pl-9"
+            defaultValue={params.get("q") ?? ""}
+            onChange={(e) => setParam("q", e.target.value.trim())}
+          />
         </div>
-        {/* Les filtres tiennent ensemble. `basis` annonce la largeur qu'il leur
-            faut d'un seul tenant : tant que la rangée ne l'offre pas, le bloc
-            descend ENTIER sous la recherche plutôt que de s'y replier en
-            escalier. `min-w-0` le laisse ensuite rétrécir une fois seul sur sa
-            ligne, et c'est là seulement que ses listes se replient — sinon elles
-            déborderaient de la carte sur une fenêtre étroite. */}
-        <div className="flex min-w-0 basis-[39rem] grow flex-wrap items-center gap-2">
+        {/* Les filtres tiennent ensemble. Sans `basis` posé à la main, le bloc
+            demande sa largeur réelle, listes et « Effacer » sur une ligne : tant
+            que la rangée ne l'offre pas, il descend ENTIER sous la recherche.
+            `min-w-0` le laisse rétrécir une fois seul sur sa ligne — un item de
+            `flex-wrap` ne se comprime que s'il occupe la ligne à lui seul —, et
+            c'est là seulement que ses listes se replient, plutôt que de
+            déborder de la carte sur une fenêtre étroite. */}
+        <div className="flex min-w-0 grow flex-wrap items-center gap-2">
           {sel("editeur", "Éditeur", refOptions(editeurs))}
           {sel("service", "Service", refOptions(services))}
           {sel("criticite", "Criticité", refOptions(criticites))}
@@ -209,6 +155,22 @@ export function FiltresBar({
           ) : null}
         </div>
       </div>
+      {/* À droite de la PREMIÈRE ligne, quoi qu'il arrive : c'est la liste
+          AINSI FILTRÉE qu'il emporte, et il se lit après ce qui la restreint.
+          À la hauteur des champs — sans texte, le bouton ne mesurait que
+          son icône et flottait 2 px plus bas que la recherche.
+
+          L'icône SEULE : la rangée est déjà serrée, et la flèche vers le bas
+          se lit sans mot. Ce qu'elle emporte — la liste filtrée, en CSV — se
+          dit au survol, et au lecteur d'écran par `aria-label`. */}
+      <a
+        href={`/logiciels/export?${params.toString()}`}
+        className="btn-secondary absolute right-0 top-0 h-[1.875rem] !px-2"
+        title="Exporter la liste filtrée en CSV"
+        aria-label="Exporter la liste filtrée en CSV"
+      >
+        <Download className="h-4 w-4" />
+      </a>
     </div>
   );
 }
