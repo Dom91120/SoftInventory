@@ -95,11 +95,13 @@ export function FiltresBar({
     // libellé (« AAIS Armageddon » pour « Éditeur ») le prenait en défaut de
     // quelques pixels, et « Effacer » tombait seul sous les listes. Le seuil
     // aurait dû suivre ce qui est filtré, ce qu'aucune valeur ne sait faire.
-    <div className="relative mb-3">
-      {/* `pr` réserve la place de l'export, posé HORS du flux à droite : c'est
-          ce qui lui permet de rester en bout de première ligne quand les
-          filtres descendent — dans le flux, il les suivrait sur la seconde. */}
-      <div className="flex flex-wrap items-center gap-2 pr-[2.625rem]">
+    //
+    // Deux zones côte à côte, sans repli entre elles : à gauche ce qui filtre,
+    // à droite l'export. La zone de gauche prend le reste et se replie seule ;
+    // l'export reste ainsi en haut à droite sur une rangée comme sur deux, sans
+    // qu'on ait à connaître sa largeur. Même dessin que `BarreListe`.
+    <div className="mb-3 flex items-start gap-2">
+      <div className="flex min-w-0 grow flex-wrap items-center gap-2">
         {/* 224 px, ni plus ni moins. Élastique, le champ s'élargissait au
             moment même où l'on tapait dedans — la première lettre pose `q`
             dans l'URL, « Effacer » paraît, la barre passe sur deux lignes et
@@ -155,17 +157,16 @@ export function FiltresBar({
           ) : null}
         </div>
       </div>
-      {/* À droite de la PREMIÈRE ligne, quoi qu'il arrive : c'est la liste
-          AINSI FILTRÉE qu'il emporte, et il se lit après ce qui la restreint.
-          À la hauteur des champs — sans texte, le bouton ne mesurait que
-          son icône et flottait 2 px plus bas que la recherche.
+      {/* C'est la liste AINSI FILTRÉE qu'il emporte, et il se lit après ce qui
+          la restreint. À la hauteur des champs — sans texte, le bouton ne
+          mesurait que son icône et flottait 2 px plus bas que la recherche.
 
           L'icône SEULE : la rangée est déjà serrée, et la flèche vers le bas
           se lit sans mot. Ce qu'elle emporte — la liste filtrée, en CSV — se
           dit au survol, et au lecteur d'écran par `aria-label`. */}
       <a
         href={`/logiciels/export?${params.toString()}`}
-        className="btn-secondary absolute right-0 top-0 h-[1.875rem] !px-2"
+        className="btn-secondary h-[1.875rem] shrink-0 !px-2"
         title="Exporter la liste filtrée en CSV"
         aria-label="Exporter la liste filtrée en CSV"
       >

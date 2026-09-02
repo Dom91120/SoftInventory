@@ -123,6 +123,9 @@ export default async function ServeursPage({
           },
         ]}
         actions={
+          // 30 px comme les champs et les boutons de la rangée : `py-0.5` sur
+          // les liens, sinon le sélecteur en faisait 34 et redescendait l'export
+          // centré à côté de lui de 2 px sous la recherche.
           <div className="flex items-center gap-0.5 rounded-lg border border-sub bg-surface p-0.5">
             {/* La page en cours suit le changement de vue : les deux montrent
                 le même parc dans le même ordre, on regarde donc la même tranche
@@ -133,7 +136,7 @@ export default async function ServeursPage({
                 href={hrefVue(cle)}
                 aria-current={cle === active ? "page" : undefined}
                 title={`Affichage en ${label.toLowerCase()}`}
-                className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-sm font-medium transition ${
+                className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-0.5 text-sm font-medium transition ${
                   cle === active ? "bg-inset text-strong" : "text-muted hover:text-strong"
                 }`}
               >

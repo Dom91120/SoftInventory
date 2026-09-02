@@ -76,54 +76,79 @@ export function BarreListe({
   }
 
   return (
-    <div className="mb-3 flex flex-wrap items-center gap-2">
-      <div className="relative">
-        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-faint" />
-        <input
-          type="search"
-          aria-label={rechercheLabel}
-          placeholder="Rechercher…"
-          className="input !w-56 !pl-9"
-          defaultValue={params.get("q") ?? ""}
-          onChange={(e) => setParam("q", e.target.value.trim())}
-        />
-      </div>
-      {selects.map((s) => (
-        <select
-          key={s.key}
-          aria-label={s.label}
-          className="input !w-auto max-w-full sm:max-w-xs"
-          value={params.get(s.key) ?? ""}
-          onChange={(e) => setParam(s.key, e.target.value)}
-        >
-          <option value="">{s.label}</option>
-          {s.options.map((o) => (
-            <option key={o.value} value={o.value}>
-              {o.label}
-            </option>
+    // Deux zones côte à côte, sans repli entre elles : à gauche ce qui filtre,
+    // à droite ce qui agit sur la liste (export, puis actions). La zone de
+    // gauche prend le reste et se replie SEULE : les filtres, « Effacer »
+    // compris, descendent entiers sous la recherche dès qu'ils ne tiennent pas
+    // à côté — c'est `flex-wrap` qui le décide, sur leur largeur réelle, et
+    // aucun seuil ne le sait mieux que lui. L'export reste ainsi en haut à
+    // droite sur une rangée comme sur deux, sans qu'on ait à connaître sa
+    // largeur ni celle des actions. Même dessin que la barre des logiciels.
+    <div className="mb-3 flex items-start gap-2">
+      <div className="flex min-w-0 grow flex-wrap items-center gap-2">
+        {/* 224 px, ni plus ni moins, et il ne cède rien : un champ de saisie qui
+            change de taille déplace ce qu'on est en train de lire. */}
+        <div className="relative shrink-0">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-faint" />
+          <input
+            type="search"
+            aria-label={rechercheLabel}
+            placeholder="Rechercher…"
+            className="input !w-56 !pl-9"
+            defaultValue={params.get("q") ?? ""}
+            onChange={(e) => setParam("q", e.target.value.trim())}
+          />
+        </div>
+        {/* Les filtres tiennent ensemble. `min-w-0` laisse le bloc rétrécir une
+            fois seul sur sa ligne — un item de `flex-wrap` ne se comprime que
+            s'il occupe la ligne à lui seul —, et c'est là seulement que ses
+            listes se replient, plutôt que de déborder sur une fenêtre étroite. */}
+        <div className="flex min-w-0 grow flex-wrap items-center gap-2">
+          {selects.map((s) => (
+            <select
+              key={s.key}
+              aria-label={s.label}
+              className="input !w-auto max-w-full sm:max-w-xs"
+              value={params.get(s.key) ?? ""}
+              onChange={(e) => setParam(s.key, e.target.value)}
+            >
+              <option value="">{s.label}</option>
+              {s.options.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
           ))}
-        </select>
-      ))}
-      {actif ? (
-        <button
-          type="button"
-          className="btn-ghost !px-2.5"
-          onClick={effacerFiltres}
-          title="Effacer les filtres"
+          {actif ? (
+            <button
+              type="button"
+              className="btn-ghost !px-2.5"
+              onClick={effacerFiltres}
+              title="Effacer les filtres"
+            >
+              <X className="h-4 w-4" />
+              Effacer
+            </button>
+          ) : null}
+        </div>
+      </div>
+      <div className="flex shrink-0 items-center gap-2">
+        {/* L'icône SEULE : la rangée est déjà serrée, et la flèche vers le bas
+            se lit sans mot. Ce qu'elle emporte — la liste filtrée, en CSV — se
+            dit au survol, et au lecteur d'écran par `aria-label`. À la hauteur
+            des champs : sans texte, le bouton ne mesurait que son icône et
+            flottait 2 px plus bas que la recherche. */}
+        <a
+          href={`${exportHref}?${params.toString()}`}
+          className="btn-secondary h-[1.875rem] !px-2"
+          title="Exporter la liste filtrée en CSV"
+          aria-label="Exporter la liste filtrée en CSV"
         >
-          <X className="h-4 w-4" />
-          Effacer
-        </button>
-      ) : null}
-      <a
-        href={`${exportHref}?${params.toString()}`}
-        className="btn-secondary ml-auto"
-        title="Exporter la liste filtrée en CSV"
-      >
-        <Download className="h-4 w-4" />
-        Export CSV
-      </a>
-      {actions}
+          <Download className="h-4 w-4" />
+        </a>
+        {actions}
+      </div>
     </div>
   );
 }
