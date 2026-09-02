@@ -7,6 +7,7 @@ import { useConfirmation } from "@/components/confirmation";
 import { ModaleSociete } from "@/components/modale-societe";
 import { useInscriptionModeFiche } from "@/components/mode-fiche";
 import { useSaisieEnCours } from "@/components/saisie-en-cours";
+import { TexteAvecLiens } from "@/components/texte-avec-liens";
 import { Card, Field } from "@/components/ui";
 import { EDITEUR_INTERNE, LIBELLES } from "@/schemas/logiciel";
 import { createLogicielAction, updateLogicielAction } from "./actions";
@@ -521,19 +522,32 @@ export function FicheForm({
               phrase d'usage d'abord, elle part telle quelle dans l'export. */}
           <div className="sm:col-span-2">
             <Field label="Descriptif" htmlFor="description">
-              <textarea
-                id="description"
-                name="description"
-                defaultValue={values.description}
-                disabled={dis}
-                // CINQ lignes : les descriptifs de l'inventaire ouvrent sur une
-                // phrase d'usage, puis enchaînent sur les particularités et les
-                // points de vigilance — trois lignes en montraient trop peu
-                // pour qu'on voie qu'il y a une suite.
-                rows={5}
-                className="input"
-                placeholder="À quoi sert ce logiciel, pour qui… puis historique, particularités, points de vigilance."
-              />
+              {readOnly || !ouvert ? (
+                // En LECTURE, le descriptif n'est pas un `<textarea>` : celui-ci
+                // ne sait rendre une adresse que comme des lettres, et un
+                // descriptif dit souvent où s'ouvre l'application. Le bloc porte
+                // les mêmes cadre, fond et hauteur qu'un champ fermé, pour que
+                // rien ne bouge au passage en modification — cinq lignes de
+                // `text-sm`, plus le pas et les bordures.
+                <TexteAvecLiens
+                  texte={values.description}
+                  className="input min-h-[calc(6.25rem+0.5rem+2px)] bg-inset text-muted"
+                />
+              ) : (
+                <textarea
+                  id="description"
+                  name="description"
+                  defaultValue={values.description}
+                  disabled={dis}
+                  // CINQ lignes : les descriptifs de l'inventaire ouvrent sur une
+                  // phrase d'usage, puis enchaînent sur les particularités et les
+                  // points de vigilance — trois lignes en montraient trop peu
+                  // pour qu'on voie qu'il y a une suite.
+                  rows={5}
+                  className="input"
+                  placeholder="À quoi sert ce logiciel, pour qui… puis historique, particularités, points de vigilance."
+                />
+              )}
             </Field>
           </div>
         </div>
